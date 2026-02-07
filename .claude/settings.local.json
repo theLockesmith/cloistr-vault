@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go mod:*)",
+      "Bash(export:*)",
+      "Bash(go test:*)",
+      "Bash(go run:*)",
+      "Bash(go doc:*)",
+      "Bash(chmod:*)",
+      "Bash(make test-crypto:*)",
+      "Bash(make deps)",
+      "Bash(make:*)",
+      "Bash(docker compose:*)",
+      "Bash(npm init:*)",
+      "Bash(npm install)",
+      "Bash(npm start)",
+      "Bash(npx react-native init:*)",
+      "Bash(npx @react-native-community/cli:*)",
+      "Bash(npx create-expo-app:*)",
+      "Bash(ip route:*)",
+      "Bash(awk:*)",
+      "Bash(./scripts/start-network-server.sh:*)",
+      "Bash(npm test:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

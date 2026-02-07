@@ -1,0 +1,175 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"time"
+)
+
+func main() {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "7700"
+	}
+	
+	host := os.Getenv("HOST")
+	if host == "" {
+		host = "0.0.0.0"
+	}
+
+	// Create HTTP server
+	mux := http.NewServeMux()
+	
+	// CORS middleware
+	corsHandler := func(h http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			
+			h(w, r)
+		}
+	}
+	
+	// Health endpoint
+	mux.HandleFunc("/api/v1/health", corsHandler(func(w http.ResponseWriter, r *http.Request) {
+		response := map[string]interface{}{
+			"status":    "healthy",
+			"version":   "1.0.0",
+			"timestamp": time.Now().Unix(),
+			"database":  "ready",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}))
+	
+	// API info endpoint
+	mux.HandleFunc("/api/v1/info", corsHandler(func(w http.ResponseWriter, r *http.Request) {
+		response := map[string]interface{}{
+			"name":    "Coldforge Vault API",
+			"version": "1.0.0",
+			"auth_methods": []string{"email", "nostr", "lightning_address", "nip05"},
+			"features": []string{"zero_knowledge", "multi_platform", "bitcoin_payments"},
+			"endpoints": map[string]interface{}{
+				"auth": map[string]string{
+					"register":        "/api/v1/auth/register",
+					"login":          "/api/v1/auth/login", 
+					"logout":         "/api/v1/auth/logout",
+					"nostr_challenge": "/api/v1/auth/nostr/challenge",
+				},
+				"vault": map[string]string{
+					"get":    "/api/v1/vault",
+					"update": "/api/v1/vault",
+				},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}))
+	
+	// Demo login endpoint
+	mux.HandleFunc("/api/v1/auth/login", corsHandler(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		
+		var req map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+		
+		method, _ := req["method"].(string)
+		
+		// Demo authentication
+		if method == "email" {
+			email, _ := req["email"].(string)
+			password, _ := req["password"].(string)
+			
+			if email == "demo@example.com" && password == "demo123" {
+				response := map[string]interface{}{
+					"token": "demo_jwt_token_12345",
+					"user": map[string]interface{}{
+						"id":    "demo-user-id",
+						"email": email,
+						"created_at": time.Now().Add(-30*24*time.Hour).Format(time.RFC3339),
+					},
+					"expires_at": time.Now().Add(24*time.Hour).Format(time.RFC3339),
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(response)
+				return
+			}
+		}
+		
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+	}))
+	
+	// Demo register endpoint
+	mux.HandleFunc("/api/v1/auth/register", corsHandler(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		
+		response := map[string]interface{}{
+			"message": "Registration successful",
+			"user": map[string]interface{}{
+				"id":    "new-user-id",
+				"email": "new@example.com",
+				"created_at": time.Now().Format(time.RFC3339),
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(response)
+	}))
+	
+	// Demo vault endpoint
+	mux.HandleFunc("/api/v1/vault", corsHandler(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader != "Bearer demo_jwt_token_12345" {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		
+		if r.Method == "GET" {
+			// Return demo encrypted vault
+			response := map[string]interface{}{
+				"id":            "demo-vault-id",
+				"version":       1,
+				"last_modified": time.Now().Format(time.RFC3339),
+				"encrypted_data": "ZGVtby1lbmNyeXB0ZWQtdmF1bHQtZGF0YQ==", // base64 encoded demo data
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(response)
+		} else if r.Method == "PUT" {
+			// Update vault
+			response := map[string]interface{}{
+				"id":            "demo-vault-id", 
+				"version":       2,
+				"last_modified": time.Now().Format(time.RFC3339),
+				"message":       "Vault updated successfully",
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(response)
+		}
+	}))
+
+	addr := fmt.Sprintf("%s:%s", host, port)
+	fmt.Printf("🚀 Coldforge Vault API server starting on %s\n", addr)
+	fmt.Printf("📋 Health: http://%s/api/v1/health\n", addr)
+	fmt.Printf("ℹ️  Info: http://%s/api/v1/info\n", addr)
+	fmt.Printf("🔐 Ready for authentication testing!\n")
+	
+	log.Fatal(http.ListenAndServe(addr, mux))
+}

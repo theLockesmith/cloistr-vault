@@ -1,0 +1,16 @@
+import React from 'react';
+import { AuthProvider } from './contexts/AuthContext';
+import { CryptoProvider } from './contexts/CryptoContext';
+import Layout from './components/Layout';
+
+function App() {
+  return (
+    <CryptoProvider>
+      <AuthProvider>
+        <Layout />
+      </AuthProvider>
+    </CryptoProvider>
+  );
+}
+
+export default App;

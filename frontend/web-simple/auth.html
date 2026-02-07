@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coldforge Vault - Authentication Demo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 500px; 
+            margin: 0 auto; 
+            padding: 2rem;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            width: 100%;
+        }
+        .logo { font-size: 4rem; text-align: center; margin-bottom: 1rem; }
+        .title { 
+            font-size: 2rem; 
+            font-weight: 600; 
+            text-align: center; 
+            margin-bottom: 0.5rem; 
+            color: #1e293b; 
+        }
+        .subtitle { 
+            text-align: center; 
+            color: #64748b; 
+            margin-bottom: 2rem; 
+        }
+        .auth-tabs {
+            display: flex;
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 4px;
+            margin-bottom: 2rem;
+        }
+        .auth-tab {
+            flex: 1;
+            padding: 8px 12px;
+            text-align: center;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .auth-tab.active {
+            background: white;
+            color: #2563eb;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .auth-tab:not(.active) {
+            color: #64748b;
+        }
+        .auth-form {
+            display: none;
+        }
+        .auth-form.active {
+            display: block;
+        }
+        .input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 1rem;
+        }
+        .button {
+            width: 100%;
+            padding: 12px 24px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 1rem;
+        }
+        .button:hover { background: #1d4ed8; }
+        .button:disabled { background: #9ca3af; cursor: not-allowed; }
+        .demo-hint {
+            text-align: center;
+            color: #64748b;
+            font-size: 14px;
+            margin-top: 1rem;
+        }
+        .demo-password {
+            background: #e5e7eb;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .status {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 14px;
+        }
+        .status.success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+        .status.error {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        .status.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #93c5fd;
+        }
+        .feature-badge {
+            display: inline-block;
+            background: #f0f9ff;
+            color: #0369a1;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            margin: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="logo">🛡️</div>
+            <h1 class="title">Coldforge Vault</h1>
+            <p class="subtitle">Bitcoin-native, zero-knowledge authentication</p>
+
+            <!-- Status display -->
+            <div id="status" style="display: none;"></div>
+
+            <!-- Authentication method tabs -->
+            <div class="auth-tabs">
+                <div class="auth-tab active" onclick="switchAuthMethod('email')">📧 Email</div>
+                <div class="auth-tab" onclick="switchAuthMethod('nostr')">🔑 Nostr</div>
+                <div class="auth-tab" onclick="switchAuthMethod('lightning')">⚡ Lightning</div>
+                <div class="auth-tab" onclick="switchAuthMethod('nip05')">🏷️ NIP-05</div>
+            </div>
+
+            <!-- Email Authentication -->
+            <div id="emailForm" class="auth-form active">
+                <input type="email" id="email" class="input" placeholder="demo@example.com" />
+                <input type="password" id="password" class="input" placeholder="demo123" />
+                <button onclick="loginWithEmail()" class="button" id="emailBtn">Sign In with Email</button>
+                
+                <div class="demo-hint">
+                    Demo: <span class="demo-password">demo@example.com</span> / <span class="demo-password">demo123</span>
+                </div>
+            </div>
+
+            <!-- Nostr Authentication -->
+            <div id="nostrForm" class="auth-form">
+                <input type="text" id="nostrPubkey" class="input" placeholder="Nostr public key (64 hex chars)" maxlength="64" />
+                <button onclick="generateNostrChallenge()" class="button" id="nostrChallengeBtn">Generate Challenge</button>
+                
+                <div id="nostrChallenge" style="display: none; margin: 1rem 0;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Challenge to Sign:</label>
+                    <textarea id="challengeText" class="input" readonly style="height: 60px; font-family: monospace; font-size: 12px;"></textarea>
+                    
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Signature:</label>
+                    <textarea id="nostrSignature" class="input" placeholder="Paste signature here" style="height: 60px; font-family: monospace; font-size: 12px;"></textarea>
+                    
+                    <button onclick="loginWithNostr()" class="button" id="nostrLoginBtn">Verify & Sign In</button>
+                </div>
+
+                <div class="status info">
+                    <strong>🔑 Nostr Authentication:</strong><br>
+                    • Cryptographic key-based authentication<br>
+                    • No passwords needed<br>
+                    • Sign challenge with your Nostr client
+                </div>
+            </div>
+
+            <!-- Lightning Address Authentication -->
+            <div id="lightningForm" class="auth-form">
+                <input type="text" id="lightningAddress" class="input" placeholder="username@coldforge-vault.com" />
+                <button onclick="loginWithLightning()" class="button" id="lightningBtn">Sign In with Lightning</button>
+                
+                <div class="status info">
+                    <strong>⚡ Lightning Address:</strong><br>
+                    • Bitcoin-native identity<br>
+                    • Payment + authentication combined<br>
+                    • Coming soon!
+                </div>
+            </div>
+
+            <!-- NIP-05 Authentication -->
+            <div id="nip05Form" class="auth-form">
+                <input type="text" id="nip05Address" class="input" placeholder="username@coldforge-vault.com" />
+                <button onclick="loginWithNIP05()" class="button" id="nip05Btn">Verify NIP-05 Identity</button>
+                
+                <div class="status info">
+                    <strong>🏷️ NIP-05 Verification:</strong><br>
+                    • Nostr identity verification<br>
+                    • DNS-based identity proof<br>
+                    • Cross-platform compatibility
+                </div>
+            </div>
+
+            <!-- API Status -->
+            <div class="status info" style="margin-top: 2rem;">
+                <strong>🔗 Connected to Real API:</strong>
+                <div style="font-family: monospace; font-size: 12px; margin-top: 0.5rem;">
+                    http://10.0.0.169:7700/api/v1
+                </div>
+                <div style="margin-top: 0.5rem;">
+                    <span class="feature-badge">Zero-Knowledge</span>
+                    <span class="feature-badge">Multi-Platform</span>
+                    <span class="feature-badge">Bitcoin-Payments</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://10.0.0.169:7700/api/v1';
+        let currentAuthMethod = 'email';
+        let currentChallenge = null;
+
+        // Switch authentication method
+        function switchAuthMethod(method) {
+            // Update tabs
+            document.querySelectorAll('.auth-tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update forms
+            document.querySelectorAll('.auth-form').forEach(form => form.classList.remove('active'));
+            document.getElementById(method + 'Form').classList.add('active');
+            
+            currentAuthMethod = method;
+            hideStatus();
+        }
+
+        // Email authentication
+        async function loginWithEmail() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                showStatus('Please enter email and password', 'error');
+                return;
+            }
+
+            setLoading('emailBtn', true);
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        method: 'email',
+                        email: email,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showStatus(`✅ Login successful! Token: ${data.token.substring(0, 20)}...`, 'success');
+                    localStorage.setItem('vault_token', data.token);
+                    
+                    // Redirect to vault after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    showStatus(`❌ Login failed: ${data.error || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Network error: ${error.message}`, 'error');
+            } finally {
+                setLoading('emailBtn', false);
+            }
+        }
+
+        // Nostr authentication
+        async function generateNostrChallenge() {
+            const pubkey = document.getElementById('nostrPubkey').value;
+            
+            if (!pubkey || pubkey.length !== 64) {
+                showStatus('Please enter a valid 64-character Nostr public key', 'error');
+                return;
+            }
+
+            setLoading('nostrChallengeBtn', true);
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/nostr/challenge`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ public_key: pubkey })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentChallenge = data.challenge;
+                    document.getElementById('challengeText').value = data.challenge;
+                    document.getElementById('nostrChallenge').style.display = 'block';
+                    showStatus('✅ Challenge generated! Sign with your Nostr client', 'success');
+                } else {
+                    showStatus(`❌ Challenge failed: ${data.error || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Network error: ${error.message}`, 'error');
+            } finally {
+                setLoading('nostrChallengeBtn', false);
+            }
+        }
+
+        async function loginWithNostr() {
+            const pubkey = document.getElementById('nostrPubkey').value;
+            const signature = document.getElementById('nostrSignature').value;
+            
+            if (!pubkey || !signature || !currentChallenge) {
+                showStatus('Please generate challenge and provide signature', 'error');
+                return;
+            }
+
+            setLoading('nostrLoginBtn', true);
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        method: 'nostr',
+                        nostr_pubkey: pubkey,
+                        signature: signature,
+                        challenge: currentChallenge
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showStatus(`✅ Nostr login successful! Token: ${data.token.substring(0, 20)}...`, 'success');
+                    localStorage.setItem('vault_token', data.token);
+                    
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    showStatus(`❌ Nostr login failed: ${data.error || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Network error: ${error.message}`, 'error');
+            } finally {
+                setLoading('nostrLoginBtn', false);
+            }
+        }
+
+        // Lightning Address authentication (future)
+        async function loginWithLightning() {
+            const address = document.getElementById('lightningAddress').value;
+            showStatus('⚡ Lightning Address authentication coming soon!', 'info');
+        }
+
+        // NIP-05 authentication (future)
+        async function loginWithNIP05() {
+            const address = document.getElementById('nip05Address').value;
+            showStatus('🏷️ NIP-05 verification coming soon!', 'info');
+        }
+
+        // Utility functions
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.className = `status ${type}`;
+            status.textContent = message;
+            status.style.display = 'block';
+        }
+
+        function hideStatus() {
+            document.getElementById('status').style.display = 'none';
+        }
+
+        function setLoading(buttonId, loading) {
+            const button = document.getElementById(buttonId);
+            button.disabled = loading;
+            button.textContent = loading ? 'Loading...' : button.dataset.originalText || button.textContent;
+            
+            if (!loading && !button.dataset.originalText) {
+                button.dataset.originalText = button.textContent;
+            }
+        }
+
+        // Check if already logged in
+        window.addEventListener('load', () => {
+            const token = localStorage.getItem('vault_token');
+            if (token) {
+                showStatus('✅ Already logged in! Redirecting to vault...', 'success');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1000);
+            }
+        });
+
+        // Test API connection on load
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch(`${API_BASE}/info`);
+                const data = await response.json();
+                console.log('🔗 Connected to API:', data);
+            } catch (error) {
+                console.error('❌ API connection failed:', error);
+            }
+        });
+    </script>
+</body>
+</html>

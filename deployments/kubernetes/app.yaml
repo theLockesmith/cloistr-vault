@@ -1,0 +1,181 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault-api
+  namespace: coldforge-vault
+  labels:
+    app: vault-api
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: vault-api
+  template:
+    metadata:
+      labels:
+        app: vault-api
+        version: v1
+    spec:
+      containers:
+      - name: vault-api
+        image: coldforge/vault:latest  # Replace with your actual image
+        ports:
+        - containerPort: 8080
+        env:
+        # Database configuration
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: vault-config
+              key: DB_HOST
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: vault-config
+              key: DB_PORT
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: vault-config
+              key: DB_NAME
+        - name: DB_USER
+          valueFrom:
+            configMapKeyRef:
+              name: vault-config
+              key: DB_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: vault-secrets
+              key: DB_PASSWORD
+        - name: DB_SSLMODE
+          valueFrom:
+            configMapKeyRef:
+              name: vault-config
+              key: DB_SSLMODE
+        # Server configuration
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: vault-config
+              key: PORT
+        - name: HOST
+          valueFrom:
+            configMapKeyRef:
+              name: vault-config
+              key: HOST
+        - name: ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: vault-config
+              key: ENVIRONMENT
+        # Security configuration
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: vault-secrets
+              key: JWT_SECRET
+        - name: SCRYPT_N
+          valueFrom:
+            configMapKeyRef:
+              name: vault-config
+              key: SCRYPT_N
+        - name: SCRYPT_R
+          valueFrom:
+            configMapKeyRef:
+              name: vault-config
+              key: SCRYPT_R
+        - name: SCRYPT_P
+          valueFrom:
+            configMapKeyRef:
+              name: vault-config
+              key: SCRYPT_P
+        - name: SESSION_DURATION_HOURS
+          valueFrom:
+            configMapKeyRef:
+              name: vault-config
+              key: SESSION_DURATION_HOURS
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      securityContext:
+        fsGroup: 1001
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault-api-service
+  namespace: coldforge-vault
+  labels:
+    app: vault-api
+spec:
+  selector:
+    app: vault-api
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vault-api-ingress
+  namespace: coldforge-vault
+  labels:
+    app: vault-api
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - vault.yourdomain.com  # Replace with your domain
+    secretName: vault-tls-secret
+  rules:
+  - host: vault.yourdomain.com  # Replace with your domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: vault-api-service
+            port:
+              number: 80

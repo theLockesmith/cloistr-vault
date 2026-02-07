@@ -1,0 +1,502 @@
+openapi: 3.0.3
+info:
+  title: Coldforge Vault API
+  description: |
+    Zero-knowledge password manager API with multi-platform support and Nostr integration.
+    
+    ## Security Features
+    - **Zero-Knowledge Architecture**: Server never has access to your decrypted data
+    - **Multiple Authentication Methods**: Email/password, Nostr keypairs
+    - **Client-Side Encryption**: All encryption/decryption happens on your device
+    
+    ## Authentication
+    The API supports two authentication methods:
+    1. **Email/Password**: Traditional username/password authentication
+    2. **Nostr**: Cryptographic key-based authentication using Nostr protocol
+    
+    All protected endpoints require a Bearer token in the Authorization header.
+  version: 1.0.0
+  contact:
+    name: Coldforge Vault
+    url: https://github.com/coldforge/vault
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+  - url: https://vault.example.com/api/v1
+    description: Production server
+
+tags:
+  - name: Health
+    description: Health check and system status
+  - name: Authentication
+    description: User registration and login
+  - name: User
+    description: User profile management
+  - name: Vault
+    description: Encrypted vault operations
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Check if the API service is running
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: object
+                  version:
+                    type: string
+                    example: "1.0.0"
+
+  /info:
+    get:
+      tags: [Health]
+      summary: API information
+      description: Get API information and available endpoints
+      responses:
+        '200':
+          description: API information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    example: "Coldforge Vault API"
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  auth_methods:
+                    type: array
+                    items:
+                      type: string
+                    example: ["email", "nostr"]
+                  endpoints:
+                    type: object
+
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register new user
+      description: Register a new user with email/password or Nostr keypair
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/EmailRegisterRequest'
+                - $ref: '#/components/schemas/NostrRegisterRequest'
+            examples:
+              email:
+                summary: Email registration
+                value:
+                  method: "email"
+                  email: "user@example.com"
+                  password: "secure-password-123"
+                  vault_data: "base64-encoded-encrypted-vault-data"
+              nostr:
+                summary: Nostr registration
+                value:
+                  method: "nostr"
+                  nostr_pubkey: "02a1234567890abcdef..."
+                  vault_data: "base64-encoded-encrypted-vault-data"
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Login user
+      description: Login with email/password or Nostr signature
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/EmailLoginRequest'
+                - $ref: '#/components/schemas/NostrLoginRequest'
+            examples:
+              email:
+                summary: Email login
+                value:
+                  method: "email"
+                  email: "user@example.com"
+                  password: "secure-password-123"
+              nostr:
+                summary: Nostr login
+                value:
+                  method: "nostr"
+                  nostr_pubkey: "02a1234567890abcdef..."
+                  signature: "304502210..."
+                  challenge: "abc123def456..."
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout user
+      description: Invalidate the current session
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logged out successfully"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/nostr/challenge:
+    post:
+      tags: [Authentication]
+      summary: Generate Nostr challenge
+      description: Generate a challenge for Nostr authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                public_key:
+                  type: string
+                  description: Nostr public key in hex format
+                  example: "02a1234567890abcdef..."
+              required: [public_key]
+      responses:
+        '200':
+          description: Challenge generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  challenge:
+                    type: string
+                    description: Random challenge string
+                    example: "abc123def456ghi789..."
+                  expires_at:
+                    type: string
+                    format: date-time
+                    description: Challenge expiration time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /user/profile:
+    get:
+      tags: [User]
+      summary: Get user profile
+      description: Get current user's profile information
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /vault:
+    get:
+      tags: [Vault]
+      summary: Get user's vault
+      description: Retrieve the user's encrypted vault data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Vault data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VaultResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Vault not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags: [Vault]
+      summary: Update user's vault
+      description: Update the user's encrypted vault data with version control
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                encrypted_data:
+                  type: string
+                  format: byte
+                  description: Base64-encoded encrypted vault data
+                version:
+                  type: integer
+                  description: Current vault version for conflict detection
+                  minimum: 1
+              required: [encrypted_data, version]
+      responses:
+        '200':
+          description: Vault updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VaultResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Version conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "vault conflict: expected version 5, got 4"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: JWT token obtained from login
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique user identifier
+        email:
+          type: string
+          format: email
+          description: User email address
+        created_at:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    EmailRegisterRequest:
+      type: object
+      properties:
+        method:
+          type: string
+          enum: [email]
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        vault_data:
+          type: string
+          format: byte
+          description: Base64-encoded encrypted vault data
+      required: [method, email, password, vault_data]
+
+    NostrRegisterRequest:
+      type: object
+      properties:
+        method:
+          type: string
+          enum: [nostr]
+        nostr_pubkey:
+          type: string
+          description: Nostr public key in hex format (64 characters)
+          pattern: '^[a-fA-F0-9]{64}$'
+        vault_data:
+          type: string
+          format: byte
+          description: Base64-encoded encrypted vault data
+      required: [method, nostr_pubkey, vault_data]
+
+    EmailLoginRequest:
+      type: object
+      properties:
+        method:
+          type: string
+          enum: [email]
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required: [method, email, password]
+
+    NostrLoginRequest:
+      type: object
+      properties:
+        method:
+          type: string
+          enum: [nostr]
+        nostr_pubkey:
+          type: string
+          description: Nostr public key in hex format
+          pattern: '^[a-fA-F0-9]{64}$'
+        signature:
+          type: string
+          description: DER-encoded signature in hex format
+        challenge:
+          type: string
+          description: Challenge string to sign
+      required: [method, nostr_pubkey, signature, challenge]
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT authentication token
+        user:
+          $ref: '#/components/schemas/User'
+        expires_at:
+          type: string
+          format: date-time
+          description: Token expiration time
+
+    VaultResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Vault identifier
+        version:
+          type: integer
+          description: Current vault version
+          minimum: 1
+        last_modified:
+          type: string
+          format: date-time
+          description: Last modification timestamp
+        encrypted_data:
+          type: string
+          format: byte
+          description: Base64-encoded encrypted vault data
+        encryption_salt:
+          type: string
+          format: byte
+          description: Base64-encoded encryption salt (if any)
+        encryption_nonce:
+          type: string
+          format: byte
+          description: Base64-encoded encryption nonce (if any)
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        message:
+          type: string
+          description: Detailed error description (optional)
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  examples:
+    SampleVaultData:
+      summary: Sample encrypted vault data
+      description: Base64-encoded encrypted JSON containing user's password entries
+      value: "eyJlbnRyaWVzIjpbeyJpZCI6IjEyMyIsIm5hbWUiOiJFeGFtcGxlIFNlcnZpY2UiLCJ1cmwiOiJodHRwczovL2V4YW1wbGUuY29tIiwidXNlcm5hbWUiOiJ1c2VyMTIzIiwicGFzc3dvcmQiOiJlbmNyeXB0ZWRfcGFzc3dvcmQifV0sImZvbGRlcnMiOltdfQ=="

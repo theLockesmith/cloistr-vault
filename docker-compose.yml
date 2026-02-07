@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: coldforge-vault-db
+    environment:
+      POSTGRES_DB: vault_db
+      POSTGRES_USER: vault_user
+      POSTGRES_PASSWORD: vault_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "7704:5432"
+    networks:
+      - vault-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vault_user -d vault_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  vault-api:
+    build: .
+    container_name: coldforge-vault-api
+    environment:
+      # Database
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: vault_user
+      DB_PASSWORD: vault_password
+      DB_NAME: vault_db
+      DB_SSLMODE: disable
+      
+      # Server
+      PORT: 7700
+      HOST: 0.0.0.0
+      ENVIRONMENT: production
+      
+      # Security
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      SCRYPT_N: 32768
+      SCRYPT_R: 8
+      SCRYPT_P: 1
+      SESSION_DURATION_HOURS: 24
+
+      # KMS
+      KMS_PROVIDER: file
+      KMS_ADDRESS: http://vault:8200
+      KMS_TOKEN: coldforge-dev-token
+      KMS_MOUNT_PATH: secret
+      KMS_KEY_DIR: /app/keys
+    ports:
+      - "7710:7700"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - vault-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for sessions and rate limiting (optional, for production)
+  redis:
+    image: redis:7-alpine
+    container_name: coldforge-vault-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-vault_redis_password}
+    ports:
+      - "7705:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - vault-network
+    restart: unless-stopped
+
+  # HashiCorp Vault for server-side key management
+  vault:
+    image: hashicorp/vault:1.15
+    container_name: coldforge-vault-kms
+    command: vault server -config=/vault/config/vault.hcl
+    ports:
+      - "7712:8200"
+    environment:
+      VAULT_ADDR: "http://0.0.0.0:8200"
+      VAULT_DEV_ROOT_TOKEN_ID: "coldforge-dev-token"
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+    volumes:
+      - vault_data:/vault/data
+      - ./scripts/vault-config.hcl:/vault/config/vault.hcl
+    networks:
+      - vault-network
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  vault_data:
+    driver: local
+
+networks:
+  vault-network:
+    driver: bridge

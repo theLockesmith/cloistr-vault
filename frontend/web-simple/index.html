@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coldforge Vault - Web Demo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 2rem;
+        }
+        .unlock-screen, .vault-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        .logo { font-size: 4rem; text-align: center; margin-bottom: 1rem; }
+        .title { 
+            font-size: 2rem; 
+            font-weight: 600; 
+            text-align: center; 
+            margin-bottom: 0.5rem; 
+            color: #1e293b; 
+        }
+        .subtitle { 
+            text-align: center; 
+            color: #64748b; 
+            margin-bottom: 2rem; 
+        }
+        .input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 1rem;
+        }
+        .button {
+            width: 100%;
+            padding: 12px 24px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 1rem;
+        }
+        .button:hover { background: #1d4ed8; }
+        .button.danger { background: #ef4444; }
+        .button.danger:hover { background: #dc2626; }
+        .demo-hint {
+            text-align: center;
+            color: #64748b;
+            font-size: 14px;
+        }
+        .demo-password {
+            background: #e5e7eb;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 2rem;
+        }
+        .vault-content {
+            padding: 0 2rem;
+        }
+        .entry-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .entry-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #1e293b;
+        }
+        .field {
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 6px;
+            background: #f8fafc;
+            transition: background 0.2s;
+        }
+        .field:hover { background: #e2e8f0; }
+        .field-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+        .field-value {
+            font-size: 0.9rem;
+            color: #374151;
+            margin-top: 0.25rem;
+        }
+        .fab {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 56px;
+            height: 56px;
+            border-radius: 28px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        }
+        .fab:hover { background: #1d4ed8; transform: scale(1.05); }
+        .hidden { display: none; }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            width: 90%;
+            max-width: 400px;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        .form-actions .button {
+            flex: 1;
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Unlock Screen -->
+    <div id="unlockScreen" class="unlock-screen">
+        <div class="card">
+            <div class="logo">🛡️</div>
+            <h1 class="title">Coldforge Vault</h1>
+            <p class="subtitle">Zero-knowledge password manager</p>
+            
+            <input
+                type="password"
+                id="masterPassword"
+                class="input"
+                placeholder="Enter master password"
+                onkeypress="if(event.key==='Enter') unlockVault()"
+            />
+            
+            <button onclick="unlockVault()" class="button">
+                Unlock Vault
+            </button>
+            
+            <p class="demo-hint">
+                Demo password: <span class="demo-password">demo123</span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Vault Screen -->
+    <div id="vaultScreen" class="vault-screen hidden">
+        <div class="header">
+            <div>
+                <h1>🛡️ Your Vault (<span id="itemCount">0</span> items)</h1>
+            </div>
+            <button onclick="lockVault()" class="button danger" style="width: auto; margin: 0;">
+                🔒 Lock Vault
+            </button>
+        </div>
+
+        <div class="vault-content">
+            <div id="vaultEntries">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <button onclick="showAddForm()" class="fab" id="addBtn">+</button>
+    </div>
+
+    <!-- Add Entry Modal -->
+    <div id="addModal" class="modal hidden">
+        <div class="modal-content">
+            <h2 style="margin-bottom: 1.5rem; color: #1e293b;">Add New Entry</h2>
+            
+            <div class="form-group">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Service Name</label>
+                <input type="text" id="newName" class="input" placeholder="e.g., GitHub, Gmail" style="margin-bottom: 0;" />
+            </div>
+            
+            <div class="form-group">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Username</label>
+                <input type="text" id="newUsername" class="input" placeholder="username@example.com" style="margin-bottom: 0;" />
+            </div>
+            
+            <div class="form-group">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Password</label>
+                <input type="password" id="newPassword" class="input" placeholder="Enter password" style="margin-bottom: 0;" />
+            </div>
+            
+            <div class="form-group">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Website (optional)</label>
+                <input type="url" id="newUrl" class="input" placeholder="https://example.com" style="margin-bottom: 0;" />
+            </div>
+
+            <div class="form-actions">
+                <button onclick="hideAddForm()" class="button" style="background: #6b7280;">
+                    Cancel
+                </button>
+                <button onclick="addEntry()" class="button">
+                    Add Entry
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isUnlocked = false;
+        let vault = [];
+
+        const demoVault = [
+            {
+                id: '1',
+                name: 'Welcome to Coldforge Vault',
+                username: 'demo@example.com',
+                password: 'SecurePassword123!',
+                url: 'https://coldforge-vault.com'
+            },
+            {
+                id: '2',
+                name: 'GitHub',
+                username: 'your_username',
+                password: 'SuperSecret456!',
+                url: 'https://github.com'
+            },
+            {
+                id: '3',
+                name: 'Email Account',
+                username: 'user@gmail.com',
+                password: 'EmailPass789!',
+                url: 'https://gmail.com'
+            }
+        ];
+
+        function unlockVault() {
+            const password = document.getElementById('masterPassword').value;
+            
+            if (password === 'demo123') {
+                vault = [...demoVault];
+                isUnlocked = true;
+                
+                document.getElementById('unlockScreen').classList.add('hidden');
+                document.getElementById('vaultScreen').classList.remove('hidden');
+                
+                renderVault();
+                alert('🔓 Vault unlocked successfully!');
+            } else {
+                alert('❌ Invalid master password. Try: demo123');
+            }
+        }
+
+        function lockVault() {
+            isUnlocked = false;
+            vault = [];
+            document.getElementById('masterPassword').value = '';
+            
+            document.getElementById('vaultScreen').classList.add('hidden');
+            document.getElementById('unlockScreen').classList.remove('hidden');
+            
+            alert('🔒 Vault has been locked');
+        }
+
+        function renderVault() {
+            const container = document.getElementById('vaultEntries');
+            const itemCount = document.getElementById('itemCount');
+            
+            itemCount.textContent = vault.length;
+            
+            container.innerHTML = vault.map(entry => `
+                <div class="entry-card">
+                    <div class="entry-name">🌐 ${entry.name}</div>
+                    
+                    <div class="field" onclick="copyToClipboard('${entry.username}', 'Username')">
+                        <div class="field-label">Username:</div>
+                        <div class="field-value">${entry.username}</div>
+                    </div>
+                    
+                    <div class="field" onclick="copyToClipboard('${entry.password}', 'Password')">
+                        <div class="field-label">Password:</div>
+                        <div class="field-value">••••••••••••</div>
+                    </div>
+                    
+                    ${entry.url ? `
+                        <div class="field" onclick="window.open('${entry.url}', '_blank')">
+                            <div class="field-label">Website:</div>
+                            <div class="field-value">${entry.url}</div>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        function copyToClipboard(text, label) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert(`📋 ${label} copied to clipboard!`);
+            }).catch(() => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert(`📋 ${label} copied to clipboard!`);
+            });
+        }
+
+        function showAddForm() {
+            document.getElementById('addModal').classList.remove('hidden');
+        }
+
+        function hideAddForm() {
+            document.getElementById('addModal').classList.add('hidden');
+            clearForm();
+        }
+
+        function clearForm() {
+            document.getElementById('newName').value = '';
+            document.getElementById('newUsername').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('newUrl').value = '';
+        }
+
+        function addEntry() {
+            const name = document.getElementById('newName').value.trim();
+            const username = document.getElementById('newUsername').value.trim();
+            const password = document.getElementById('newPassword').value.trim();
+            const url = document.getElementById('newUrl').value.trim();
+
+            if (!name || !password) {
+                alert('❌ Name and password are required');
+                return;
+            }
+
+            const newEntry = {
+                id: Date.now().toString(),
+                name,
+                username,
+                password,
+                url
+            };
+
+            vault.push(newEntry);
+            renderVault();
+            hideAddForm();
+            
+            alert('🔐 Entry added to vault successfully!');
+        }
+
+        // Auto-focus password field on load
+        window.addEventListener('load', () => {
+            document.getElementById('masterPassword').focus();
+        });
+
+        // Enter key support for forms
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !isUnlocked) {
+                unlockVault();
+            }
+        });
+    </script>
+</body>
+</html>

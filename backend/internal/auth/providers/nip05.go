@@ -3,13 +3,14 @@ package providers
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
-	
+
 	"github.com/google/uuid"
 )
 

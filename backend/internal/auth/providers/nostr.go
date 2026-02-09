@@ -217,11 +217,17 @@ func (p *NostrProvider) PrepareRegistration(ctx context.Context, data map[string
 	// Extract optional profile metadata
 	profileMetadata, _ := data["profile_metadata"].(map[string]interface{})
 	
+	// Hash the public key for storage
+	keyHash, err := crypto.HashNostrPublicKey(publicKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash public key: %w", err)
+	}
+
 	return &RegistrationData{
 		Identifier: publicKey,
 		AuthData: map[string]interface{}{
 			"public_key": publicKey,
-			"key_hash":   hex.EncodeToString(crypto.HashNostrPublicKey(publicKey)),
+			"key_hash":   hex.EncodeToString(keyHash),
 		},
 		Metadata: map[string]interface{}{
 			"profile":    profileMetadata,

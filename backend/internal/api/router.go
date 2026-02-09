@@ -2,34 +2,40 @@ package api
 
 import (
 	"time"
-	
+
 	"github.com/coldforge/vault/internal/auth"
+	"github.com/coldforge/vault/internal/observability"
 	"github.com/gin-gonic/gin"
 )
 
 func SetupRouter(authService *auth.AuthService, vaultService VaultService) *gin.Engine {
 	// Set Gin mode
 	gin.SetMode(gin.ReleaseMode) // Change to gin.DebugMode for development
-	
+
 	router := gin.New()
-	
-	// Global middleware
-	router.Use(LoggingMiddleware())
+
+	// Global middleware - use observability for logging and metrics
+	router.Use(gin.Recovery())
+	router.Use(observability.LoggingMiddleware())
+	router.Use(observability.MetricsMiddleware())
 	router.Use(ErrorHandlingMiddleware())
 	router.Use(CORSMiddleware())
 	router.Use(SecurityHeadersMiddleware())
 	router.Use(RateLimitingMiddleware())
 	router.Use(RequestTimeoutMiddleware(30 * time.Second))
-	
+
 	// Initialize handlers
 	handlers := NewHandlers(authService, vaultService)
-	
+
+	// Metrics endpoint (no auth required, for Prometheus scraping)
+	router.GET("/metrics", observability.MetricsHandler())
+
 	// Public routes
 	public := router.Group("/api/v1")
 	{
 		// Health check
 		public.GET("/health", handlers.HealthCheck)
-		
+
 		// API info
 		public.GET("/info", handlers.GetAPIInfo)
 		

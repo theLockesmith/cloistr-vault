@@ -34,7 +34,7 @@ func TestNewDatabase(t *testing.T) {
 	
 	// Test stats
 	stats := db.GetStats()
-	assert.GreaterOrEqual(t, stats.MaxOpenConns, 1)
+	assert.GreaterOrEqual(t, stats.MaxOpenConnections, 1)
 }
 
 func TestDatabaseConfiguration(t *testing.T) {

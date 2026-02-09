@@ -5,11 +5,12 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
-	
+
 	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -433,5 +434,3 @@ func initializeLocalSchema(db *sql.DB) error {
 	_, err := db.Exec(schema)
 	return err
 }
-
-import "encoding/json"

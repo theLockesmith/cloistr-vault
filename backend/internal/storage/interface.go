@@ -70,6 +70,7 @@ type VaultMetadata struct {
 	UserID       uuid.UUID `json:"user_id"`
 	Version      int       `json:"version"`
 	LastModified time.Time `json:"last_modified"`
+	CreatedAt    time.Time `json:"created_at"`
 	Size         int64     `json:"size"`
 	Checksum     string    `json:"checksum"`
 	StorageType  string    `json:"storage_type"`
@@ -207,13 +208,21 @@ type SyncSettings struct {
 	BatteryOptimized bool            `json:"battery_optimized"`
 }
 
-// Factory functions for different storage types
-func NewLocalStorage(config *LocalConfig) VaultStorage { /* SQLite implementation */ }
-func NewCloudStorage(config *CloudConfig) VaultStorage { /* Cloud API implementation */ }
-func NewSelfHostedStorage(config *SelfHostedConfig) VaultStorage { /* HTTP API implementation */ }
-func NewP2PStorage(config *P2PConfig) VaultStorage { /* IPFS/LibP2P implementation */ }
+// LocalConfig holds configuration for local SQLite storage
+type LocalConfig struct {
+	BasePath string `json:"base_path"`
+}
 
-// Recovery service implementations  
-func NewCloudRecoveryService(config *CloudConfig) RecoveryStorage { /* Our recovery service */ }
-func NewSelfHostedRecoveryService(config *SelfHostedConfig) RecoveryStorage { /* User's recovery service */ }
-func NewP2PRecoveryService(config *P2PConfig) RecoveryStorage { /* Distributed recovery */ }
+// CloudConfig holds configuration for cloud storage
+type CloudConfig struct {
+	Endpoint  string `json:"endpoint"`
+	APIKey    string `json:"api_key"`
+	Region    string `json:"region"`
+}
+
+// SelfHostedConfig holds configuration for self-hosted storage
+type SelfHostedConfig struct {
+	URL      string `json:"url"`
+	APIKey   string `json:"api_key"`
+	TLS      bool   `json:"tls"`
+}

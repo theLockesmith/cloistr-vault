@@ -1,7 +1,7 @@
 # Coldforge Vault - Project Status
 
-**Last Updated:** 2026-02-05
-**Overall Completion:** ~65%
+**Last Updated:** 2026-02-09
+**Overall Completion:** ~68%
 
 ---
 
@@ -15,7 +15,7 @@ Coldforge Vault is a zero-knowledge password manager with Nostr integration. The
 
 | Component | Status | Completion |
 |-----------|--------|------------|
-| Backend (Go) | **Production Ready** | 90% |
+| Backend (Go) | **Production Ready** | 95% |
 | Web Frontend (React) | **Feature Complete** | 85% |
 | Mobile (React Native) | Scaffolded | 20% |
 | Mobile Expo | Scaffolded | 10% |
@@ -40,6 +40,8 @@ Coldforge Vault is a zero-knowledge password manager with Nostr integration. The
 - KMS integration (file-based and HashiCorp Vault)
 - RESTful API with Gin framework
 - Health checks and graceful shutdown
+- **Prometheus metrics** (`/metrics` endpoint)
+- **Structured JSON logging** (slog to stdout for Loki)
 
 **Database Schema:**
 - `users` - User accounts
@@ -51,6 +53,7 @@ Coldforge Vault is a zero-knowledge password manager with Nostr integration. The
 
 **API Endpoints:**
 ```
+GET  /metrics                    # Prometheus metrics
 GET  /api/v1/health              # Health check
 GET  /api/v1/info                # API info
 POST /api/v1/auth/register       # Registration
@@ -62,6 +65,26 @@ PUT  /api/v1/vault               # Update vault
 GET  /api/v1/vault/metadata      # Vault metadata
 GET  /api/v1/user/profile        # User profile
 ```
+
+**Observability (`internal/observability/`):**
+
+Prometheus metrics exposed at `/metrics`:
+| Metric | Type | Labels |
+|--------|------|--------|
+| `coldforge_vault_requests_total` | Counter | method, path, status |
+| `coldforge_vault_request_duration_seconds` | Histogram | method, path |
+| `coldforge_vault_errors_total` | Counter | type |
+| `coldforge_vault_sessions_active` | Gauge | - |
+| `coldforge_vault_operations_total` | Counter | operation, status |
+| `coldforge_vault_auth_attempts_total` | Counter | method, status |
+| `coldforge_vault_db_query_duration_seconds` | Histogram | query_type |
+
+Structured logging via `log/slog` (JSON to stdout):
+```json
+{"time":"...","level":"INFO","msg":"request","method":"GET","path":"/api/v1/health","status":200,"duration_ms":1}
+```
+
+Configure log level via `LOG_LEVEL` env var: `debug`, `info`, `warn`, `error`
 
 ### Web Frontend (`frontend/web/`)
 
@@ -322,6 +345,7 @@ coldforge-vault/
 │   │   ├── database/            # DB layer
 │   │   ├── kms/                 # Key management
 │   │   ├── models/              # Data models
+│   │   ├── observability/       # Metrics & logging
 │   │   └── vault/               # Vault operations
 │   └── migrations/              # SQL migrations
 ├── frontend/

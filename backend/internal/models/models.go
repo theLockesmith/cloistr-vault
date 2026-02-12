@@ -96,3 +96,26 @@ type VaultResponse struct {
 	EncryptionSalt   []byte    `json:"encryption_salt"`
 	EncryptionNonce  []byte    `json:"encryption_nonce"`
 }
+
+// Recovery-related request/response types
+
+type RecoveryRequest struct {
+	Email        string `json:"email" binding:"required"`
+	RecoveryCode string `json:"recovery_code" binding:"required"`
+	NewPassword  string `json:"new_password" binding:"required"`
+	VaultData    []byte `json:"vault_data" binding:"required"` // Re-encrypted vault with new key
+}
+
+type RecoveryStatusResponse struct {
+	Total     int  `json:"total"`
+	Remaining int  `json:"remaining"`
+	Used      int  `json:"used"`
+}
+
+type RegisterResponse struct {
+	Token         string    `json:"token"`
+	User          User      `json:"user"`
+	ExpiresAt     time.Time `json:"expires_at"`
+	RecoveryCodes []string  `json:"recovery_codes"`
+	Warning       string    `json:"recovery_warning"`
+}

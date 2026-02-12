@@ -45,6 +45,7 @@ func SetupRouter(authService *auth.AuthService, vaultService VaultService) *gin.
 			auth.POST("/register", ContentTypeMiddleware(), handlers.Register)
 			auth.POST("/login", ContentTypeMiddleware(), handlers.Login)
 			auth.POST("/nostr/challenge", ContentTypeMiddleware(), handlers.NostrChallenge)
+			auth.POST("/recover", ContentTypeMiddleware(), handlers.RecoverAccount)
 		}
 	}
 	
@@ -69,6 +70,13 @@ func SetupRouter(authService *auth.AuthService, vaultService VaultService) *gin.
 		{
 			vault.GET("", handlers.GetVault)
 			vault.PUT("", ContentTypeMiddleware(), handlers.UpdateVault)
+		}
+
+		// Recovery routes (authenticated)
+		recovery := protected.Group("/recovery")
+		{
+			recovery.GET("/status", handlers.GetRecoveryStatus)
+			recovery.POST("/regenerate", handlers.RegenerateRecoveryCodes)
 		}
 	}
 	
@@ -104,9 +112,10 @@ func SetupTestRouter(authService *auth.AuthService, vaultService VaultService) *
 			auth.POST("/register", handlers.Register)
 			auth.POST("/login", handlers.Login)
 			auth.POST("/nostr/challenge", handlers.NostrChallenge)
+			auth.POST("/recover", handlers.RecoverAccount)
 		}
 	}
-	
+
 	// Protected routes
 	protected := router.Group("/api/v1")
 	protected.Use(AuthMiddleware(authService))
@@ -115,18 +124,24 @@ func SetupTestRouter(authService *auth.AuthService, vaultService VaultService) *
 		{
 			auth.POST("/logout", handlers.Logout)
 		}
-		
+
 		user := protected.Group("/user")
 		{
 			user.GET("/profile", handlers.GetProfile)
 		}
-		
+
 		vault := protected.Group("/vault")
 		{
 			vault.GET("", handlers.GetVault)
 			vault.PUT("", handlers.UpdateVault)
 		}
+
+		recovery := protected.Group("/recovery")
+		{
+			recovery.GET("/status", handlers.GetRecoveryStatus)
+			recovery.POST("/regenerate", handlers.RegenerateRecoveryCodes)
+		}
 	}
-	
+
 	return router
 }

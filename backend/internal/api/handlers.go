@@ -59,7 +59,7 @@ func (h *Handlers) Register(c *gin.Context) {
 	}
 	
 	// Register user
-	user, err := h.authService.RegisterUser(&req)
+	response, err := h.authService.RegisterUser(&req)
 	if err != nil {
 		switch err {
 		case auth.ErrUserExists:
@@ -71,11 +71,8 @@ func (h *Handlers) Register(c *gin.Context) {
 		}
 		return
 	}
-	
-	c.JSON(http.StatusCreated, gin.H{
-		"user":    user,
-		"message": "User registered successfully",
-	})
+
+	c.JSON(http.StatusCreated, response)
 }
 
 // Login user
@@ -252,15 +249,16 @@ func (h *Handlers) UpdateVault(c *gin.Context) {
 // Get API info
 func (h *Handlers) GetAPIInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"name":    "Coldforge Vault API",
-		"version": "1.0.0",
+		"name":         "Coldforge Vault API",
+		"version":      "1.0.0",
 		"auth_methods": []string{"email", "nostr"},
 		"endpoints": gin.H{
 			"auth": gin.H{
 				"register":        "/api/v1/auth/register",
-				"login":          "/api/v1/auth/login",
-				"logout":         "/api/v1/auth/logout",
+				"login":           "/api/v1/auth/login",
+				"logout":          "/api/v1/auth/logout",
 				"nostr_challenge": "/api/v1/auth/nostr/challenge",
+				"recover":         "/api/v1/auth/recover",
 			},
 			"user": gin.H{
 				"profile": "/api/v1/user/profile",
@@ -269,7 +267,105 @@ func (h *Handlers) GetAPIInfo(c *gin.Context) {
 				"get":    "/api/v1/vault",
 				"update": "/api/v1/vault",
 			},
+			"recovery": gin.H{
+				"status":     "/api/v1/recovery/status",
+				"regenerate": "/api/v1/recovery/regenerate",
+			},
 		},
+	})
+}
+
+// RecoverAccount handles account recovery using a recovery code
+func (h *Handlers) RecoverAccount(c *gin.Context) {
+	var req models.RecoveryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	response, err := h.authService.RecoverAccount(&req)
+	if err != nil {
+		switch {
+		case strings.Contains(err.Error(), "user not found"):
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		case strings.Contains(err.Error(), "invalid recovery code"):
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired recovery code"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Account recovery failed"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "Account recovered successfully",
+		"token":      response.Token,
+		"user":       response.User,
+		"expires_at": response.ExpiresAt,
+	})
+}
+
+// GetRecoveryStatus returns the status of recovery codes for the authenticated user
+func (h *Handlers) GetRecoveryStatus(c *gin.Context) {
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	recoveryService := h.authService.GetRecoveryService()
+	codes, err := recoveryService.GetCodeStatus(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get recovery status"})
+		return
+	}
+
+	// Count used and remaining
+	var used, remaining int
+	for _, code := range codes {
+		if code.Used {
+			used++
+		} else {
+			remaining++
+		}
+	}
+
+	c.JSON(http.StatusOK, models.RecoveryStatusResponse{
+		Total:     len(codes),
+		Remaining: remaining,
+		Used:      used,
+	})
+}
+
+// RegenerateRecoveryCodes generates new recovery codes for the authenticated user
+func (h *Handlers) RegenerateRecoveryCodes(c *gin.Context) {
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	recoveryService := h.authService.GetRecoveryService()
+	codes, err := recoveryService.RegenerateCodes(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to regenerate recovery codes"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"codes":   codes.Codes,
+		"warning": codes.Warning,
 	})
 }
 
@@ -278,11 +374,11 @@ func extractTokenFromHeader(authHeader string) string {
 	if authHeader == "" {
 		return ""
 	}
-	
+
 	parts := strings.Split(authHeader, " ")
 	if len(parts) != 2 || parts[0] != "Bearer" {
 		return ""
 	}
-	
+
 	return parts[1]
 }

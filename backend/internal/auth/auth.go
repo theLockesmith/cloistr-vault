@@ -8,6 +8,8 @@ import (
 
 	"github.com/coldforge/vault/internal/crypto"
 	"github.com/coldforge/vault/internal/models"
+	"github.com/coldforge/vault/internal/observability"
+	"github.com/coldforge/vault/internal/recovery"
 	"github.com/google/uuid"
 )
 
@@ -21,7 +23,8 @@ var (
 )
 
 type AuthService struct {
-	db *sql.DB
+	db              *sql.DB
+	recoveryService *recovery.Service
 }
 
 type Challenge struct {
@@ -35,11 +38,19 @@ type Challenge struct {
 var challengeStore = make(map[string]Challenge) // In production, use Redis or database
 
 func NewAuthService(db *sql.DB) *AuthService {
-	return &AuthService{db: db}
+	return &AuthService{
+		db:              db,
+		recoveryService: recovery.NewService(db),
+	}
 }
 
-// RegisterUser creates a new user account
-func (a *AuthService) RegisterUser(req *models.RegisterRequest) (*models.User, error) {
+// GetRecoveryService returns the recovery service for external use
+func (a *AuthService) GetRecoveryService() *recovery.Service {
+	return a.recoveryService
+}
+
+// RegisterUser creates a new user account and returns recovery codes
+func (a *AuthService) RegisterUser(req *models.RegisterRequest) (*models.RegisterResponse, error) {
 	switch req.Method {
 	case "email":
 		return a.registerEmailUser(req)
@@ -63,11 +74,11 @@ func (a *AuthService) LoginUser(req *models.LoginRequest) (*models.AuthResponse,
 }
 
 // registerEmailUser handles email/password registration
-func (a *AuthService) registerEmailUser(req *models.RegisterRequest) (*models.User, error) {
+func (a *AuthService) registerEmailUser(req *models.RegisterRequest) (*models.RegisterResponse, error) {
 	if req.Email == nil || req.Password == nil {
 		return nil, errors.New("email and password are required")
 	}
-	
+
 	// Check if user already exists
 	var exists bool
 	err := a.db.QueryRow("SELECT EXISTS(SELECT 1 FROM users u JOIN auth_methods am ON u.id = am.user_id WHERE am.identifier = $1 AND am.type = 'email')", *req.Email).Scan(&exists)
@@ -77,35 +88,35 @@ func (a *AuthService) registerEmailUser(req *models.RegisterRequest) (*models.Us
 	if exists {
 		return nil, ErrUserExists
 	}
-	
+
 	// Start transaction
 	tx, err := a.db.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("failed to start transaction: %w", err)
 	}
 	defer tx.Rollback()
-	
+
 	// Create user
 	userID := uuid.New()
 	now := time.Now()
-	
+
 	_, err = tx.Exec("INSERT INTO users (id, email, created_at, updated_at) VALUES ($1, $2, $3, $4)",
 		userID, *req.Email, now, now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
-	
+
 	// Generate salt and hash password
 	salt, err := crypto.GenerateSalt()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate salt: %w", err)
 	}
-	
+
 	passwordHash, err := crypto.HashPassword(*req.Password, salt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
-	
+
 	// Create auth method
 	authMethodID := uuid.New()
 	_, err = tx.Exec("INSERT INTO auth_methods (id, user_id, type, identifier, salt, password_hash, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
@@ -113,38 +124,63 @@ func (a *AuthService) registerEmailUser(req *models.RegisterRequest) (*models.Us
 	if err != nil {
 		return nil, fmt.Errorf("failed to create auth method: %w", err)
 	}
-	
+
 	// Create initial vault with provided data
 	err = a.createInitialVault(tx, userID, req.VaultData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create initial vault: %w", err)
 	}
-	
+
+	// Generate recovery codes
+	recoveryCodes, err := a.recoveryService.GenerateCodes(tx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate recovery codes: %w", err)
+	}
+
 	// Commit transaction
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
-	
-	return &models.User{
+
+	user := models.User{
 		ID:        userID,
 		Email:     *req.Email,
 		CreatedAt: now,
 		UpdatedAt: now,
+	}
+
+	// Create session for the new user
+	authResp, err := a.createSession(user)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create session: %w", err)
+	}
+
+	observability.Info("user registered",
+		"user_id", userID.String(),
+		"method", "email",
+	)
+
+	return &models.RegisterResponse{
+		Token:         authResp.Token,
+		User:          user,
+		ExpiresAt:     authResp.ExpiresAt,
+		RecoveryCodes: recoveryCodes.Codes,
+		Warning:       recoveryCodes.Warning,
 	}, nil
 }
 
 // registerNostrUser handles Nostr keypair registration
-func (a *AuthService) registerNostrUser(req *models.RegisterRequest) (*models.User, error) {
+func (a *AuthService) registerNostrUser(req *models.RegisterRequest) (*models.RegisterResponse, error) {
 	if req.NostrPubkey == nil {
 		return nil, errors.New("nostr public key is required")
 	}
-	
+
 	// Validate Nostr public key format
 	_, err := crypto.NostrPublicKeyFromHex(*req.NostrPubkey)
 	if err != nil {
 		return nil, fmt.Errorf("invalid nostr public key: %w", err)
 	}
-	
+
 	// Check if user already exists
 	var exists bool
 	err = a.db.QueryRow("SELECT EXISTS(SELECT 1 FROM users u JOIN auth_methods am ON u.id = am.user_id WHERE am.nostr_pubkey = $1 AND am.type = 'nostr')", *req.NostrPubkey).Scan(&exists)
@@ -154,25 +190,25 @@ func (a *AuthService) registerNostrUser(req *models.RegisterRequest) (*models.Us
 	if exists {
 		return nil, ErrUserExists
 	}
-	
+
 	// Start transaction
 	tx, err := a.db.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("failed to start transaction: %w", err)
 	}
 	defer tx.Rollback()
-	
+
 	// Create user
 	userID := uuid.New()
 	now := time.Now()
 	email := fmt.Sprintf("%s@nostr.local", (*req.NostrPubkey)[:16]) // Pseudo email for compatibility
-	
+
 	_, err = tx.Exec("INSERT INTO users (id, email, created_at, updated_at) VALUES ($1, $2, $3, $4)",
 		userID, email, now, now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
-	
+
 	// Create auth method
 	authMethodID := uuid.New()
 	_, err = tx.Exec("INSERT INTO auth_methods (id, user_id, type, identifier, nostr_pubkey, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
@@ -180,23 +216,48 @@ func (a *AuthService) registerNostrUser(req *models.RegisterRequest) (*models.Us
 	if err != nil {
 		return nil, fmt.Errorf("failed to create auth method: %w", err)
 	}
-	
+
 	// Create initial vault
 	err = a.createInitialVault(tx, userID, req.VaultData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create initial vault: %w", err)
 	}
-	
+
+	// Generate recovery codes
+	recoveryCodes, err := a.recoveryService.GenerateCodes(tx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate recovery codes: %w", err)
+	}
+
 	// Commit transaction
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
-	
-	return &models.User{
+
+	user := models.User{
 		ID:        userID,
 		Email:     email,
 		CreatedAt: now,
 		UpdatedAt: now,
+	}
+
+	// Create session for the new user
+	authResp, err := a.createSession(user)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create session: %w", err)
+	}
+
+	observability.Info("user registered",
+		"user_id", userID.String(),
+		"method", "nostr",
+	)
+
+	return &models.RegisterResponse{
+		Token:         authResp.Token,
+		User:          user,
+		ExpiresAt:     authResp.ExpiresAt,
+		RecoveryCodes: recoveryCodes.Codes,
+		Warning:       recoveryCodes.Warning,
 	}, nil
 }
 
@@ -397,18 +458,110 @@ func (a *AuthService) RevokeSession(token string) error {
 func (a *AuthService) createInitialVault(tx *sql.Tx, userID uuid.UUID, encryptedData []byte) error {
 	vaultID := uuid.New()
 	now := time.Now()
-	
+
 	// For initial vault, we assume the client has already encrypted the data
 	// In a real implementation, you might want additional validation
-	
+
 	_, err := tx.Exec(`
-		INSERT INTO vaults (id, user_id, encrypted_data, encryption_salt, encryption_nonce, version, last_modified, created_at) 
+		INSERT INTO vaults (id, user_id, encrypted_data, encryption_salt, encryption_nonce, version, last_modified, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		vaultID, userID, encryptedData, []byte{}, []byte{}, 1, now, now)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to create vault: %w", err)
 	}
-	
+
 	return nil
+}
+
+// RecoverAccount recovers an account using a recovery code
+// This resets the password and updates the vault with new encrypted data
+func (a *AuthService) RecoverAccount(req *models.RecoveryRequest) (*models.AuthResponse, error) {
+	// Get user by email
+	var user models.User
+	var userID uuid.UUID
+
+	err := a.db.QueryRow(`
+		SELECT u.id, u.email, u.created_at, u.updated_at
+		FROM users u
+		JOIN auth_methods am ON u.id = am.user_id
+		WHERE am.identifier = $1 AND am.type = 'email'`,
+		req.Email).Scan(&user.ID, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			observability.Warn("recovery attempt for unknown email", "email", req.Email)
+			return nil, ErrUserNotFound
+		}
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+	userID = user.ID
+
+	// Validate and consume the recovery code
+	_, err = a.recoveryService.ConsumeCode(userID, req.RecoveryCode)
+	if err != nil {
+		observability.Warn("invalid recovery code",
+			"user_id", userID.String(),
+			"error", err.Error(),
+		)
+		return nil, fmt.Errorf("invalid recovery code: %w", err)
+	}
+
+	// Start transaction for password reset and vault update
+	tx, err := a.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("failed to start transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Generate new salt and hash for the new password
+	salt, err := crypto.GenerateSalt()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate salt: %w", err)
+	}
+
+	passwordHash, err := crypto.HashPassword(req.NewPassword, salt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	// Update the password
+	_, err = tx.Exec(`
+		UPDATE auth_methods
+		SET salt = $1, password_hash = $2, updated_at = $3
+		WHERE user_id = $4 AND type = 'email'`,
+		salt, passwordHash, time.Now(), userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update password: %w", err)
+	}
+
+	// Update the vault with new encrypted data
+	// The client re-encrypts the vault with the new password-derived key
+	now := time.Now()
+	_, err = tx.Exec(`
+		UPDATE vaults
+		SET encrypted_data = $1, version = version + 1, last_modified = $2
+		WHERE user_id = $3`,
+		req.VaultData, now, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update vault: %w", err)
+	}
+
+	// Revoke all existing sessions for security
+	_, err = tx.Exec("DELETE FROM sessions WHERE user_id = $1", userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to revoke sessions: %w", err)
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit: %w", err)
+	}
+
+	observability.Info("account recovered",
+		"user_id", userID.String(),
+	)
+
+	// Create new session
+	return a.createSession(user)
 }

@@ -5,6 +5,7 @@ go 1.23.0
 toolchain go1.24.13
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/golang-migrate/migrate/v4 v4.16.2

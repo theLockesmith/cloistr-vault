@@ -1,7 +1,7 @@
 # Coldforge Vault - Project Status
 
-**Last Updated:** 2026-02-09
-**Overall Completion:** ~68%
+**Last Updated:** 2026-02-12
+**Overall Completion:** ~72%
 
 ---
 
@@ -48,23 +48,36 @@ Coldforge Vault is a zero-knowledge password manager with Nostr integration. The
 - `auth_methods` - Multiple auth types (email/nostr)
 - `vaults` - Encrypted vault storage with versioning
 - `sessions` - Session management
-- `recovery_codes` - Schema ready, logic pending
+- `recovery_codes` - **Fully implemented**
 - `audit_logs` - Schema ready, implementation pending
 
 **API Endpoints:**
 ```
-GET  /metrics                    # Prometheus metrics
-GET  /api/v1/health              # Health check
-GET  /api/v1/info                # API info
-POST /api/v1/auth/register       # Registration
-POST /api/v1/auth/login          # Login
-POST /api/v1/auth/logout         # Logout
-POST /api/v1/auth/nostr/challenge # Nostr challenge
-GET  /api/v1/vault               # Get vault
-PUT  /api/v1/vault               # Update vault
-GET  /api/v1/vault/metadata      # Vault metadata
-GET  /api/v1/user/profile        # User profile
+GET  /metrics                       # Prometheus metrics
+GET  /api/v1/health                 # Health check
+GET  /api/v1/info                   # API info
+POST /api/v1/auth/register          # Registration (returns recovery codes)
+POST /api/v1/auth/login             # Login
+POST /api/v1/auth/logout            # Logout
+POST /api/v1/auth/nostr/challenge   # Nostr challenge
+POST /api/v1/auth/recover           # Account recovery with code
+GET  /api/v1/vault                  # Get vault
+PUT  /api/v1/vault                  # Update vault
+GET  /api/v1/vault/metadata         # Vault metadata
+GET  /api/v1/user/profile           # User profile
+GET  /api/v1/recovery/status        # Recovery codes status (auth required)
+POST /api/v1/recovery/regenerate    # Regenerate codes (auth required)
 ```
+
+**Recovery Codes (`internal/recovery/`):**
+
+Full account recovery system:
+- Generate 8 unique recovery codes per user (format: `XXXX-XXXX-XXXX`)
+- Scrypt hashing with unique salt per code (N=16384, r=8, p=1)
+- One-time use validation and consumption
+- Code regeneration for authenticated users
+- Integrated into registration flow (codes returned to user)
+- Account recovery with code + new password + re-encrypted vault
 
 **Observability (`internal/observability/`):**
 
@@ -193,51 +206,46 @@ coldforge-config/
 
 ### High Priority
 
-1. **Recovery Codes Implementation**
-   - Schema exists, needs service logic
-   - Generate, hash, validate, consume codes
-   - Link to account recovery flow
-
-2. **Audit Logging**
+1. **Audit Logging**
    - Schema exists, needs implementation
    - Log auth events, vault access, config changes
 
-3. **Rate Limiting**
+2. **Rate Limiting**
    - Infrastructure ready
    - Need middleware enforcement
 
-4. **End-to-End Testing**
+3. **End-to-End Testing**
    - Unit tests exist
    - Need integration and E2E tests
 
 ### Medium Priority
 
-5. **Mobile App Completion**
+4. **Mobile App Completion**
    - Vault UI screens
    - Offline mode
    - Biometric unlock flow
    - Push notification setup
 
-6. **Browser Extension**
+5. **Browser Extension**
    - Form detection
    - Autofill logic
    - Site matching
    - Keyboard shortcuts
 
-7. **Desktop App**
+6. **Desktop App**
    - Full UI
    - Auto-lock on idle
    - System tray integration
 
 ### Lower Priority (Documented in Roadmaps)
 
-8. **Lightning Address Authentication**
-9. **NIP-05 Profile Verification**
-10. **Trusted Device Recovery**
-11. **Multi-Device Sync**
-12. **Sharing/Collaboration**
-13. **Key Rotation**
-14. **Import/Export**
+7. **Lightning Address Authentication**
+8. **NIP-05 Profile Verification**
+9. **Trusted Device Recovery**
+10. **Multi-Device Sync**
+11. **Sharing/Collaboration**
+12. **Key Rotation**
+13. **Import/Export**
 
 ---
 
@@ -266,6 +274,8 @@ coldforge-config/
 - `nostr_fixed_test.go` - Fixed test cases
 - `auth_test.go` - Auth flow tests
 - `database_test.go` - DB operations
+- `recovery_test.go` - Recovery code generation, validation, consumption (30+ tests)
+- `handlers_recovery_test.go` - Recovery API endpoint tests (11+ tests)
 
 **Frontend:**
 - Jest/RTL infrastructure ready
@@ -321,13 +331,12 @@ argocd app sync vault-production
 
 Recommended order of work:
 
-1. **Complete recovery codes** - Critical for account recovery
-2. **Add audit logging** - Security compliance
-3. **Implement rate limiting** - Prevent abuse
-4. **Write E2E tests** - Confidence before deploy
-5. **Finish browser extension** - High user value
-6. **Complete mobile app** - Platform expansion
-7. **Security audit** - Before public launch
+1. **Add audit logging** - Security compliance
+2. **Implement rate limiting** - Prevent abuse
+3. **Write E2E tests** - Confidence before deploy
+4. **Finish browser extension** - High user value
+5. **Complete mobile app** - Platform expansion
+6. **Security audit** - Before public launch
 
 ---
 
@@ -346,6 +355,7 @@ coldforge-vault/
 │   │   ├── kms/                 # Key management
 │   │   ├── models/              # Data models
 │   │   ├── observability/       # Metrics & logging
+│   │   ├── recovery/            # Recovery codes
 │   │   └── vault/               # Vault operations
 │   └── migrations/              # SQL migrations
 ├── frontend/

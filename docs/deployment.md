@@ -378,9 +378,66 @@ databases:
   size: db-s-1vcpu-1gb
 ```
 
-## Monitoring and Maintenance
+## Monitoring and Observability
 
-### Health Checks
+### Prometheus Metrics
+
+The vault-api exposes Prometheus metrics at `/metrics`. Available metrics:
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `coldforge_vault_requests_total` | Counter | Total HTTP requests (labels: method, path, status) |
+| `coldforge_vault_request_duration_seconds` | Histogram | Request latency (labels: method, path) |
+| `coldforge_vault_errors_total` | Counter | Errors by type (labels: type) |
+| `coldforge_vault_sessions_active` | Gauge | Current active sessions |
+| `coldforge_vault_operations_total` | Counter | Vault operations (labels: operation, status) |
+| `coldforge_vault_auth_attempts_total` | Counter | Auth attempts (labels: method, status) |
+| `coldforge_vault_db_query_duration_seconds` | Histogram | DB query latency (labels: query_type) |
+
+### Kubernetes Prometheus Discovery
+
+The deployment includes pod annotations for automatic Prometheus discovery:
+
+```yaml
+annotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"
+```
+
+For Coldforge infrastructure, Prometheus auto-discovers pods in `coldforge-*` namespaces with these annotations.
+
+### Grafana Dashboard
+
+A pre-built Grafana dashboard is available via atlas:
+
+```bash
+# View available dashboards
+atlas monitoring dashboards
+
+# Dashboard: coldforge-vault (17 panels)
+# Sections: Overview, Authentication, Vault Operations, Performance, Errors
+```
+
+The dashboard is deployed to the cluster with:
+```bash
+atlas monitoring apply-dashboards --kube-context atlantis
+```
+
+### Local Metrics Access
+
+```bash
+# View raw metrics
+curl http://localhost:8080/metrics
+
+# Sample output
+coldforge_vault_requests_total{method="POST",path="/api/v1/auth/login",status="200"} 42
+coldforge_vault_sessions_active 7
+```
+
+## Health Checks
+
+### Health Endpoints
 ```bash
 # API health
 curl https://vault.yourdomain.com/api/v1/health

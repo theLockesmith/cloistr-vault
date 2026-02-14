@@ -11,7 +11,7 @@ stages:
 
 test:unit:
   stage: test
-  image: golang:1.24
+  image: golang:1.24-bookworm
   <<: *go-cache
   variables:
     GOPATH: ${CI_PROJECT_DIR}/.go
@@ -27,7 +27,7 @@ test:unit:
 
 lint:
   stage: test
-  image: golang:1.24
+  image: golang:1.24-bookworm
   <<: *go-cache
   variables:
     GOPATH: ${CI_PROJECT_DIR}/.go

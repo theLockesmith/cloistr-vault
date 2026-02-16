@@ -95,6 +95,37 @@ coldforge-vault/
 - **NIP-46**: Nostr Connect (nsecbunker authentication)
 - **secp256k1**: Nostr key cryptography
 
+## Current Status (Updated 2026-02-16)
+
+### Completed
+- **Recovery codes** - Full implementation with secure hashing
+- **Prometheus metrics** - Instrumented in `backend/internal/observability/metrics.go`
+- **Grafana dashboard** - Deployed via `atlas monitoring apply-dashboards`
+- **Kubernetes annotations** - Auto-discovery enabled for Prometheus scraping
+
+### Blockers
+- **CI test failure**: `TestNostrAuthenticationFlowFixed` in `internal/crypto` - signature verification issue
+- **Container image**: Not built (blocked by failing tests)
+- **Deployment**: Pods can't start without image
+
+### Next Steps (Priority Order)
+1. **Fix failing test** - `backend/internal/crypto/nostr_fixed_test.go:42`
+2. **Get CI green** - Tests passing, image built and pushed
+3. **Deploy to production** - Pods running with new Prometheus annotations
+4. **Fix Nostr user display** - Show `npub1...` instead of `@nostr.local`
+5. **Complete Lightning auth** - LNURL-auth flow
+
+## Monitoring
+
+Metrics available at `/metrics` endpoint:
+- `coldforge_vault_requests_total` - HTTP request counts
+- `coldforge_vault_request_duration_seconds` - Latency histogram
+- `coldforge_vault_auth_attempts_total` - Auth attempts by method
+- `coldforge_vault_operations_total` - Vault CRUD operations
+- `coldforge_vault_sessions_active` - Active session gauge
+
+Dashboard: `atlas monitoring dashboards` → `coldforge-vault`
+
 ## See Also
 
 - Service Documentation: `~/claude/coldforge/services/vault/CLAUDE.md`

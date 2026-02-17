@@ -43,37 +43,43 @@ func VerifyNostrEvent(publicKeyHex string, eventData []byte, signatureHex string
 	if err != nil {
 		return false
 	}
-	
+
 	if len(publicKeyBytes) != 32 {
 		return false
 	}
-	
-	// Create compressed public key (add 0x02 prefix)
-	compressedKey := make([]byte, 33)
-	compressedKey[0] = 0x02
-	copy(compressedKey[1:], publicKeyBytes)
-	
-	publicKey, err := secp256k1.ParsePubKey(compressedKey)
-	if err != nil {
-		return false
-	}
-	
-	// Parse signature
+
+	// Parse signature first (shared between both attempts)
 	signatureBytes, err := hex.DecodeString(signatureHex)
 	if err != nil {
 		return false
 	}
-	
+
 	signature, err := ecdsa.ParseDERSignature(signatureBytes)
 	if err != nil {
 		return false
 	}
-	
+
 	// Hash the event data
 	hash := sha256.Sum256(eventData)
-	
-	// Verify signature
-	return signature.Verify(hash[:], publicKey)
+
+	// Try both possible Y parities (0x02 = even, 0x03 = odd)
+	// X-only public keys lose the Y parity, so we must try both
+	for _, prefix := range []byte{0x02, 0x03} {
+		compressedKey := make([]byte, 33)
+		compressedKey[0] = prefix
+		copy(compressedKey[1:], publicKeyBytes)
+
+		publicKey, err := secp256k1.ParsePubKey(compressedKey)
+		if err != nil {
+			continue
+		}
+
+		if signature.Verify(hash[:], publicKey) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // CreateNostrAuthChallenge creates a proper Nostr authentication challenge

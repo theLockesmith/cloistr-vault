@@ -95,25 +95,24 @@ coldforge-vault/
 - **NIP-46**: Nostr Connect (nsecbunker authentication)
 - **secp256k1**: Nostr key cryptography
 
-## Current Status (Updated 2026-02-16)
+## Current Status (Updated 2026-02-17)
 
 ### Completed
 - **Recovery codes** - Full implementation with secure hashing
 - **Prometheus metrics** - Instrumented in `backend/internal/observability/metrics.go`
 - **Grafana dashboard** - Deployed via `atlas monitoring apply-dashboards`
 - **Kubernetes annotations** - Auto-discovery enabled for Prometheus scraping
+- **Nostr signature verification** - Fixed Y-parity issue in secp256k1 public key handling
 
 ### Blockers
-- **CI test failure**: `TestNostrAuthenticationFlowFixed` in `internal/crypto` - signature verification issue
-- **Container image**: Not built (blocked by failing tests)
+- **Container image**: Not built (awaiting CI run)
 - **Deployment**: Pods can't start without image
 
 ### Next Steps (Priority Order)
-1. **Fix failing test** - `backend/internal/crypto/nostr_fixed_test.go:42`
-2. **Get CI green** - Tests passing, image built and pushed
-3. **Deploy to production** - Pods running with new Prometheus annotations
-4. **Fix Nostr user display** - Show `npub1...` instead of `@nostr.local`
-5. **Complete Lightning auth** - LNURL-auth flow
+1. **Get CI green** - Tests passing, image built and pushed
+2. **Deploy to production** - Pods running with new Prometheus annotations
+3. **Fix Nostr user display** - Show `npub1...` instead of `@nostr.local`
+4. **Complete Lightning auth** - LNURL-auth flow
 
 ## Monitoring
 

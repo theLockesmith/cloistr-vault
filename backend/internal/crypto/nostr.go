@@ -117,34 +117,45 @@ func VerifyNostrSignature(challenge string, signatureHex string, publicKeyHex st
 	if challenge == "" || signatureHex == "" || publicKeyHex == "" {
 		return false
 	}
-	
-	// Parse public key
-	publicKey, err := NostrPublicKeyFromHex(publicKeyHex)
-	if err != nil {
+
+	// Parse public key bytes
+	publicKeyBytes, err := hex.DecodeString(publicKeyHex)
+	if err != nil || len(publicKeyBytes) != 32 {
 		return false
 	}
-	
+
 	// Parse signature
 	signatureBytes, err := hex.DecodeString(signatureHex)
 	if err != nil {
 		return false
 	}
-	
-	var signature *ecdsa.Signature
-	
-	// Try parsing as DER signature first
-	signature, err = ecdsa.ParseDERSignature(signatureBytes)
+
+	signature, err := ecdsa.ParseDERSignature(signatureBytes)
 	if err != nil {
-		// For now, only support DER signatures
-		// TODO: Add support for compact signatures if needed
 		return false
 	}
-	
+
 	// Hash the challenge
 	hash := sha256.Sum256([]byte(challenge))
-	
-	// Verify signature
-	return signature.Verify(hash[:], publicKey)
+
+	// Try both possible Y parities (0x02 = even, 0x03 = odd)
+	// X-only public keys lose the Y parity, so we must try both
+	for _, prefix := range []byte{0x02, 0x03} {
+		compressedKey := make([]byte, 33)
+		compressedKey[0] = prefix
+		copy(compressedKey[1:], publicKeyBytes)
+
+		publicKey, err := secp256k1.ParsePubKey(compressedKey)
+		if err != nil {
+			continue
+		}
+
+		if signature.Verify(hash[:], publicKey) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // GenerateChallenge generates a random challenge for authentication

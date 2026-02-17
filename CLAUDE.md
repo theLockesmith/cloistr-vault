@@ -103,16 +103,12 @@ coldforge-vault/
 - **Grafana dashboard** - Deployed via `atlas monitoring apply-dashboards`
 - **Kubernetes annotations** - Auto-discovery enabled for Prometheus scraping
 - **Nostr signature verification** - Fixed Y-parity issue in secp256k1 public key handling
-
-### Blockers
-- **Container image**: Not built (awaiting CI run)
-- **Deployment**: Pods can't start without image
+- **CI pipeline green** - Tests passing, Docker image builds successfully
 
 ### Next Steps (Priority Order)
-1. **Get CI green** - Tests passing, image built and pushed
-2. **Deploy to production** - Pods running with new Prometheus annotations
-3. **Fix Nostr user display** - Show `npub1...` instead of `@nostr.local`
-4. **Complete Lightning auth** - LNURL-auth flow
+1. **Deploy to production** - Pods running with new Prometheus annotations
+2. **Fix Nostr user display** - Show `npub1...` instead of `@nostr.local`
+3. **Complete Lightning auth** - LNURL-auth flow
 
 ## Monitoring
 

@@ -86,14 +86,17 @@ coldforge-vault/
 - Scrypt key derivation (N=32768, r=8, p=1)
 - Email/password authentication
 - Nostr keypair authentication (NIP-07, NIP-46)
+- Lightning Address authentication (LNURL-auth / LUD-04)
 - Recovery codes system
 - Multi-platform (web, mobile, desktop, browser extension)
 
-## NIPs Referenced
+## NIPs and LUDs Referenced
 
 - **NIP-07**: Browser extension signing
+- **NIP-19**: Bech32-encoded entities (npub, nsec)
 - **NIP-46**: Nostr Connect (nsecbunker authentication)
-- **secp256k1**: Nostr key cryptography
+- **LUD-04**: LNURL-auth (Lightning Network authentication)
+- **secp256k1**: Nostr/Lightning key cryptography
 
 ## Current Status (Updated 2026-02-18)
 
@@ -106,6 +109,23 @@ coldforge-vault/
 - **CI pipeline green** - Tests passing, Docker image builds successfully
 - **Production deployment** - Running on Kubernetes at vault.coldforge.xyz
 - **Nostr user display** - Shows `npub1...` bech32 format instead of `@nostr.local`
+- **Lightning auth (LNURL-auth)** - Full implementation with secp256k1 signature verification
+
+### Lightning Authentication (LNURL-auth)
+New endpoints for Lightning Address authentication:
+- `POST /api/v1/auth/lightning/challenge` - Generate k1 challenge for LNURL-auth
+- `POST /api/v1/auth/login` with `method: "lightning"` - Authenticate with Lightning signature
+
+Key files:
+- `backend/internal/auth/lightning.go` - LNURL-auth service methods
+- `backend/internal/auth/providers/lightning.go` - Lightning Address provider
+- `backend/internal/api/handlers.go` - LightningChallenge handler
+
+The implementation follows LUD-04 (LNURL-auth) specification:
+- 32-byte random k1 challenge generation
+- secp256k1 signature verification (compact 64-byte format)
+- Auto-creation of user accounts from Lightning Addresses
+- Integration with existing session management
 
 ### Production Environment
 - **Namespace**: `coldforge-vault`
@@ -115,9 +135,9 @@ coldforge-vault/
 - **Monitoring**: ServiceMonitor configured for Prometheus scraping
 
 ### Next Steps (Priority Order)
-1. **Complete Lightning auth** - LNURL-auth flow
-2. **Scale to 3 replicas** - Once image pull is cached on nodes
-3. **Add NIP-05 verification** - Link Lightning addresses to Nostr pubkeys
+1. **Scale to 3 replicas** - Once image pull is cached on nodes
+2. **Add NIP-05 verification** - Link Lightning addresses to Nostr pubkeys
+3. **Frontend Lightning integration** - Add Lightning login UI to web app
 
 ## Monitoring
 

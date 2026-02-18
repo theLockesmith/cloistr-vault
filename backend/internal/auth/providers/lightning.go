@@ -2,6 +2,7 @@ package providers
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -10,7 +11,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	
+
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"github.com/google/uuid"
 )
 
@@ -36,7 +39,7 @@ func (p *LightningAddressProvider) GetType() string {
 
 // GetRequiredFields returns required fields for Lightning Address auth
 func (p *LightningAddressProvider) GetRequiredFields() []string {
-	return []string{"lightning_address", "signature", "challenge"}
+	return []string{"lightning_address", "signature", "k1", "linking_key"}
 }
 
 // GetOptionalFields returns optional fields
@@ -116,16 +119,15 @@ func (p *LightningAddressProvider) GenerateChallenge(ctx context.Context, identi
 		}
 	}
 	
-	// Generate LNURL-auth challenge
-	challengeBytes := make([]byte, 32)
-	for i := range challengeBytes {
-		challengeBytes[i] = byte(i) // Simple challenge for demo
+	// Generate cryptographically secure k1 challenge (32 bytes per LNURL-auth spec)
+	k1Bytes := make([]byte, 32)
+	if _, err := rand.Read(k1Bytes); err != nil {
+		return nil, fmt.Errorf("failed to generate k1 challenge: %w", err)
 	}
-	challengeHex := hex.EncodeToString(challengeBytes)
-	
-	// Create k1 challenge (LNURL-auth standard)
-	k1Challenge := sha256.Sum256([]byte(fmt.Sprintf("lnauth:%s:%d", identifier, time.Now().Unix())))
-	k1Hex := hex.EncodeToString(k1Challenge[:])
+	k1Hex := hex.EncodeToString(k1Bytes)
+
+	// challengeHex is the same as k1Hex for LNURL-auth
+	challengeHex := k1Hex
 	
 	challenge := &Challenge{
 		ID:        uuid.New().String(),
@@ -144,76 +146,154 @@ func (p *LightningAddressProvider) GenerateChallenge(ctx context.Context, identi
 	return challenge, nil
 }
 
-// ValidateCredentials validates Lightning Address authentication
+// ValidateCredentials validates Lightning Address authentication via LNURL-auth
 func (p *LightningAddressProvider) ValidateCredentials(ctx context.Context, credentials map[string]interface{}) (*AuthResult, error) {
 	// Extract required fields
 	lightningAddress, ok := credentials["lightning_address"].(string)
 	if !ok || lightningAddress == "" {
 		return nil, fmt.Errorf("lightning_address is required")
 	}
-	
+
 	signature, ok := credentials["signature"].(string)
 	if !ok || signature == "" {
 		return nil, fmt.Errorf("signature is required")
 	}
-	
-	challenge, ok := credentials["challenge"].(string)
-	if !ok || challenge == "" {
-		return nil, fmt.Errorf("challenge is required")
+
+	k1, ok := credentials["k1"].(string)
+	if !ok || k1 == "" {
+		// Fall back to "challenge" field name for compatibility
+		k1, ok = credentials["challenge"].(string)
+		if !ok || k1 == "" {
+			return nil, fmt.Errorf("k1 challenge is required")
+		}
 	}
-	
+
+	// LNURL-auth provides the linking key (public key) used to verify signatures
+	linkingKey, ok := credentials["linking_key"].(string)
+	if !ok || linkingKey == "" {
+		return nil, fmt.Errorf("linking_key is required for LNURL-auth")
+	}
+
 	// Parse Lightning Address
 	lnAddr, err := ParseLightningAddress(lightningAddress)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Lightning Address: %w", err)
 	}
-	
-	// For external domains, verify via LNURL-auth
+
+	// For external domains, verify via LNURL-auth callback
 	if lnAddr.Domain != p.domain {
-		return p.validateExternalLightningAddress(ctx, lnAddr, challenge, signature)
+		return p.validateExternalLightningAddress(ctx, lnAddr, k1, signature)
 	}
-	
-	// For our domain, verify signature and get user
-	valid, err := p.verifyLightningSignature(challenge, signature, lightningAddress)
+
+	// Verify the LNURL-auth signature
+	valid, err := p.verifyLightningSignature(k1, signature, linkingKey)
 	if err != nil {
 		return nil, fmt.Errorf("signature verification failed: %w", err)
 	}
-	
+
 	if !valid {
 		return nil, fmt.Errorf("invalid signature")
 	}
-	
-	// Get user info
+
+	// Check if user exists with this Lightning Address
 	var user struct {
 		ID        uuid.UUID
 		Email     string
 		CreatedAt time.Time
 	}
-	
+
 	err = p.db.QueryRowContext(ctx, `
 		SELECT u.id, u.email, u.created_at
-		FROM users u 
-		JOIN auth_methods am ON u.id = am.user_id 
+		FROM users u
+		JOIN auth_methods am ON u.id = am.user_id
 		WHERE am.identifier = $1 AND am.type = 'lightning_address'`,
 		lightningAddress).Scan(&user.ID, &user.Email, &user.CreatedAt)
-	
+
 	if err != nil {
+		if err == sql.ErrNoRows {
+			// Auto-create user from Lightning Address (similar to Nostr flow)
+			return p.autoCreateLightningUser(ctx, lightningAddress, linkingKey, lnAddr)
+		}
 		return nil, fmt.Errorf("user lookup failed: %w", err)
 	}
-	
+
 	return &AuthResult{
 		UserID:      user.ID,
 		Identifier:  lightningAddress,
 		DisplayName: lnAddr.Username,
 		Metadata: map[string]interface{}{
 			"lightning_address": lightningAddress,
-			"username":         lnAddr.Username,
-			"domain":           lnAddr.Domain,
-			"auth_method":      "lightning_address",
-			"payment_capable":  true,
+			"linking_key":       linkingKey,
+			"username":          lnAddr.Username,
+			"domain":            lnAddr.Domain,
+			"auth_method":       "lightning_address",
+			"payment_capable":   true,
 		},
 		RequiresMFA: false, // Lightning signatures are cryptographically strong
 		TrustScore:  0.9,   // High trust for Lightning-based auth
+	}, nil
+}
+
+// autoCreateLightningUser creates a new user from a Lightning Address
+func (p *LightningAddressProvider) autoCreateLightningUser(ctx context.Context, lightningAddress, linkingKey string, lnAddr *LightningAddress) (*AuthResult, error) {
+	// Begin transaction
+	tx, err := p.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Create user with Lightning-derived email
+	userID := uuid.New()
+	now := time.Now()
+	email := fmt.Sprintf("%s@lightning.local", lnAddr.Username)
+
+	_, err = tx.ExecContext(ctx, "INSERT INTO users (id, email, created_at, updated_at) VALUES ($1, $2, $3, $4)",
+		userID, email, now, now)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user: %w", err)
+	}
+
+	// Create Lightning auth method
+	authMethodID := uuid.New()
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO auth_methods (id, user_id, type, identifier, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)`,
+		authMethodID, userID, "lightning_address", lightningAddress, now, now)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create auth method: %w", err)
+	}
+
+	// Create empty initial vault
+	vaultID := uuid.New()
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO vaults (id, user_id, encrypted_data, encryption_salt, encryption_nonce, version, last_modified, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		vaultID, userID, []byte("[]"), []byte{}, []byte{}, 1, now, now)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create initial vault: %w", err)
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return &AuthResult{
+		UserID:      userID,
+		Identifier:  lightningAddress,
+		DisplayName: lnAddr.Username,
+		Metadata: map[string]interface{}{
+			"lightning_address": lightningAddress,
+			"linking_key":       linkingKey,
+			"username":          lnAddr.Username,
+			"domain":            lnAddr.Domain,
+			"auth_method":       "lightning_address",
+			"payment_capable":   true,
+			"auto_created":      true,
+		},
+		RequiresMFA: false,
+		TrustScore:  0.9,
 	}, nil
 }
 
@@ -292,15 +372,54 @@ func (p *LightningAddressProvider) CompleteRegistration(ctx context.Context, use
 	return nil
 }
 
-// verifyLightningSignature verifies a Lightning Address signature
-func (p *LightningAddressProvider) verifyLightningSignature(challenge, signature, lightningAddress string) (bool, error) {
-	// In a real implementation, this would:
-	// 1. Verify the signature using the Lightning node's public key
-	// 2. Check that the signature corresponds to the Lightning Address
-	// 3. Validate the challenge was signed correctly
-	
-	// For demo purposes, we'll accept any non-empty signature
-	return signature != "", nil
+// verifyLightningSignature verifies an LNURL-auth signature
+// LNURL-auth uses secp256k1 with a specific message format
+func (p *LightningAddressProvider) verifyLightningSignature(k1Hex, signatureHex, linkingKeyHex string) (bool, error) {
+	// Decode the k1 challenge (32 bytes)
+	k1Bytes, err := hex.DecodeString(k1Hex)
+	if err != nil {
+		return false, fmt.Errorf("invalid k1 challenge hex: %w", err)
+	}
+	if len(k1Bytes) != 32 {
+		return false, fmt.Errorf("k1 must be 32 bytes, got %d", len(k1Bytes))
+	}
+
+	// Decode the signature (64 bytes: 32 for R, 32 for S - compact format)
+	sigBytes, err := hex.DecodeString(signatureHex)
+	if err != nil {
+		return false, fmt.Errorf("invalid signature hex: %w", err)
+	}
+
+	// LNURL-auth uses compact 64-byte signatures (R || S)
+	if len(sigBytes) != 64 {
+		return false, fmt.Errorf("signature must be 64 bytes (compact), got %d", len(sigBytes))
+	}
+
+	// Decode the linking key (33 bytes compressed, or 65 bytes uncompressed)
+	keyBytes, err := hex.DecodeString(linkingKeyHex)
+	if err != nil {
+		return false, fmt.Errorf("invalid linking key hex: %w", err)
+	}
+
+	// Parse the public key
+	pubKey, err := secp256k1.ParsePubKey(keyBytes)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse linking key: %w", err)
+	}
+
+	// Parse the compact signature
+	// Compact format: first 32 bytes = R, last 32 bytes = S
+	var r, s secp256k1.ModNScalar
+	r.SetByteSlice(sigBytes[:32])
+	s.SetByteSlice(sigBytes[32:])
+	signature := ecdsa.NewSignature(&r, &s)
+
+	// Hash the k1 challenge for verification (LNURL-auth signs the raw k1)
+	// According to LUD-04, the message signed is sha256(k1)
+	msgHash := sha256.Sum256(k1Bytes)
+
+	// Verify the signature
+	return signature.Verify(msgHash[:], pubKey), nil
 }
 
 // validateExternalLightningAddress validates Lightning Address via LNURL

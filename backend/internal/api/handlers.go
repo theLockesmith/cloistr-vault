@@ -46,18 +46,18 @@ func (h *Handlers) Register(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
-	
+
 	// Validate request
 	if req.Method == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Method is required"})
 		return
 	}
-	
+
 	if len(req.VaultData) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Vault data is required"})
 		return
 	}
-	
+
 	// Register user
 	response, err := h.authService.RegisterUser(&req)
 	if err != nil {
@@ -120,10 +120,14 @@ func (h *Handlers) Login(c *gin.Context) {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"token":     token,
-			"user":      user,
+			"token":      token,
+			"user":       user,
 			"expires_at": time.Now().Add(24 * time.Hour),
 		})
+
+	case "lightning":
+		// Handle Lightning LNURL-auth authentication
+		h.handleLightningLogin(c, &req)
 
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid authentication method"})
@@ -138,14 +142,14 @@ func (h *Handlers) Logout(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid authorization header"})
 		return
 	}
-	
+
 	// Revoke session
 	err := h.authService.RevokeSession(token)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Logout failed"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }
 
@@ -179,6 +183,37 @@ func (h *Handlers) NostrChallenge(c *gin.Context) {
 	})
 }
 
+// LightningChallenge generates an LNURL-auth k1 challenge for Lightning Address authentication
+func (h *Handlers) LightningChallenge(c *gin.Context) {
+	var req struct {
+		LightningAddress string `json:"lightning_address" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	// Validate Lightning Address format (basic: contains @)
+	if !strings.Contains(req.LightningAddress, "@") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Lightning Address format (expected user@domain)"})
+		return
+	}
+
+	// Generate LNURL-auth k1 challenge
+	challenge, err := h.authService.GenerateLightningChallenge(req.LightningAddress)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Challenge generation failed: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"k1":         challenge.Value,
+		"expires_at": challenge.ExpiresAt,
+		"lnurl":      fmt.Sprintf("lnurl://auth?k1=%s&tag=login", challenge.Value),
+	})
+}
+
 // Get user profile
 func (h *Handlers) GetProfile(c *gin.Context) {
 	user, exists := c.Get("user")
@@ -186,7 +221,7 @@ func (h *Handlers) GetProfile(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"user": user})
 }
 
@@ -197,19 +232,19 @@ func (h *Handlers) GetVault(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
 		return
 	}
-	
+
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
-	
+
 	vault, err := h.vaultService.GetVault(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve vault"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, vault)
 }
 
@@ -220,29 +255,29 @@ func (h *Handlers) UpdateVault(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
 		return
 	}
-	
+
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
-	
+
 	var req struct {
 		EncryptedData []byte `json:"encrypted_data" binding:"required"`
 		Version       int    `json:"version" binding:"required"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
-	
+
 	vault, err := h.vaultService.UpdateVault(userID, req.EncryptedData, req.Version)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update vault"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, vault)
 }
 
@@ -251,14 +286,15 @@ func (h *Handlers) GetAPIInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"name":         "Coldforge Vault API",
 		"version":      "1.0.0",
-		"auth_methods": []string{"email", "nostr"},
+		"auth_methods": []string{"email", "nostr", "lightning"},
 		"endpoints": gin.H{
 			"auth": gin.H{
-				"register":        "/api/v1/auth/register",
-				"login":           "/api/v1/auth/login",
-				"logout":          "/api/v1/auth/logout",
-				"nostr_challenge": "/api/v1/auth/nostr/challenge",
-				"recover":         "/api/v1/auth/recover",
+				"register":            "/api/v1/auth/register",
+				"login":               "/api/v1/auth/login",
+				"logout":              "/api/v1/auth/logout",
+				"nostr_challenge":     "/api/v1/auth/nostr/challenge",
+				"lightning_challenge": "/api/v1/auth/lightning/challenge",
+				"recover":             "/api/v1/auth/recover",
 			},
 			"user": gin.H{
 				"profile": "/api/v1/user/profile",
@@ -366,6 +402,50 @@ func (h *Handlers) RegenerateRecoveryCodes(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"codes":   codes.Codes,
 		"warning": codes.Warning,
+	})
+}
+
+// handleLightningLogin handles Lightning LNURL-auth authentication
+func (h *Handlers) handleLightningLogin(c *gin.Context, req *models.LoginRequest) {
+	// Extract Lightning-specific fields from the request
+	// These are passed via the generic login request
+	lightningAddress := ""
+	signature := ""
+	k1 := ""
+	linkingKey := ""
+
+	// Get from dedicated fields if available
+	if req.LightningAddress != nil {
+		lightningAddress = *req.LightningAddress
+	}
+	if req.Signature != nil {
+		signature = *req.Signature
+	}
+	if req.Challenge != nil {
+		k1 = *req.Challenge // k1 is sent in challenge field
+	}
+	if req.LinkingKey != nil {
+		linkingKey = *req.LinkingKey
+	}
+
+	// Validate required fields
+	if lightningAddress == "" || signature == "" || k1 == "" || linkingKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Lightning authentication requires lightning_address, signature, challenge (k1), and linking_key",
+		})
+		return
+	}
+
+	user, token, err := h.authService.AuthenticateWithLightning(lightningAddress, signature, k1, linkingKey)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": fmt.Sprintf("Lightning authentication failed: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"token":      token,
+		"user":       user,
+		"expires_at": time.Now().Add(24 * time.Hour),
 	})
 }
 

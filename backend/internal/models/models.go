@@ -72,12 +72,15 @@ type VaultEntry struct {
 }
 
 type LoginRequest struct {
-	Method     string  `json:"method" binding:"required"` // "email" or "nostr"
-	Email      *string `json:"email,omitempty"`
-	Password   *string `json:"password,omitempty"`
-	NostrPubkey *string `json:"nostr_pubkey,omitempty"`
-	Signature  *string `json:"signature,omitempty"`
-	Challenge  *string `json:"challenge,omitempty"`
+	Method           string  `json:"method" binding:"required"` // "email", "nostr", or "lightning"
+	Email            *string `json:"email,omitempty"`
+	Password         *string `json:"password,omitempty"`
+	NostrPubkey      *string `json:"nostr_pubkey,omitempty"`
+	Signature        *string `json:"signature,omitempty"`
+	Challenge        *string `json:"challenge,omitempty"`
+	// Lightning LNURL-auth fields
+	LightningAddress *string `json:"lightning_address,omitempty"`
+	LinkingKey       *string `json:"linking_key,omitempty"` // Public key for LNURL-auth verification
 }
 
 type RegisterRequest struct {

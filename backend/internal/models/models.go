@@ -6,10 +6,16 @@ import (
 )
 
 type User struct {
-	ID        uuid.UUID `json:"id" db:"id"`
-	Email     string    `json:"email" db:"email"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	ID               uuid.UUID `json:"id" db:"id"`
+	Email            string    `json:"email" db:"email"`
+	CreatedAt        time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
+	// Extended fields for display (not stored in users table, populated from auth_methods)
+	AuthMethod       string    `json:"auth_method,omitempty"`
+	DisplayName      string    `json:"display_name,omitempty"`
+	NostrPubkey      string    `json:"nostr_pubkey,omitempty"`
+	NIP05Address     string    `json:"nip05_address,omitempty"`
+	LightningAddress string    `json:"lightning_address,omitempty"`
 }
 
 type AuthMethod struct {

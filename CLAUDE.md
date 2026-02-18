@@ -105,6 +105,7 @@ coldforge-vault/
 - **Nostr signature verification** - Fixed Y-parity issue in secp256k1 public key handling
 - **CI pipeline green** - Tests passing, Docker image builds successfully
 - **Production deployment** - Running on Kubernetes at vault.coldforge.xyz
+- **Nostr user display** - Shows `npub1...` bech32 format instead of `@nostr.local`
 
 ### Production Environment
 - **Namespace**: `coldforge-vault`
@@ -114,9 +115,9 @@ coldforge-vault/
 - **Monitoring**: ServiceMonitor configured for Prometheus scraping
 
 ### Next Steps (Priority Order)
-1. **Fix Nostr user display** - Show `npub1...` instead of `@nostr.local`
-2. **Complete Lightning auth** - LNURL-auth flow
-3. **Scale to 3 replicas** - Once image pull is cached on nodes
+1. **Complete Lightning auth** - LNURL-auth flow
+2. **Scale to 3 replicas** - Once image pull is cached on nodes
+3. **Add NIP-05 verification** - Link Lightning addresses to Nostr pubkeys
 
 ## Monitoring
 

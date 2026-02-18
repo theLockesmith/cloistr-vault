@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/coldforge/vault/internal/crypto"
+	"github.com/coldforge/vault/internal/identity"
 	"github.com/coldforge/vault/internal/models"
 	"github.com/coldforge/vault/internal/observability"
 	"github.com/coldforge/vault/internal/recovery"
@@ -235,10 +236,13 @@ func (a *AuthService) registerNostrUser(req *models.RegisterRequest) (*models.Re
 	}
 
 	user := models.User{
-		ID:        userID,
-		Email:     email,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:          userID,
+		Email:       email,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		AuthMethod:  "nostr",
+		NostrPubkey: *req.NostrPubkey,
+		DisplayName: identity.FormatNpubShort(*req.NostrPubkey),
 	}
 
 	// Create session for the new user
@@ -250,6 +254,7 @@ func (a *AuthService) registerNostrUser(req *models.RegisterRequest) (*models.Re
 	observability.Info("user registered",
 		"user_id", userID.String(),
 		"method", "nostr",
+		"display_name", user.DisplayName,
 	)
 
 	return &models.RegisterResponse{
@@ -418,30 +423,48 @@ func (a *AuthService) createSession(user models.User) (*models.AuthResponse, err
 func (a *AuthService) ValidateSession(token string) (*models.User, error) {
 	var user models.User
 	var expiresAt time.Time
-	
+	var nostrPubkey sql.NullString
+	var authMethodType sql.NullString
+
 	query := `
-		SELECT u.id, u.email, u.created_at, u.updated_at, s.expires_at
-		FROM users u 
-		JOIN sessions s ON u.id = s.user_id 
+		SELECT u.id, u.email, u.created_at, u.updated_at, s.expires_at, am.type, am.nostr_pubkey
+		FROM users u
+		JOIN sessions s ON u.id = s.user_id
+		LEFT JOIN auth_methods am ON u.id = am.user_id
 		WHERE s.token = $1
+		LIMIT 1
 	`
-	
+
 	err := a.db.QueryRow(query, token).Scan(
-		&user.ID, &user.Email, &user.CreatedAt, &user.UpdatedAt, &expiresAt)
+		&user.ID, &user.Email, &user.CreatedAt, &user.UpdatedAt, &expiresAt,
+		&authMethodType, &nostrPubkey)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrInvalidCredentials
 		}
 		return nil, fmt.Errorf("database error: %w", err)
 	}
-	
+
 	// Check if session is expired
 	if time.Now().After(expiresAt) {
 		// Clean up expired session
 		a.db.Exec("DELETE FROM sessions WHERE token = $1", token)
 		return nil, ErrInvalidCredentials
 	}
-	
+
+	// Populate extended user fields
+	if authMethodType.Valid {
+		user.AuthMethod = authMethodType.String
+	}
+
+	if nostrPubkey.Valid && nostrPubkey.String != "" {
+		user.NostrPubkey = nostrPubkey.String
+		user.DisplayName = identity.FormatNpubShort(nostrPubkey.String)
+	} else if user.AuthMethod == "" || user.AuthMethod == "email" {
+		user.AuthMethod = "email"
+		user.DisplayName = user.Email
+	}
+
 	return &user, nil
 }
 

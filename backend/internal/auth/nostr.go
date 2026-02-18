@@ -8,6 +8,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/coldforge/vault/internal/identity"
 	"github.com/coldforge/vault/internal/models"
 	"github.com/google/uuid"
 )
@@ -78,6 +79,11 @@ func (a *AuthService) AuthenticateWithNostr(pubkey, signature, challenge string)
 		return nil, "", fmt.Errorf("database error: %w", err)
 	}
 
+	// Populate extended user fields for Nostr users
+	user.AuthMethod = "nostr"
+	user.NostrPubkey = pubkey
+	user.DisplayName = identity.FormatNpubShort(pubkey)
+
 	// Generate session token for existing user - use existing createSession method
 	token := uuid.New().String()
 	expiresAt := time.Now().Add(24 * time.Hour)
@@ -146,13 +152,16 @@ func (a *AuthService) createNostrUser(pubkey string) (*models.User, string, erro
 	}
 
 	user := &models.User{
-		ID:        userID,
-		Email:     email,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:          userID,
+		Email:       email,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		AuthMethod:  "nostr",
+		NostrPubkey: pubkey,
+		DisplayName: identity.FormatNpubShort(pubkey),
 	}
 
-	log.Printf("Auto-created Nostr user: %s with email: %s", userID.String(), email)
+	log.Printf("Auto-created Nostr user: %s with display name: %s", userID.String(), user.DisplayName)
 	return user, token, nil
 }
 

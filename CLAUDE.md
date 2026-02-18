@@ -95,7 +95,7 @@ coldforge-vault/
 - **NIP-46**: Nostr Connect (nsecbunker authentication)
 - **secp256k1**: Nostr key cryptography
 
-## Current Status (Updated 2026-02-17)
+## Current Status (Updated 2026-02-18)
 
 ### Completed
 - **Recovery codes** - Full implementation with secure hashing
@@ -104,11 +104,19 @@ coldforge-vault/
 - **Kubernetes annotations** - Auto-discovery enabled for Prometheus scraping
 - **Nostr signature verification** - Fixed Y-parity issue in secp256k1 public key handling
 - **CI pipeline green** - Tests passing, Docker image builds successfully
+- **Production deployment** - Running on Kubernetes at vault.coldforge.xyz
+
+### Production Environment
+- **Namespace**: `coldforge-vault`
+- **Image**: `oci.coldforge.xyz/coldforge/vault:latest`
+- **Ingress**: `vault.coldforge.xyz`
+- **Database**: PostgreSQL 15 with persistent storage
+- **Monitoring**: ServiceMonitor configured for Prometheus scraping
 
 ### Next Steps (Priority Order)
-1. **Deploy to production** - Pods running with new Prometheus annotations
-2. **Fix Nostr user display** - Show `npub1...` instead of `@nostr.local`
-3. **Complete Lightning auth** - LNURL-auth flow
+1. **Fix Nostr user display** - Show `npub1...` instead of `@nostr.local`
+2. **Complete Lightning auth** - LNURL-auth flow
+3. **Scale to 3 replicas** - Once image pull is cached on nodes
 
 ## Monitoring
 

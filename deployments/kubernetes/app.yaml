@@ -21,9 +21,11 @@ spec:
         prometheus.io/port: "8080"
         prometheus.io/path: "/metrics"
     spec:
+      imagePullSecrets:
+      - name: oci-registry-secret
       containers:
       - name: vault-api
-        image: coldforge/vault:latest  # Replace with your actual image
+        image: oci.coldforge.xyz/coldforge/vault:latest
         ports:
         - containerPort: 8080
         env:
@@ -126,14 +128,23 @@ spec:
             cpu: "200m"
         securityContext:
           runAsNonRoot: true
-          runAsUser: 1001
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           capabilities:
             drop:
             - ALL
-      securityContext:
-        fsGroup: 1001
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - name: keys-volume
+          mountPath: /app/keys
+        - name: tmp-volume
+          mountPath: /tmp
+      volumes:
+      - name: keys-volume
+        emptyDir: {}
+      - name: tmp-volume
+        emptyDir: {}
 
 ---
 apiVersion: v1
@@ -170,10 +181,10 @@ spec:
   ingressClassName: nginx
   tls:
   - hosts:
-    - vault.yourdomain.com  # Replace with your domain
+    - vault.coldforge.xyz  # Replace with your domain
     secretName: vault-tls-secret
   rules:
-  - host: vault.yourdomain.com  # Replace with your domain
+  - host: vault.coldforge.xyz  # Replace with your domain
     http:
       paths:
       - path: /

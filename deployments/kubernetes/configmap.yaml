@@ -8,7 +8,7 @@ data:
   DB_PORT: "5432"
   DB_NAME: "vault_db"
   DB_USER: "vault_user"
-  DB_SSLMODE: "require"
+  DB_SSLMODE: "disable"
   PORT: "8080"
   HOST: "0.0.0.0"
   ENVIRONMENT: "production"

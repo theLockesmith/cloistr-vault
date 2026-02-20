@@ -9,11 +9,19 @@ interface User {
   updated_at: string;
 }
 
+interface LightningChallenge {
+  k1: string;
+  lnurl: string;
+  expiresAt: string;
+}
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
   loginWithNostr: (publicKey: string, signature: string, challenge: string) => Promise<void>;
+  getLightningChallenge: (lightningAddress: string) => Promise<LightningChallenge>;
+  loginWithLightning: (k1: string, signature: string, linkingKey: string) => Promise<void>;
   register: (email: string, password: string, vaultData: string) => Promise<void>;
   registerWithNostr: (publicKey: string, vaultData: string) => Promise<void>;
   logout: () => void;
@@ -90,18 +98,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       const { token: newToken, user: newUser } = response.data;
-      
+
       setToken(newToken);
       setUser(newUser);
-      
+
       localStorage.setItem('vault_token', newToken);
       localStorage.setItem('vault_user', JSON.stringify(newUser));
-      
+
       axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-      
+
       toast.success('Successfully logged in with Nostr!');
     } catch (error: any) {
       const message = error.response?.data?.error || 'Nostr login failed';
+      toast.error(message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getLightningChallenge = async (lightningAddress: string): Promise<LightningChallenge> => {
+    try {
+      setLoading(true);
+      const response = await axios.post('/auth/lightning/challenge', {
+        lightning_address: lightningAddress,
+      });
+
+      return {
+        k1: response.data.k1,
+        lnurl: response.data.lnurl,
+        expiresAt: response.data.expires_at,
+      };
+    } catch (error: any) {
+      const message = error.response?.data?.error || 'Failed to get Lightning challenge';
+      toast.error(message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginWithLightning = async (k1: string, signature: string, linkingKey: string) => {
+    try {
+      setLoading(true);
+      const response = await axios.post('/auth/login', {
+        method: 'lightning_address',
+        k1,
+        signature,
+        linking_key: linkingKey,
+      });
+
+      const { token: newToken, user: newUser } = response.data;
+
+      setToken(newToken);
+      setUser(newUser);
+
+      localStorage.setItem('vault_token', newToken);
+      localStorage.setItem('vault_user', JSON.stringify(newUser));
+
+      axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+
+      toast.success('Successfully logged in with Lightning!');
+    } catch (error: any) {
+      const message = error.response?.data?.error || 'Lightning login failed';
       toast.error(message);
       throw error;
     } finally {
@@ -173,6 +232,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     token,
     login,
     loginWithNostr,
+    getLightningChallenge,
+    loginWithLightning,
     register,
     registerWithNostr,
     logout,

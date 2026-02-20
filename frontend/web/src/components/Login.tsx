@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
-import { Shield, Mail, Lock, Key } from 'lucide-react';
+import { Shield, Mail, Key, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface LoginForm {
@@ -10,10 +10,20 @@ interface LoginForm {
   password: string;
 }
 
+interface LightningChallenge {
+  k1: string;
+  lnurl: string;
+  expiresAt: string;
+}
+
 export default function Login() {
-  const { login, loginWithNostr, loading } = useAuth();
-  const [authMethod, setAuthMethod] = useState<'email' | 'nostr'>('email');
+  const { login, loginWithNostr, getLightningChallenge, loginWithLightning, loading } = useAuth();
+  const [authMethod, setAuthMethod] = useState<'email' | 'nostr' | 'lightning'>('email');
   const [nostrPublicKey, setNostrPublicKey] = useState('');
+  const [lightningAddress, setLightningAddress] = useState('');
+  const [lightningChallenge, setLightningChallenge] = useState<LightningChallenge | null>(null);
+  const [lightningSignature, setLightningSignature] = useState('');
+  const [lightningLinkingKey, setLightningLinkingKey] = useState('');
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
 
   const onEmailSubmit = async (data: LoginForm) => {
@@ -42,6 +52,44 @@ export default function Login() {
     }
   };
 
+  const onLightningGetChallenge = async () => {
+    if (!lightningAddress || !lightningAddress.includes('@')) {
+      toast.error('Please enter a valid Lightning address (e.g., user@wallet.com)');
+      return;
+    }
+
+    try {
+      const challenge = await getLightningChallenge(lightningAddress);
+      setLightningChallenge(challenge);
+      toast.success('Challenge received! Sign with your Lightning wallet');
+    } catch (error) {
+      // Error handling is done in AuthContext
+    }
+  };
+
+  const onLightningLogin = async () => {
+    if (!lightningChallenge) {
+      toast.error('Please get a challenge first');
+      return;
+    }
+
+    if (!lightningSignature || lightningSignature.length !== 128) {
+      toast.error('Please enter a valid 128-character signature');
+      return;
+    }
+
+    if (!lightningLinkingKey || lightningLinkingKey.length !== 66) {
+      toast.error('Please enter a valid 66-character linking key');
+      return;
+    }
+
+    try {
+      await loginWithLightning(lightningChallenge.k1, lightningSignature, lightningLinkingKey);
+    } catch (error) {
+      // Error handling is done in AuthContext
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-md w-full space-y-8 p-8">
@@ -61,31 +109,43 @@ export default function Login() {
             <div className="flex bg-muted rounded-lg p-1">
               <button
                 type="button"
-                className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+                className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-colors ${
                   authMethod === 'email'
                     ? 'bg-white text-primary shadow-sm dark:bg-gray-800'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
                 onClick={() => setAuthMethod('email')}
               >
-                <Mail className="w-4 h-4 inline mr-2" />
+                <Mail className="w-4 h-4 inline mr-1" />
                 Email
               </button>
               <button
                 type="button"
-                className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+                className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-colors ${
                   authMethod === 'nostr'
                     ? 'bg-white text-primary shadow-sm dark:bg-gray-800'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
                 onClick={() => setAuthMethod('nostr')}
               >
-                <Key className="w-4 h-4 inline mr-2" />
+                <Key className="w-4 h-4 inline mr-1" />
                 Nostr
+              </button>
+              <button
+                type="button"
+                className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-colors ${
+                  authMethod === 'lightning'
+                    ? 'bg-white text-primary shadow-sm dark:bg-gray-800'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setAuthMethod('lightning')}
+              >
+                <Zap className="w-4 h-4 inline mr-1" />
+                Lightning
               </button>
             </div>
 
-            {authMethod === 'email' ? (
+            {authMethod === 'email' && (
               <form onSubmit={handleSubmit(onEmailSubmit)} className="space-y-4">
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
@@ -137,7 +197,9 @@ export default function Login() {
                   {loading ? 'Signing in...' : 'Sign in'}
                 </button>
               </form>
-            ) : (
+            )}
+
+            {authMethod === 'nostr' && (
               <div className="space-y-4">
                 <div>
                   <label htmlFor="nostrKey" className="block text-sm font-medium text-foreground mb-2">
@@ -167,8 +229,107 @@ export default function Login() {
 
                 <div className="bg-muted/50 p-3 rounded-lg">
                   <p className="text-xs text-muted-foreground">
-                    <strong>Note:</strong> Nostr authentication requires a compatible Nostr client or browser extension 
+                    <strong>Note:</strong> Nostr authentication requires a compatible Nostr client or browser extension
                     to sign the authentication challenge.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {authMethod === 'lightning' && (
+              <div className="space-y-4">
+                {!lightningChallenge ? (
+                  <>
+                    <div>
+                      <label htmlFor="lightningAddress" className="block text-sm font-medium text-foreground mb-2">
+                        Lightning Address
+                      </label>
+                      <input
+                        type="text"
+                        value={lightningAddress}
+                        onChange={(e) => setLightningAddress(e.target.value)}
+                        className="input w-full"
+                        placeholder="user@wallet.com"
+                      />
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Enter your Lightning address (e.g., alice@getalby.com)
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={onLightningGetChallenge}
+                      disabled={loading || !lightningAddress}
+                      className="btn-primary w-full"
+                    >
+                      {loading ? 'Getting challenge...' : 'Get Challenge'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="bg-muted/50 p-3 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-2">
+                        <strong>Challenge (k1):</strong>
+                      </p>
+                      <code className="text-xs break-all">{lightningChallenge.k1}</code>
+                    </div>
+
+                    <div>
+                      <label htmlFor="lightningSignature" className="block text-sm font-medium text-foreground mb-2">
+                        Signature
+                      </label>
+                      <input
+                        type="text"
+                        value={lightningSignature}
+                        onChange={(e) => setLightningSignature(e.target.value)}
+                        className="input w-full font-mono text-sm"
+                        placeholder="128-character DER signature"
+                        maxLength={128}
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="lightningLinkingKey" className="block text-sm font-medium text-foreground mb-2">
+                        Linking Key
+                      </label>
+                      <input
+                        type="text"
+                        value={lightningLinkingKey}
+                        onChange={(e) => setLightningLinkingKey(e.target.value)}
+                        className="input w-full font-mono text-sm"
+                        placeholder="66-character compressed public key"
+                        maxLength={66}
+                      />
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLightningChallenge(null);
+                          setLightningSignature('');
+                          setLightningLinkingKey('');
+                        }}
+                        className="btn-secondary flex-1"
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onLightningLogin}
+                        disabled={loading || !lightningSignature || !lightningLinkingKey}
+                        className="btn-primary flex-1"
+                      >
+                        {loading ? 'Signing in...' : 'Sign in'}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                <div className="bg-muted/50 p-3 rounded-lg">
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Note:</strong> Lightning authentication uses LNURL-auth. Sign the challenge with your
+                    Lightning wallet and paste the signature and linking key above.
                   </p>
                 </div>
               </div>

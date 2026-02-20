@@ -11,6 +11,7 @@ import (
 	"github.com/coldforge/vault/internal/models"
 	"github.com/coldforge/vault/internal/observability"
 	"github.com/coldforge/vault/internal/recovery"
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
 )
 
@@ -26,6 +27,7 @@ var (
 type AuthService struct {
 	db              *sql.DB
 	recoveryService *recovery.Service
+	webauthn        *webauthn.WebAuthn
 }
 
 type Challenge struct {

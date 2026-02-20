@@ -54,6 +54,14 @@ func SetupRouter(authService *auth.AuthService, vaultService VaultService) *gin.
 		{
 			nip05.GET("/lookup", handlers.LookupNIP05)
 		}
+
+		// WebAuthn public endpoints (for login)
+		webauthn := public.Group("/auth/webauthn")
+		{
+			webauthn.POST("/login/begin", ContentTypeMiddleware(), handlers.WebAuthnBeginLogin)
+			webauthn.POST("/login/begin/discoverable", handlers.WebAuthnBeginDiscoverableLogin)
+			webauthn.POST("/login/finish", ContentTypeMiddleware(), handlers.WebAuthnFinishLogin)
+		}
 	}
 
 	// .well-known endpoint at root level (required for NIP-05)
@@ -93,6 +101,16 @@ func SetupRouter(authService *auth.AuthService, vaultService VaultService) *gin.
 		{
 			recovery.GET("/status", handlers.GetRecoveryStatus)
 			recovery.POST("/regenerate", handlers.RegenerateRecoveryCodes)
+		}
+
+		// WebAuthn routes (authenticated - for credential management)
+		webauthn := protected.Group("/user/webauthn")
+		{
+			webauthn.POST("/register/begin", handlers.WebAuthnBeginRegistration)
+			webauthn.POST("/register/finish", ContentTypeMiddleware(), handlers.WebAuthnFinishRegistration)
+			webauthn.GET("/credentials", handlers.ListWebAuthnCredentials)
+			webauthn.DELETE("/credentials/:id", handlers.DeleteWebAuthnCredential)
+			webauthn.PUT("/credentials/:id", ContentTypeMiddleware(), handlers.UpdateWebAuthnCredential)
 		}
 	}
 	
@@ -136,6 +154,13 @@ func SetupTestRouter(authService *auth.AuthService, vaultService VaultService) *
 		{
 			nip05.GET("/lookup", handlers.LookupNIP05)
 		}
+
+		webauthn := public.Group("/auth/webauthn")
+		{
+			webauthn.POST("/login/begin", handlers.WebAuthnBeginLogin)
+			webauthn.POST("/login/begin/discoverable", handlers.WebAuthnBeginDiscoverableLogin)
+			webauthn.POST("/login/finish", handlers.WebAuthnFinishLogin)
+		}
 	}
 
 	router.GET("/.well-known/nostr.json", handlers.GetNostrJSON)
@@ -169,6 +194,15 @@ func SetupTestRouter(authService *auth.AuthService, vaultService VaultService) *
 		{
 			recovery.GET("/status", handlers.GetRecoveryStatus)
 			recovery.POST("/regenerate", handlers.RegenerateRecoveryCodes)
+		}
+
+		webauthn := protected.Group("/user/webauthn")
+		{
+			webauthn.POST("/register/begin", handlers.WebAuthnBeginRegistration)
+			webauthn.POST("/register/finish", handlers.WebAuthnFinishRegistration)
+			webauthn.GET("/credentials", handlers.ListWebAuthnCredentials)
+			webauthn.DELETE("/credentials/:id", handlers.DeleteWebAuthnCredential)
+			webauthn.PUT("/credentials/:id", handlers.UpdateWebAuthnCredential)
 		}
 	}
 

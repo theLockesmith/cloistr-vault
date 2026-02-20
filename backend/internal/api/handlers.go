@@ -286,7 +286,7 @@ func (h *Handlers) GetAPIInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"name":         "Coldforge Vault API",
 		"version":      "1.0.0",
-		"auth_methods": []string{"email", "nostr", "lightning"},
+		"auth_methods": []string{"email", "nostr", "lightning", "webauthn"},
 		"endpoints": gin.H{
 			"auth": gin.H{
 				"register":            "/api/v1/auth/register",
@@ -295,6 +295,14 @@ func (h *Handlers) GetAPIInfo(c *gin.Context) {
 				"nostr_challenge":     "/api/v1/auth/nostr/challenge",
 				"lightning_challenge": "/api/v1/auth/lightning/challenge",
 				"recover":             "/api/v1/auth/recover",
+			},
+			"webauthn": gin.H{
+				"login_begin":        "/api/v1/auth/webauthn/login/begin",
+				"login_discoverable": "/api/v1/auth/webauthn/login/begin/discoverable",
+				"login_finish":       "/api/v1/auth/webauthn/login/finish",
+				"register_begin":     "/api/v1/user/webauthn/register/begin",
+				"register_finish":    "/api/v1/user/webauthn/register/finish",
+				"credentials":        "/api/v1/user/webauthn/credentials",
 			},
 			"nip05": gin.H{
 				"lookup":    "/api/v1/nip05/lookup",

@@ -92,6 +92,7 @@ coldforge-vault/
 - Email/password authentication
 - Nostr keypair authentication (NIP-07, NIP-46)
 - Lightning Address authentication (LNURL-auth / LUD-04)
+- WebAuthn/Passkey authentication (platform + roaming authenticators)
 - Recovery codes system
 - Multi-platform (web, mobile, desktop, browser extension)
 
@@ -119,6 +120,7 @@ coldforge-vault/
 - **NIP-05 verification** - Link and verify NIP-05 addresses for Nostr users
 - **Frontend Lightning UI** - Lightning authentication in Login component
 - **Frontend NIP-05 UI** - Settings page with NIP-05 verification for Nostr users
+- **WebAuthn/Passkey backend** - Full backend implementation with database schema, service, and API handlers
 
 ### NIP-05 Verification
 NIP-05 allows linking human-readable identifiers (`alice@domain.com`) to Nostr pubkeys:
@@ -156,8 +158,28 @@ The implementation follows LUD-04 (LNURL-auth) specification:
 - **Database**: PostgreSQL 15 with persistent storage
 - **Monitoring**: ServiceMonitor configured for Prometheus scraping
 
+### WebAuthn/Passkey Authentication
+Backend implementation complete with database migration and API endpoints:
+
+**Public endpoints (login):**
+- `POST /api/v1/auth/webauthn/login/begin` - Start login with email
+- `POST /api/v1/auth/webauthn/login/begin/discoverable` - Start usernameless login
+- `POST /api/v1/auth/webauthn/login/finish` - Complete login
+
+**Protected endpoints (credential management):**
+- `POST /api/v1/user/webauthn/register/begin` - Start passkey registration
+- `POST /api/v1/user/webauthn/register/finish` - Complete registration
+- `GET /api/v1/user/webauthn/credentials` - List user's passkeys
+- `PUT /api/v1/user/webauthn/credentials/:id` - Rename a passkey
+- `DELETE /api/v1/user/webauthn/credentials/:id` - Remove a passkey
+
+Key files:
+- `backend/internal/auth/webauthn.go` - WebAuthn service implementation
+- `backend/internal/api/handlers_webauthn.go` - API handlers
+- `backend/migrations/003_webauthn_support.up.sql` - Database schema
+
 ### Next Steps (Priority Order)
-1. **WebAuthn/Passkey support** - Hardware key authentication
+1. **Frontend WebAuthn UI** - Add passkey registration/login to web app
 2. **Integrate component-based frontend** - Wire up Login, Dashboard, Settings with App routing
 
 ## Monitoring

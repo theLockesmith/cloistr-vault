@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
-import { Shield, Mail, Key, Zap } from 'lucide-react';
+import { Shield, Mail, Key, Zap, Fingerprint } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface LoginForm {
@@ -17,13 +17,14 @@ interface LightningChallenge {
 }
 
 export default function Login() {
-  const { login, loginWithNostr, getLightningChallenge, loginWithLightning, loading } = useAuth();
-  const [authMethod, setAuthMethod] = useState<'email' | 'nostr' | 'lightning'>('email');
+  const { login, loginWithNostr, getLightningChallenge, loginWithLightning, loginWithWebAuthn, loginWithWebAuthnDiscoverable, isWebAuthnAvailable, loading } = useAuth();
+  const [authMethod, setAuthMethod] = useState<'email' | 'nostr' | 'lightning' | 'passkey'>('email');
   const [nostrPublicKey, setNostrPublicKey] = useState('');
   const [lightningAddress, setLightningAddress] = useState('');
   const [lightningChallenge, setLightningChallenge] = useState<LightningChallenge | null>(null);
   const [lightningSignature, setLightningSignature] = useState('');
   const [lightningLinkingKey, setLightningLinkingKey] = useState('');
+  const [passkeyEmail, setPasskeyEmail] = useState('');
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
 
   const onEmailSubmit = async (data: LoginForm) => {
@@ -90,6 +91,27 @@ export default function Login() {
     }
   };
 
+  const onPasskeyLogin = async () => {
+    if (!passkeyEmail || !passkeyEmail.includes('@')) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    try {
+      await loginWithWebAuthn(passkeyEmail);
+    } catch (error) {
+      // Error handling is done in AuthContext
+    }
+  };
+
+  const onPasskeyDiscoverableLogin = async () => {
+    try {
+      await loginWithWebAuthnDiscoverable();
+    } catch (error) {
+      // Error handling is done in AuthContext
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-md w-full space-y-8 p-8">
@@ -106,41 +128,55 @@ export default function Login() {
 
           <div className="card-content space-y-6">
             {/* Auth Method Toggle */}
-            <div className="flex bg-muted rounded-lg p-1">
+            <div className="grid grid-cols-2 gap-1 bg-muted rounded-lg p-1">
               <button
                 type="button"
-                className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-colors ${
+                className={`py-2 px-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
                   authMethod === 'email'
                     ? 'bg-white text-primary shadow-sm dark:bg-gray-800'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
                 onClick={() => setAuthMethod('email')}
               >
-                <Mail className="w-4 h-4 inline mr-1" />
+                <Mail className="w-4 h-4 mr-1" />
                 Email
               </button>
+              {isWebAuthnAvailable && (
+                <button
+                  type="button"
+                  className={`py-2 px-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
+                    authMethod === 'passkey'
+                      ? 'bg-white text-primary shadow-sm dark:bg-gray-800'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => setAuthMethod('passkey')}
+                >
+                  <Fingerprint className="w-4 h-4 mr-1" />
+                  Passkey
+                </button>
+              )}
               <button
                 type="button"
-                className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-colors ${
+                className={`py-2 px-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
                   authMethod === 'nostr'
                     ? 'bg-white text-primary shadow-sm dark:bg-gray-800'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
                 onClick={() => setAuthMethod('nostr')}
               >
-                <Key className="w-4 h-4 inline mr-1" />
+                <Key className="w-4 h-4 mr-1" />
                 Nostr
               </button>
               <button
                 type="button"
-                className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-colors ${
+                className={`py-2 px-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
                   authMethod === 'lightning'
                     ? 'bg-white text-primary shadow-sm dark:bg-gray-800'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
                 onClick={() => setAuthMethod('lightning')}
               >
-                <Zap className="w-4 h-4 inline mr-1" />
+                <Zap className="w-4 h-4 mr-1" />
                 Lightning
               </button>
             </div>
@@ -197,6 +233,64 @@ export default function Login() {
                   {loading ? 'Signing in...' : 'Sign in'}
                 </button>
               </form>
+            )}
+
+            {authMethod === 'passkey' && (
+              <div className="space-y-4">
+                <div className="text-center">
+                  <Fingerprint className="w-12 h-12 mx-auto text-primary mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    Sign in with your device's built-in authenticator
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onPasskeyDiscoverableLogin}
+                  disabled={loading}
+                  className="btn-primary w-full"
+                >
+                  {loading ? 'Authenticating...' : 'Sign in with Passkey'}
+                </button>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-muted"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-card px-2 text-muted-foreground">or enter email</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="passkeyEmail" className="block text-sm font-medium text-foreground mb-2">
+                    Email address
+                  </label>
+                  <input
+                    type="email"
+                    value={passkeyEmail}
+                    onChange={(e) => setPasskeyEmail(e.target.value)}
+                    className="input w-full"
+                    placeholder="Enter your email"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onPasskeyLogin}
+                  disabled={loading || !passkeyEmail}
+                  className="btn-secondary w-full"
+                >
+                  {loading ? 'Authenticating...' : 'Sign in with Email + Passkey'}
+                </button>
+
+                <div className="bg-muted/50 p-3 rounded-lg">
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Note:</strong> Passkeys use Face ID, Touch ID, Windows Hello, or hardware security keys
+                    for passwordless authentication.
+                  </p>
+                </div>
+              </div>
             )}
 
             {authMethod === 'nostr' && (

@@ -1,11 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Shield, Key, Zap, CheckCircle, AlertCircle, Search, ArrowLeft } from 'lucide-react';
+import { Shield, Key, Zap, CheckCircle, AlertCircle, Search, ArrowLeft, Fingerprint, Plus, Trash2, Edit2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
+interface WebAuthnCredential {
+  id: string;
+  credential_id: string;
+  name: string;
+  created_at: string;
+  last_used_at?: string;
+  backup_eligible: boolean;
+  backup_state: boolean;
+}
+
 export default function Settings() {
-  const { user, verifyNIP05, lookupNIP05, loading } = useAuth();
+  const { user, verifyNIP05, lookupNIP05, registerWebAuthnCredential, listWebAuthnCredentials, deleteWebAuthnCredential, updateWebAuthnCredential, isWebAuthnAvailable, loading } = useAuth();
   const [nip05Input, setNip05Input] = useState('');
   const [lookupResult, setLookupResult] = useState<{
     nip05_address: string;
@@ -13,8 +23,85 @@ export default function Settings() {
     relays: string[];
   } | null>(null);
   const [lookupError, setLookupError] = useState<string | null>(null);
+  const [credentials, setCredentials] = useState<WebAuthnCredential[]>([]);
+  const [loadingCredentials, setLoadingCredentials] = useState(false);
+  const [newCredentialName, setNewCredentialName] = useState('');
+  const [showAddPasskey, setShowAddPasskey] = useState(false);
+  const [editingCredential, setEditingCredential] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
 
   const isNostrUser = user?.auth_method === 'nostr' || user?.nostr_pubkey;
+
+  useEffect(() => {
+    if (isWebAuthnAvailable) {
+      loadCredentials();
+    }
+  }, [isWebAuthnAvailable]);
+
+  const loadCredentials = async () => {
+    try {
+      setLoadingCredentials(true);
+      const creds = await listWebAuthnCredentials();
+      setCredentials(creds);
+    } catch (error) {
+      // Error handled in context
+    } finally {
+      setLoadingCredentials(false);
+    }
+  };
+
+  const handleAddPasskey = async () => {
+    if (!newCredentialName.trim()) {
+      toast.error('Please enter a name for your passkey');
+      return;
+    }
+
+    try {
+      await registerWebAuthnCredential(newCredentialName.trim());
+      setNewCredentialName('');
+      setShowAddPasskey(false);
+      await loadCredentials();
+    } catch (error) {
+      // Error handled in context
+    }
+  };
+
+  const handleDeleteCredential = async (credentialId: string) => {
+    if (!window.confirm('Are you sure you want to remove this passkey?')) {
+      return;
+    }
+
+    try {
+      await deleteWebAuthnCredential(credentialId);
+      await loadCredentials();
+    } catch (error) {
+      // Error handled in context
+    }
+  };
+
+  const handleUpdateCredential = async (credentialId: string) => {
+    if (!editName.trim()) {
+      toast.error('Please enter a name');
+      return;
+    }
+
+    try {
+      await updateWebAuthnCredential(credentialId, editName.trim());
+      setEditingCredential(null);
+      setEditName('');
+      await loadCredentials();
+    } catch (error) {
+      // Error handled in context
+    }
+  };
+
+  const formatDate = (dateStr: string): string => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
 
   const handleLookup = async () => {
     if (!nip05Input || !nip05Input.includes('@')) {
@@ -136,6 +223,167 @@ export default function Settings() {
           )}
         </div>
       </div>
+
+      {/* Passkeys Section */}
+      {isWebAuthnAvailable && (
+        <div className="card">
+          <div className="card-header">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Fingerprint className="h-5 w-5 text-primary" />
+                <h2 className="card-title">Passkeys</h2>
+              </div>
+              {!showAddPasskey && (
+                <button
+                  onClick={() => setShowAddPasskey(true)}
+                  className="btn-secondary text-sm"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Passkey
+                </button>
+              )}
+            </div>
+            <p className="card-description">
+              Manage your passwordless authentication methods
+            </p>
+          </div>
+
+          <div className="card-content space-y-4">
+            {/* Add Passkey Form */}
+            {showAddPasskey && (
+              <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium">Register New Passkey</h4>
+                  <button
+                    onClick={() => {
+                      setShowAddPasskey(false);
+                      setNewCredentialName('');
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">
+                    Passkey Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newCredentialName}
+                    onChange={(e) => setNewCredentialName(e.target.value)}
+                    placeholder="e.g., MacBook Touch ID, iPhone, YubiKey"
+                    className="input w-full"
+                  />
+                </div>
+                <button
+                  onClick={handleAddPasskey}
+                  disabled={loading || !newCredentialName.trim()}
+                  className="btn-primary w-full"
+                >
+                  {loading ? 'Registering...' : 'Register Passkey'}
+                </button>
+              </div>
+            )}
+
+            {/* Credentials List */}
+            {loadingCredentials ? (
+              <div className="text-center py-4 text-muted-foreground">
+                Loading passkeys...
+              </div>
+            ) : credentials.length === 0 ? (
+              <div className="text-center py-4">
+                <Fingerprint className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  No passkeys registered yet. Add a passkey for faster, passwordless login.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {credentials.map((cred) => (
+                  <div
+                    key={cred.id}
+                    className="p-3 bg-muted/50 rounded-lg flex items-center justify-between"
+                  >
+                    <div className="flex-1">
+                      {editingCredential === cred.credential_id ? (
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="input text-sm flex-1"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => handleUpdateCredential(cred.credential_id)}
+                            className="btn-primary text-xs py-1 px-2"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingCredential(null);
+                              setEditName('');
+                            }}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center space-x-2">
+                            <Fingerprint className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium text-sm">{cred.name}</span>
+                            {cred.backup_eligible && (
+                              <span className="text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded">
+                                Synced
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Added {formatDate(cred.created_at)}
+                            {cred.last_used_at && ` • Last used ${formatDate(cred.last_used_at)}`}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    {editingCredential !== cred.credential_id && (
+                      <div className="flex items-center space-x-1">
+                        <button
+                          onClick={() => {
+                            setEditingCredential(cred.credential_id);
+                            setEditName(cred.name);
+                          }}
+                          className="p-1.5 text-muted-foreground hover:text-foreground rounded"
+                          title="Rename"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCredential(cred.credential_id)}
+                          className="p-1.5 text-muted-foreground hover:text-destructive rounded"
+                          title="Remove"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="bg-muted/50 p-3 rounded-lg">
+              <p className="text-xs text-muted-foreground">
+                <strong>Tip:</strong> Passkeys use your device's built-in authentication (Face ID, Touch ID, Windows Hello)
+                or hardware security keys for secure, passwordless login.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* NIP-05 Verification Section */}
       {isNostrUser && (

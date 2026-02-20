@@ -26,6 +26,16 @@ interface LightningChallenge {
   expiresAt: string;
 }
 
+interface WebAuthnCredential {
+  id: string;
+  credential_id: string;
+  name: string;
+  created_at: string;
+  last_used_at?: string;
+  backup_eligible: boolean;
+  backup_state: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
@@ -37,6 +47,13 @@ interface AuthContextType {
   registerWithNostr: (publicKey: string, vaultData: string) => Promise<void>;
   verifyNIP05: (nip05Address: string) => Promise<void>;
   lookupNIP05: (nip05Address: string) => Promise<NIP05LookupResult>;
+  loginWithWebAuthn: (email: string) => Promise<void>;
+  loginWithWebAuthnDiscoverable: () => Promise<void>;
+  registerWebAuthnCredential: (name: string) => Promise<WebAuthnCredential>;
+  listWebAuthnCredentials: () => Promise<WebAuthnCredential[]>;
+  deleteWebAuthnCredential: (credentialId: string) => Promise<void>;
+  updateWebAuthnCredential: (credentialId: string, name: string) => Promise<void>;
+  isWebAuthnAvailable: boolean;
   logout: () => void;
   loading: boolean;
 }
@@ -50,8 +67,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isWebAuthnAvailable, setIsWebAuthnAvailable] = useState(false);
 
   useEffect(() => {
+    // Check WebAuthn availability
+    setIsWebAuthnAvailable(
+      typeof window !== 'undefined' &&
+      window.PublicKeyCredential !== undefined &&
+      typeof window.PublicKeyCredential === 'function'
+    );
+
     // Check for stored authentication on app load
     const storedToken = localStorage.getItem('vault_token');
     const storedUser = localStorage.getItem('vault_user');
@@ -258,6 +283,240 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // WebAuthn helper functions
+  const arrayBufferToBase64Url = (buffer: ArrayBuffer): string => {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    bytes.forEach((b) => binary += String.fromCharCode(b));
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  };
+
+  const base64UrlToArrayBuffer = (base64url: string): ArrayBuffer => {
+    const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+    const padding = '='.repeat((4 - base64.length % 4) % 4);
+    const binary = atob(base64 + padding);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
+  };
+
+  const loginWithWebAuthn = async (email: string) => {
+    if (!isWebAuthnAvailable) {
+      throw new Error('WebAuthn is not supported in this browser');
+    }
+
+    try {
+      setLoading(true);
+
+      // Step 1: Get challenge from server
+      const beginResponse = await axios.post('/auth/webauthn/login/begin', { email });
+      const options = beginResponse.data;
+
+      // Convert base64url strings to ArrayBuffers
+      options.publicKey.challenge = base64UrlToArrayBuffer(options.publicKey.challenge);
+      if (options.publicKey.allowCredentials) {
+        options.publicKey.allowCredentials = options.publicKey.allowCredentials.map((cred: any) => ({
+          ...cred,
+          id: base64UrlToArrayBuffer(cred.id),
+        }));
+      }
+
+      // Step 2: Get credential from authenticator
+      const credential = await navigator.credentials.get({
+        publicKey: options.publicKey,
+      }) as PublicKeyCredential;
+
+      if (!credential) {
+        throw new Error('No credential returned');
+      }
+
+      const response = credential.response as AuthenticatorAssertionResponse;
+
+      // Step 3: Send credential to server
+      const finishResponse = await axios.post('/auth/webauthn/login/finish', {
+        email,
+        id: credential.id,
+        rawId: arrayBufferToBase64Url(credential.rawId),
+        type: credential.type,
+        response: {
+          authenticatorData: arrayBufferToBase64Url(response.authenticatorData),
+          clientDataJSON: arrayBufferToBase64Url(response.clientDataJSON),
+          signature: arrayBufferToBase64Url(response.signature),
+          userHandle: response.userHandle ? arrayBufferToBase64Url(response.userHandle) : null,
+        },
+      });
+
+      const { token: newToken, user: newUser } = finishResponse.data;
+
+      setToken(newToken);
+      setUser(newUser);
+
+      localStorage.setItem('vault_token', newToken);
+      localStorage.setItem('vault_user', JSON.stringify(newUser));
+
+      axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+
+      toast.success('Successfully logged in with passkey!');
+    } catch (error: any) {
+      const message = error.response?.data?.error || error.message || 'Passkey login failed';
+      toast.error(message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginWithWebAuthnDiscoverable = async () => {
+    if (!isWebAuthnAvailable) {
+      throw new Error('WebAuthn is not supported in this browser');
+    }
+
+    try {
+      setLoading(true);
+
+      // Step 1: Get challenge from server (no email needed)
+      const beginResponse = await axios.post('/auth/webauthn/login/begin/discoverable');
+      const { options, session_id } = beginResponse.data;
+
+      // Convert base64url strings to ArrayBuffers
+      options.publicKey.challenge = base64UrlToArrayBuffer(options.publicKey.challenge);
+
+      // Step 2: Get credential from authenticator (browser will show available passkeys)
+      const credential = await navigator.credentials.get({
+        publicKey: options.publicKey,
+        mediation: 'optional',
+      }) as PublicKeyCredential;
+
+      if (!credential) {
+        throw new Error('No credential returned');
+      }
+
+      const response = credential.response as AuthenticatorAssertionResponse;
+
+      // Step 3: Send credential to server
+      const finishResponse = await axios.post('/auth/webauthn/login/finish', {
+        session_id,
+        id: credential.id,
+        rawId: arrayBufferToBase64Url(credential.rawId),
+        type: credential.type,
+        response: {
+          authenticatorData: arrayBufferToBase64Url(response.authenticatorData),
+          clientDataJSON: arrayBufferToBase64Url(response.clientDataJSON),
+          signature: arrayBufferToBase64Url(response.signature),
+          userHandle: response.userHandle ? arrayBufferToBase64Url(response.userHandle) : null,
+        },
+      });
+
+      const { token: newToken, user: newUser } = finishResponse.data;
+
+      setToken(newToken);
+      setUser(newUser);
+
+      localStorage.setItem('vault_token', newToken);
+      localStorage.setItem('vault_user', JSON.stringify(newUser));
+
+      axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+
+      toast.success('Successfully logged in with passkey!');
+    } catch (error: any) {
+      const message = error.response?.data?.error || error.message || 'Passkey login failed';
+      toast.error(message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const registerWebAuthnCredential = async (name: string): Promise<WebAuthnCredential> => {
+    if (!isWebAuthnAvailable) {
+      throw new Error('WebAuthn is not supported in this browser');
+    }
+
+    try {
+      setLoading(true);
+
+      // Step 1: Get registration options from server
+      const beginResponse = await axios.post('/user/webauthn/register/begin');
+      const options = beginResponse.data;
+
+      // Convert base64url strings to ArrayBuffers
+      options.publicKey.challenge = base64UrlToArrayBuffer(options.publicKey.challenge);
+      options.publicKey.user.id = base64UrlToArrayBuffer(options.publicKey.user.id);
+      if (options.publicKey.excludeCredentials) {
+        options.publicKey.excludeCredentials = options.publicKey.excludeCredentials.map((cred: any) => ({
+          ...cred,
+          id: base64UrlToArrayBuffer(cred.id),
+        }));
+      }
+
+      // Step 2: Create credential with authenticator
+      const credential = await navigator.credentials.create({
+        publicKey: options.publicKey,
+      }) as PublicKeyCredential;
+
+      if (!credential) {
+        throw new Error('No credential returned');
+      }
+
+      const response = credential.response as AuthenticatorAttestationResponse;
+
+      // Step 3: Send credential to server
+      const finishResponse = await axios.post(`/user/webauthn/register/finish?name=${encodeURIComponent(name)}`, {
+        id: credential.id,
+        rawId: arrayBufferToBase64Url(credential.rawId),
+        type: credential.type,
+        response: {
+          attestationObject: arrayBufferToBase64Url(response.attestationObject),
+          clientDataJSON: arrayBufferToBase64Url(response.clientDataJSON),
+        },
+      });
+
+      toast.success('Passkey registered successfully!');
+      return finishResponse.data.credential;
+    } catch (error: any) {
+      const message = error.response?.data?.error || error.message || 'Failed to register passkey';
+      toast.error(message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const listWebAuthnCredentials = async (): Promise<WebAuthnCredential[]> => {
+    try {
+      const response = await axios.get('/user/webauthn/credentials');
+      return response.data.credentials || [];
+    } catch (error: any) {
+      const message = error.response?.data?.error || 'Failed to list passkeys';
+      toast.error(message);
+      throw error;
+    }
+  };
+
+  const deleteWebAuthnCredential = async (credentialId: string) => {
+    try {
+      await axios.delete(`/user/webauthn/credentials/${encodeURIComponent(credentialId)}`);
+      toast.success('Passkey removed successfully');
+    } catch (error: any) {
+      const message = error.response?.data?.error || 'Failed to remove passkey';
+      toast.error(message);
+      throw error;
+    }
+  };
+
+  const updateWebAuthnCredential = async (credentialId: string, name: string) => {
+    try {
+      await axios.put(`/user/webauthn/credentials/${encodeURIComponent(credentialId)}`, { name });
+      toast.success('Passkey renamed successfully');
+    } catch (error: any) {
+      const message = error.response?.data?.error || 'Failed to rename passkey';
+      toast.error(message);
+      throw error;
+    }
+  };
+
   const logout = async () => {
     try {
       if (token) {
@@ -289,6 +548,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     registerWithNostr,
     verifyNIP05,
     lookupNIP05,
+    loginWithWebAuthn,
+    loginWithWebAuthnDiscoverable,
+    registerWebAuthnCredential,
+    listWebAuthnCredentials,
+    deleteWebAuthnCredential,
+    updateWebAuthnCredential,
+    isWebAuthnAvailable,
     logout,
     loading,
   };

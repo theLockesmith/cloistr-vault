@@ -7,6 +7,17 @@ interface User {
   email: string;
   created_at: string;
   updated_at: string;
+  auth_method?: string;
+  nostr_pubkey?: string;
+  nip05_address?: string;
+  lightning_address?: string;
+  display_name?: string;
+}
+
+interface NIP05LookupResult {
+  nip05_address: string;
+  pubkey: string;
+  relays: string[];
 }
 
 interface LightningChallenge {
@@ -24,6 +35,8 @@ interface AuthContextType {
   loginWithLightning: (k1: string, signature: string, linkingKey: string) => Promise<void>;
   register: (email: string, password: string, vaultData: string) => Promise<void>;
   registerWithNostr: (publicKey: string, vaultData: string) => Promise<void>;
+  verifyNIP05: (nip05Address: string) => Promise<void>;
+  lookupNIP05: (nip05Address: string) => Promise<NIP05LookupResult>;
   logout: () => void;
   loading: boolean;
 }
@@ -196,10 +209,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         nostr_pubkey: publicKey,
         vault_data: vaultData,
       });
-      
+
       toast.success('Account created successfully with Nostr! Please log in.');
     } catch (error: any) {
       const message = error.response?.data?.error || 'Nostr registration failed';
+      toast.error(message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyNIP05 = async (nip05Address: string) => {
+    try {
+      setLoading(true);
+      await axios.post('/nip05/verify', {
+        nip05_address: nip05Address,
+      });
+
+      // Update local user state with verified NIP-05
+      if (user) {
+        const updatedUser = { ...user, nip05_address: nip05Address };
+        setUser(updatedUser);
+        localStorage.setItem('vault_user', JSON.stringify(updatedUser));
+      }
+
+      toast.success('NIP-05 address verified successfully!');
+    } catch (error: any) {
+      const message = error.response?.data?.error || 'NIP-05 verification failed';
+      toast.error(message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const lookupNIP05 = async (nip05Address: string): Promise<NIP05LookupResult> => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`/nip05/lookup?address=${encodeURIComponent(nip05Address)}`);
+      return response.data;
+    } catch (error: any) {
+      const message = error.response?.data?.error || 'NIP-05 lookup failed';
       toast.error(message);
       throw error;
     } finally {
@@ -236,6 +287,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loginWithLightning,
     register,
     registerWithNostr,
+    verifyNIP05,
+    lookupNIP05,
     logout,
     loading,
   };

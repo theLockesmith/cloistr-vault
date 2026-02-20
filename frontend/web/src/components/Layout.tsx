@@ -1,4 +1,5 @@
 import React, { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Shield, LogOut, Settings, Plus, Search } from 'lucide-react';
 
@@ -48,10 +49,14 @@ export default function Layout({ children }: LayoutProps) {
               </div>
 
               <div className="flex items-center space-x-2">
-                <button className="p-2 text-muted-foreground hover:text-foreground rounded-md hover:bg-accent">
+                <Link
+                  to="/settings"
+                  className="p-2 text-muted-foreground hover:text-foreground rounded-md hover:bg-accent"
+                  title="Settings"
+                >
                   <Settings className="h-4 w-4" />
-                </button>
-                
+                </Link>
+
                 <button
                   onClick={logout}
                   className="p-2 text-muted-foreground hover:text-foreground rounded-md hover:bg-accent"

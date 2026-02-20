@@ -117,6 +117,8 @@ coldforge-vault/
 - **Lightning auth (LNURL-auth)** - Full implementation with secp256k1 signature verification
 - **HA deployment** - Scaled to 3 replicas for high availability
 - **NIP-05 verification** - Link and verify NIP-05 addresses for Nostr users
+- **Frontend Lightning UI** - Lightning authentication in Login component
+- **Frontend NIP-05 UI** - Settings page with NIP-05 verification for Nostr users
 
 ### NIP-05 Verification
 NIP-05 allows linking human-readable identifiers (`alice@domain.com`) to Nostr pubkeys:
@@ -155,9 +157,8 @@ The implementation follows LUD-04 (LNURL-auth) specification:
 - **Monitoring**: ServiceMonitor configured for Prometheus scraping
 
 ### Next Steps (Priority Order)
-1. **Frontend Lightning integration** - Add Lightning login UI to web app
-2. **Frontend NIP-05 verification UI** - Allow users to verify their NIP-05 addresses
-3. **WebAuthn/Passkey support** - Hardware key authentication
+1. **WebAuthn/Passkey support** - Hardware key authentication
+2. **Integrate component-based frontend** - Wire up Login, Dashboard, Settings with App routing
 
 ## Monitoring
 

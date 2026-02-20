@@ -296,6 +296,11 @@ func (h *Handlers) GetAPIInfo(c *gin.Context) {
 				"lightning_challenge": "/api/v1/auth/lightning/challenge",
 				"recover":             "/api/v1/auth/recover",
 			},
+			"nip05": gin.H{
+				"lookup":    "/api/v1/nip05/lookup",
+				"verify":    "/api/v1/nip05/verify",
+				"wellknown": "/.well-known/nostr.json",
+			},
 			"user": gin.H{
 				"profile": "/api/v1/user/profile",
 			},
@@ -447,6 +452,108 @@ func (h *Handlers) handleLightningLogin(c *gin.Context, req *models.LoginRequest
 		"user":       user,
 		"expires_at": time.Now().Add(24 * time.Hour),
 	})
+}
+
+// VerifyNIP05 verifies and links a NIP-05 address to the authenticated user
+func (h *Handlers) VerifyNIP05(c *gin.Context) {
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var req struct {
+		NIP05Address string `json:"nip05_address" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	// Verify the NIP-05 address
+	err = h.authService.VerifyNIP05(userID, req.NIP05Address)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("NIP-05 verification failed: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "NIP-05 address verified successfully",
+		"nip05_address": req.NIP05Address,
+	})
+}
+
+// LookupNIP05 looks up a NIP-05 address and returns the associated pubkey
+func (h *Handlers) LookupNIP05(c *gin.Context) {
+	address := c.Query("address")
+	if address == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "address query parameter is required"})
+		return
+	}
+
+	pubkey, relays, err := h.authService.LookupNIP05(address)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("NIP-05 lookup failed: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"nip05_address": address,
+		"pubkey":        pubkey,
+		"relays":        relays,
+	})
+}
+
+// GetNostrJSON serves the .well-known/nostr.json endpoint for NIP-05 verification
+func (h *Handlers) GetNostrJSON(c *gin.Context) {
+	// Get the name query parameter (optional per NIP-05 spec)
+	name := c.Query("name")
+
+	// Get the domain from request (for multi-domain support)
+	domain := c.Request.Host
+	if strings.Contains(domain, ":") {
+		domain = strings.Split(domain, ":")[0]
+	}
+
+	// Get NIP-05 data
+	data, err := h.authService.GetNostrJSON(c.Request.Context(), domain)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get NIP-05 data"})
+		return
+	}
+
+	// If name is specified, filter to just that user
+	if name != "" {
+		if pubkey, exists := data.Names[name]; exists {
+			filteredData := &auth.NIP05Response{
+				Names: map[string]string{name: pubkey},
+			}
+			if relays, ok := data.Relays[pubkey]; ok {
+				filteredData.Relays = map[string][]string{pubkey: relays}
+			}
+			data = filteredData
+		} else {
+			// Return empty response if name not found
+			data = &auth.NIP05Response{
+				Names:  map[string]string{},
+				Relays: map[string][]string{},
+			}
+		}
+	}
+
+	// Set CORS headers per NIP-05 spec
+	c.Header("Access-Control-Allow-Origin", "*")
+	c.Header("Access-Control-Allow-Methods", "GET")
+	c.Header("Content-Type", "application/json")
+
+	c.JSON(http.StatusOK, data)
 }
 
 // Helper functions

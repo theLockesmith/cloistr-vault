@@ -48,7 +48,16 @@ func SetupRouter(authService *auth.AuthService, vaultService VaultService) *gin.
 			auth.POST("/lightning/challenge", ContentTypeMiddleware(), handlers.LightningChallenge)
 			auth.POST("/recover", ContentTypeMiddleware(), handlers.RecoverAccount)
 		}
+
+		// NIP-05 public endpoints
+		nip05 := public.Group("/nip05")
+		{
+			nip05.GET("/lookup", handlers.LookupNIP05)
+		}
 	}
+
+	// .well-known endpoint at root level (required for NIP-05)
+	router.GET("/.well-known/nostr.json", handlers.GetNostrJSON)
 	
 	// Protected routes (require authentication)
 	protected := router.Group("/api/v1")
@@ -64,6 +73,12 @@ func SetupRouter(authService *auth.AuthService, vaultService VaultService) *gin.
 		user := protected.Group("/user")
 		{
 			user.GET("/profile", handlers.GetProfile)
+		}
+
+		// NIP-05 routes (authenticated)
+		nip05 := protected.Group("/nip05")
+		{
+			nip05.POST("/verify", ContentTypeMiddleware(), handlers.VerifyNIP05)
 		}
 		
 		// Vault routes
@@ -116,7 +131,14 @@ func SetupTestRouter(authService *auth.AuthService, vaultService VaultService) *
 			auth.POST("/lightning/challenge", handlers.LightningChallenge)
 			auth.POST("/recover", handlers.RecoverAccount)
 		}
+
+		nip05 := public.Group("/nip05")
+		{
+			nip05.GET("/lookup", handlers.LookupNIP05)
+		}
 	}
+
+	router.GET("/.well-known/nostr.json", handlers.GetNostrJSON)
 
 	// Protected routes
 	protected := router.Group("/api/v1")
@@ -130,6 +152,11 @@ func SetupTestRouter(authService *auth.AuthService, vaultService VaultService) *
 		user := protected.Group("/user")
 		{
 			user.GET("/profile", handlers.GetProfile)
+		}
+
+		nip05 := protected.Group("/nip05")
+		{
+			nip05.POST("/verify", handlers.VerifyNIP05)
 		}
 
 		vault := protected.Group("/vault")

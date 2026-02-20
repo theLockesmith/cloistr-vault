@@ -2,6 +2,11 @@
 
 **Zero-knowledge password manager with Nostr integration**
 
+## REQUIRED READING (Before ANY Action)
+
+**Claude MUST read this file at the start of every session:**
+- `~/claude/coldforge/cloistr/CLAUDE.md` - Cloistr project rules (contains further required reading)
+
 ## Documentation
 
 Full documentation is maintained at:
@@ -110,6 +115,21 @@ coldforge-vault/
 - **Production deployment** - Running on Kubernetes at vault.coldforge.xyz
 - **Nostr user display** - Shows `npub1...` bech32 format instead of `@nostr.local`
 - **Lightning auth (LNURL-auth)** - Full implementation with secp256k1 signature verification
+- **HA deployment** - Scaled to 3 replicas for high availability
+- **NIP-05 verification** - Link and verify NIP-05 addresses for Nostr users
+
+### NIP-05 Verification
+NIP-05 allows linking human-readable identifiers (`alice@domain.com`) to Nostr pubkeys:
+- `GET /.well-known/nostr.json` - Serves NIP-05 data for domain verification
+- `GET /api/v1/nip05/lookup?address=` - Look up a NIP-05 address
+- `POST /api/v1/nip05/verify` - Verify and link NIP-05 to user account (authenticated)
+
+Key files:
+- `backend/internal/auth/nip05.go` - NIP-05 verification service
+- `backend/internal/auth/providers/nip05.go` - NIP-05 provider implementation
+- `backend/migrations/002_nip05_lightning.up.sql` - Database migration
+
+Display name priority: NIP-05 > Lightning Address > npub
 
 ### Lightning Authentication (LNURL-auth)
 New endpoints for Lightning Address authentication:
@@ -135,9 +155,9 @@ The implementation follows LUD-04 (LNURL-auth) specification:
 - **Monitoring**: ServiceMonitor configured for Prometheus scraping
 
 ### Next Steps (Priority Order)
-1. **Scale to 3 replicas** - Once image pull is cached on nodes
-2. **Add NIP-05 verification** - Link Lightning addresses to Nostr pubkeys
-3. **Frontend Lightning integration** - Add Lightning login UI to web app
+1. **Frontend Lightning integration** - Add Lightning login UI to web app
+2. **Frontend NIP-05 verification UI** - Allow users to verify their NIP-05 addresses
+3. **WebAuthn/Passkey support** - Hardware key authentication
 
 ## Monitoring
 

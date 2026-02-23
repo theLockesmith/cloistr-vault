@@ -1,10 +1,29 @@
 import React, { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Shield, LogOut, Settings, Plus, Search } from 'lucide-react';
+import { Shield, LogOut, Settings, Plus, Search, Key, Zap, Mail, BadgeCheck } from 'lucide-react';
 
 interface LayoutProps {
   children: ReactNode;
+}
+
+// Get display name with priority: NIP-05 > Lightning > npub > email
+function getUserDisplayName(user: any): string {
+  if (user?.nip05_address) return user.nip05_address;
+  if (user?.lightning_address) return user.lightning_address;
+  if (user?.nostr_pubkey) {
+    const pk = user.nostr_pubkey;
+    return `npub1${pk.substring(0, 8)}...${pk.substring(56)}`;
+  }
+  return user?.email || 'User';
+}
+
+// Get auth method icon
+function getAuthIcon(user: any) {
+  if (user?.nip05_address) return <BadgeCheck className="h-4 w-4 text-blue-500" />;
+  if (user?.lightning_address) return <Zap className="h-4 w-4 text-yellow-500" />;
+  if (user?.nostr_pubkey) return <Key className="h-4 w-4 text-purple-500" />;
+  return <Mail className="h-4 w-4 text-muted-foreground" />;
 }
 
 export default function Layout({ children }: LayoutProps) {
@@ -44,8 +63,8 @@ export default function Layout({ children }: LayoutProps) {
               </button>
               
               <div className="flex items-center space-x-2 text-sm">
-                <span className="text-muted-foreground">Welcome,</span>
-                <span className="font-medium">{user?.email}</span>
+                {getAuthIcon(user)}
+                <span className="font-medium">{getUserDisplayName(user)}</span>
               </div>
 
               <div className="flex items-center space-x-2">

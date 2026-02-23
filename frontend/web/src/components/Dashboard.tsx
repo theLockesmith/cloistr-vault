@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCrypto } from '../contexts/CryptoContext';
-import { Globe, Sticky, CreditCard, User, Star, Folder, Eye, EyeOff, Copy, ExternalLink } from 'lucide-react';
+import { Globe, StickyNote, CreditCard, User, Star, Folder, Eye, EyeOff, Copy, ExternalLink, Shield } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -71,7 +71,7 @@ export default function Dashboard() {
       case 'login':
         return Globe;
       case 'note':
-        return Sticky;
+        return StickyNote;
       case 'card':
         return CreditCard;
       case 'identity':
@@ -136,7 +136,7 @@ export default function Dashboard() {
         <div className="card">
           <div className="card-content p-4">
             <div className="flex items-center space-x-2">
-              <Sticky className="h-5 w-5 text-green-500" />
+              <StickyNote className="h-5 w-5 text-green-500" />
               <div>
                 <p className="text-sm text-muted-foreground">Notes</p>
                 <p className="text-2xl font-bold">

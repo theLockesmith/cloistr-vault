@@ -1,7 +1,7 @@
 {
-  "name": "coldforge-vault-web",
+  "name": "cloistr-vault-web",
   "version": "1.0.0",
-  "description": "Coldforge Vault Web Application - Zero-knowledge password manager",
+  "description": "Cloistr Vault Web Application - Zero-knowledge password manager",
   "private": true,
   "dependencies": {
     "@testing-library/jest-dom": "^5.17.0",

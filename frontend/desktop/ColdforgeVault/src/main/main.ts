@@ -6,7 +6,7 @@ import * as isDev from 'electron-is-dev';
 // Security: Disable node integration in renderer
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 
-class ColdforgeVaultApp {
+class CloistrVaultApp {
   private mainWindow: BrowserWindow | null = null;
   private isQuitting = false;
 
@@ -173,16 +173,16 @@ class ColdforgeVaultApp {
         role: 'help',
         submenu: [
           {
-            label: 'About Coldforge Vault',
+            label: 'About Cloistr Vault',
             click: () => this.showAbout(),
           },
           {
             label: 'Documentation',
-            click: () => shell.openExternal('https://github.com/coldforge/vault/docs'),
+            click: () => shell.openExternal('https://github.com/cloistr/vault/docs'),
           },
           {
             label: 'Report Issue',
-            click: () => shell.openExternal('https://github.com/coldforge/vault/issues'),
+            click: () => shell.openExternal('https://github.com/cloistr/vault/issues'),
           },
         ],
       },
@@ -191,7 +191,7 @@ class ColdforgeVaultApp {
     // macOS specific menu adjustments
     if (process.platform === 'darwin') {
       template.unshift({
-        label: 'Coldforge Vault',
+        label: 'Cloistr Vault',
         submenu: [
           { role: 'about' },
           { type: 'separator' },
@@ -334,9 +334,9 @@ class ColdforgeVaultApp {
   private showAbout(): void {
     dialog.showMessageBox(this.mainWindow!, {
       type: 'info',
-      title: 'About Coldforge Vault',
-      message: 'Coldforge Vault',
-      detail: `Version: ${app.getVersion()}\nZero-knowledge password manager\n\n© 2024 Coldforge Vault Team`,
+      title: 'About Cloistr Vault',
+      message: 'Cloistr Vault',
+      detail: `Version: ${app.getVersion()}\nZero-knowledge password manager\n\n© 2024 Cloistr Vault Team`,
       buttons: ['OK'],
     });
   }
@@ -359,4 +359,4 @@ class ColdforgeVaultApp {
 }
 
 // Initialize the application
-new ColdforgeVaultApp();
+new CloistrVaultApp();

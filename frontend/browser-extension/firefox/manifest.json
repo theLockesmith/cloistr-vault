@@ -1,6 +1,6 @@
 {
   "manifest_version": 2,
-  "name": "Coldforge Vault",
+  "name": "Cloistr Vault",
   "version": "1.0.0",
   "description": "Zero-knowledge password manager browser extension",
   
@@ -30,7 +30,7 @@
 
   "browser_action": {
     "default_popup": "src/popup/popup.html",
-    "default_title": "Coldforge Vault",
+    "default_title": "Cloistr Vault",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
@@ -55,7 +55,7 @@
 
   "applications": {
     "gecko": {
-      "id": "coldforge-vault@coldforge.com",
+      "id": "cloistr-vault@cloistr.com",
       "strict_min_version": "91.0"
     }
   }

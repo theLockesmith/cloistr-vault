@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Coldforge Vault",
+  "name": "Cloistr Vault",
   "version": "1.0.0",
   "description": "Zero-knowledge password manager browser extension",
   "permissions": [
@@ -27,7 +27,7 @@
   ],
   "action": {
     "default_popup": "src/popup/popup.html",
-    "default_title": "Coldforge Vault",
+    "default_title": "Cloistr Vault",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",

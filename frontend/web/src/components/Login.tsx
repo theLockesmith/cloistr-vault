@@ -120,7 +120,7 @@ export default function Login() {
             <div className="mx-auto h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
               <Shield className="h-6 w-6 text-primary" />
             </div>
-            <h2 className="card-title">Welcome to Coldforge Vault</h2>
+            <h2 className="card-title">Welcome to Cloistr Vault</h2>
             <p className="card-description">
               Zero-knowledge password manager
             </p>

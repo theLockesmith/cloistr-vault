@@ -1,6 +1,6 @@
-// Coldforge Vault Browser Extension - Background Script
+// Cloistr Vault Browser Extension - Background Script
 
-class ColdforgeVaultBackground {
+class CloistrVaultBackground {
   constructor() {
     this.initializeExtension();
   }
@@ -25,7 +25,7 @@ class ColdforgeVaultBackground {
       this.onTabUpdated(tabId, changeInfo, tab);
     });
 
-    console.log('Coldforge Vault background script initialized');
+    console.log('Cloistr Vault background script initialized');
   }
 
   onInstalled(details) {
@@ -35,7 +35,7 @@ class ColdforgeVaultBackground {
       chrome.tabs.create({ url: chrome.runtime.getURL('src/popup/welcome.html') });
     } else if (details.reason === 'update') {
       // Extension updated
-      console.log('Coldforge Vault updated to version', chrome.runtime.getManifest().version);
+      console.log('Cloistr Vault updated to version', chrome.runtime.getManifest().version);
     }
   }
 
@@ -68,7 +68,7 @@ class ColdforgeVaultBackground {
 
     chrome.contextMenus.create({
       id: 'open-vault',
-      title: 'Open Coldforge Vault',
+      title: 'Open Cloistr Vault',
       contexts: ['page'],
     });
 
@@ -322,7 +322,7 @@ class ColdforgeVaultBackground {
 }
 
 // Initialize the background script
-new ColdforgeVaultBackground();
+new CloistrVaultBackground();
 
 // Handle alarms
 chrome.alarms.onAlarm.addListener((alarm) => {

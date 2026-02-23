@@ -30,10 +30,10 @@ export default function App() {
       const demoVault = [
         {
           id: '1',
-          name: 'Welcome to Coldforge Vault',
+          name: 'Welcome to Cloistr Vault',
           username: 'demo@example.com',
           password: 'SecurePassword123!',
-          url: 'https://coldforge-vault.com'
+          url: 'https://cloistr.com'
         },
         {
           id: '2', 
@@ -87,7 +87,7 @@ export default function App() {
         <StatusBar style="light" />
         <View style={styles.unlockContainer}>
           <Text style={styles.logo}>🛡️</Text>
-          <Text style={styles.title}>Coldforge Vault</Text>
+          <Text style={styles.title}>Cloistr Vault</Text>
           <Text style={styles.subtitle}>Zero-knowledge password manager</Text>
           
           <View style={styles.unlockForm}>

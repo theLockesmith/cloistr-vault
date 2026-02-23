@@ -98,7 +98,7 @@ const LoginScreen: React.FC = () => {
         <Surface style={[styles.header, { backgroundColor: theme.colors.primary }]}>
           <Icon name="shield-key" size={48} color={theme.colors.onPrimary} />
           <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onPrimary }]}>
-            Coldforge Vault
+            Cloistr Vault
           </Text>
           <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onPrimary }]}>
             Zero-knowledge password manager

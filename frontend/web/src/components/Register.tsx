@@ -30,11 +30,11 @@ export default function Register() {
         {
           id: '1',
           type: 'login' as const,
-          name: 'Welcome to Coldforge Vault',
+          name: 'Welcome to Cloistr Vault',
           fields: {
             username: 'demo@example.com',
             password: 'This is encrypted locally!',
-            url: 'https://coldforge-vault.com'
+            url: 'https://cloistr.com'
           },
           notes: 'This is your first vault entry. All data is encrypted on your device before being sent to our servers.',
           created_at: new Date().toISOString(),

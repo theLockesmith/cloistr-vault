@@ -1,6 +1,6 @@
 {
-  "name": "coldforge-vault-desktop",
-  "productName": "Coldforge Vault",
+  "name": "cloistr-vault-desktop",
+  "productName": "Cloistr Vault",
   "version": "1.0.0",
   "description": "Zero-knowledge password manager for desktop",
   "main": "dist/main.js",
@@ -19,8 +19,8 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "build": {
-    "appId": "com.coldforge.vault",
-    "productName": "Coldforge Vault",
+    "appId": "com.cloistr.vault",
+    "productName": "Cloistr Vault",
     "directories": {
       "output": "dist-electron"
     },
@@ -88,9 +88,9 @@
     }
   },
   "author": {
-    "name": "Coldforge Vault Team",
-    "email": "hello@coldforge-vault.com"
+    "name": "Cloistr Vault Team",
+    "email": "hello@cloistr.com"
   },
   "license": "MIT",
-  "homepage": "https://github.com/coldforge/vault"
+  "homepage": "https://github.com/cloistr/vault"
 }

@@ -113,7 +113,7 @@ function App() {
   });
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('coldforge-theme');
+    const savedTheme = localStorage.getItem('cloistr-theme');
     if (savedTheme === 'dark') {
       setIsDarkMode(true);
     } else if (savedTheme === null) {
@@ -124,7 +124,7 @@ function App() {
   const toggleTheme = () => {
     const newTheme = !isDarkMode;
     setIsDarkMode(newTheme);
-    localStorage.setItem('coldforge-theme', newTheme ? 'dark' : 'light');
+    localStorage.setItem('cloistr-theme', newTheme ? 'dark' : 'light');
   };
 
   const getTheme = () => ({
@@ -302,7 +302,7 @@ function App() {
       console.error('Nostr connection error:', error);
 
       if (error.message?.includes('denied')) {
-        alert('🚫 Permission Denied\n\nYou need to allow Coldforge Vault to access your Nostr extension.\n\n📝 To fix this:\n1. Check your extension settings\n2. Grant permission to this website\n3. Try connecting again');
+        alert('🚫 Permission Denied\n\nYou need to allow Cloistr Vault to access your Nostr extension.\n\n📝 To fix this:\n1. Check your extension settings\n2. Grant permission to this website\n3. Try connecting again');
       } else {
         alert(`❌ Connection Failed\n\n${error.message || 'Unknown error occurred'}\n\n🔧 Troubleshooting:\n• Make sure your Nostr extension is unlocked\n• Try refreshing the page\n• Check browser console for details`);
       }
@@ -439,7 +439,7 @@ function App() {
     }
 
     // 6. Fallback
-    return 'Coldforge User';
+    return 'Cloistr User';
   };
 
   // Get identity method indicator
@@ -934,7 +934,7 @@ function App() {
               marginBottom: '0.5rem',
               color: theme.colors.text
             }}>
-              Coldforge Vault
+              Cloistr Vault
             </h1>
             <p style={{
               textAlign: 'center',
@@ -1225,7 +1225,7 @@ function App() {
 
       <div style={styles.header}>
         <div style={{ fontSize: '1.5rem', fontWeight: '600', color: theme.colors.text }}>
-          🛡️ Coldforge Vault
+          🛡️ Cloistr Vault
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={{

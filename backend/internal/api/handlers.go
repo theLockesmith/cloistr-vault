@@ -284,7 +284,7 @@ func (h *Handlers) UpdateVault(c *gin.Context) {
 // Get API info
 func (h *Handlers) GetAPIInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"name":         "Coldforge Vault API",
+		"name":         "Cloistr Vault API",
 		"version":      "1.0.0",
 		"auth_methods": []string{"email", "nostr", "lightning", "webauthn"},
 		"endpoints": gin.H{

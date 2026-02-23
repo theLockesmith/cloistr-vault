@@ -21,7 +21,7 @@ export default function Layout({ children }: LayoutProps) {
               <div className="h-8 w-8 bg-primary/10 rounded-lg flex items-center justify-center">
                 <Shield className="h-5 w-5 text-primary" />
               </div>
-              <span className="font-bold text-lg">Coldforge Vault</span>
+              <span className="font-bold text-lg">Cloistr Vault</span>
             </div>
 
             {/* Search bar */}
@@ -80,7 +80,7 @@ export default function Layout({ children }: LayoutProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <div className="flex items-center space-x-4">
-              <span>© 2024 Coldforge Vault</span>
+              <span>© 2024 Cloistr Vault</span>
               <span>•</span>
               <span>Zero-knowledge password manager</span>
             </div>

@@ -1,6 +1,6 @@
-// Coldforge Vault Browser Extension - Content Script
+// Cloistr Vault Browser Extension - Content Script
 
-class ColdforgeVaultContent {
+class CloistrVaultContent {
   constructor() {
     this.isInitialized = false;
     this.formDetector = null;
@@ -34,7 +34,7 @@ class ColdforgeVaultContent {
       this.handleMessage(message, sender, sendResponse);
     });
     
-    console.log('Coldforge Vault content script initialized on', window.location.hostname);
+    console.log('Cloistr Vault content script initialized on', window.location.hostname);
   }
 
   detectForms() {
@@ -97,7 +97,7 @@ class ColdforgeVaultContent {
     const indicator = document.createElement('div');
     indicator.className = 'cv-fill-indicator';
     indicator.innerHTML = '🔑';
-    indicator.title = 'Fill with Coldforge Vault';
+    indicator.title = 'Fill with Cloistr Vault';
     
     // Styles
     Object.assign(indicator.style, {
@@ -496,9 +496,9 @@ class ColdforgeVaultContent {
 }
 
 // Initialize content script
-const coldforgeVault = new ColdforgeVaultContent();
+const cloistrVault = new CloistrVaultContent();
 
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {
-  coldforgeVault.cleanup();
+  cloistrVault.cleanup();
 });

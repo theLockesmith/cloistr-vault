@@ -15,7 +15,7 @@ const LoadingScreen: React.FC = () => {
         style={styles.icon}
       />
       <Text variant="headlineSmall" style={styles.title}>
-        Coldforge Vault
+        Cloistr Vault
       </Text>
       <ActivityIndicator 
         size="large" 

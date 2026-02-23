@@ -122,6 +122,7 @@ coldforge-vault/
 - **Frontend NIP-05 UI** - Settings page with NIP-05 verification for Nostr users
 - **WebAuthn/Passkey backend** - Full backend implementation with database schema, service, and API handlers
 - **WebAuthn/Passkey frontend** - Login UI with passkey tab, Settings with passkey management
+- **Component-based frontend** - React Router integration with protected routes, Layout, Dashboard, Settings
 
 ### NIP-05 Verification
 NIP-05 allows linking human-readable identifiers (`alice@domain.com`) to Nostr pubkeys:
@@ -180,9 +181,9 @@ Key files:
 - `backend/migrations/003_webauthn_support.up.sql` - Database schema
 
 ### Next Steps (Priority Order)
-1. **Integrate component-based frontend** - Wire up Login, Dashboard, Settings with App routing
-2. **Mobile app passkey support** - Add WebAuthn to React Native app
-3. **Browser extension** - Implement vault browser extension
+1. **Mobile app passkey support** - Add WebAuthn to React Native app
+2. **Browser extension** - Implement vault browser extension
+3. **Vault item CRUD** - Complete add/edit/delete functionality for vault entries
 
 ## Monitoring
 

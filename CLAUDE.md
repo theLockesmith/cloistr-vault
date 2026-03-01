@@ -123,6 +123,7 @@ coldforge-vault/
 - **WebAuthn/Passkey backend** - Full backend implementation with database schema, service, and API handlers
 - **WebAuthn/Passkey frontend** - Login UI with passkey tab, Settings with passkey management
 - **Component-based frontend** - React Router integration with protected routes, Layout, Dashboard, Settings
+- **Relay preferences** - Integrated cloistr-common library for user relay preferences in NIP-05
 
 ### NIP-05 Verification
 NIP-05 allows linking human-readable identifiers (`alice@domain.com`) to Nostr pubkeys:

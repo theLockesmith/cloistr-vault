@@ -1,4 +1,4 @@
-# CLAUDE.md - coldforge-vault
+# CLAUDE.md - cloistr-vault
 
 **Zero-knowledge password manager with Nostr integration**
 
@@ -53,7 +53,7 @@ This file exists to help Claude Code find context when working in this repositor
 ## Project Structure
 
 ```
-coldforge-vault/
+cloistr-vault/
 ├── backend/
 │   ├── cmd/server/main.go      # Application entry point
 │   ├── internal/               # Private packages
@@ -104,7 +104,7 @@ coldforge-vault/
 - **LUD-04**: LNURL-auth (Lightning Network authentication)
 - **secp256k1**: Nostr/Lightning key cryptography
 
-## Current Status (Updated 2026-02-18)
+## Current Status (Updated 2026-03-01)
 
 ### Completed
 - **Recovery codes** - Full implementation with secure hashing
@@ -113,7 +113,7 @@ coldforge-vault/
 - **Kubernetes annotations** - Auto-discovery enabled for Prometheus scraping
 - **Nostr signature verification** - Fixed Y-parity issue in secp256k1 public key handling
 - **CI pipeline green** - Tests passing, Docker image builds successfully
-- **Production deployment** - Running on Kubernetes at vault.coldforge.xyz
+- **Production deployment** - Running on Kubernetes at vault.cloistr.xyz
 - **Nostr user display** - Shows `npub1...` bech32 format instead of `@nostr.local`
 - **Lightning auth (LNURL-auth)** - Full implementation with secp256k1 signature verification
 - **HA deployment** - Scaled to 3 replicas for high availability
@@ -124,6 +124,7 @@ coldforge-vault/
 - **WebAuthn/Passkey frontend** - Login UI with passkey tab, Settings with passkey management
 - **Component-based frontend** - React Router integration with protected routes, Layout, Dashboard, Settings
 - **Relay preferences** - Integrated cloistr-common library for user relay preferences in NIP-05
+- **Branding rebrand** - Renamed all user-facing "Coldforge Vault" to "Cloistr Vault" across all platforms
 
 ### NIP-05 Verification
 NIP-05 allows linking human-readable identifiers (`alice@domain.com`) to Nostr pubkeys:
@@ -155,9 +156,9 @@ The implementation follows LUD-04 (LNURL-auth) specification:
 - Integration with existing session management
 
 ### Production Environment
-- **Namespace**: `coldforge-vault`
-- **Image**: `oci.coldforge.xyz/coldforge/vault:latest`
-- **Ingress**: `vault.coldforge.xyz`
+- **Namespace**: `cloistr`
+- **Image**: `registry.coldforge.xyz/cloistr/vault:latest`
+- **Ingress**: `vault.cloistr.xyz`
 - **Database**: PostgreSQL 15 with persistent storage
 - **Monitoring**: ServiceMonitor configured for Prometheus scraping
 
@@ -195,7 +196,7 @@ Metrics available at `/metrics` endpoint:
 - `coldforge_vault_operations_total` - Vault CRUD operations
 - `coldforge_vault_sessions_active` - Active session gauge
 
-Dashboard: `atlas monitoring dashboards` → `coldforge-vault`
+Dashboard: `atlas monitoring dashboards` → `cloistr-vault`
 
 ## See Also
 

@@ -22,8 +22,8 @@ func setupTestDB(t *testing.T) *sql.DB {
 
 func TestNewAuthService(t *testing.T) {
 	db := setupTestDB(t)
-	service := NewAuthService(db)
-	
+	service := NewAuthService(db, nil) // nil relay prefs client for testing
+
 	assert.NotNil(t, service)
 	assert.Equal(t, db, service.db)
 }
@@ -330,7 +330,7 @@ func TestAuthService_NostrAuthFlow(t *testing.T) {
 }
 
 func TestInvalidAuthMethods(t *testing.T) {
-	service := NewAuthService(nil)
+	service := NewAuthService(nil, nil) // nil DB and relay prefs for testing
 	
 	// Test invalid registration method
 	req := &models.RegisterRequest{

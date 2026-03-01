@@ -134,7 +134,20 @@ func (a *AuthService) GetNostrJSON(ctx context.Context, domain string) (*NIP05Re
 			username := parts[0]
 			names[username] = pubkey
 
-			// Add default relays
+			// Get user's preferred relays via cloistr-common
+			if a.relayPrefs != nil {
+				prefs, err := a.relayPrefs.GetRelayPrefs(ctx, pubkey)
+				if err == nil && prefs.HasRelays() {
+					relays[pubkey] = prefs.AllRelays()
+					continue
+				}
+				// Log but don't fail - fall through to defaults
+				if err != nil {
+					log.Printf("Failed to get relay prefs for %s: %v", pubkey[:16], err)
+				}
+			}
+
+			// Fallback to defaults if relay prefs unavailable
 			relays[pubkey] = []string{
 				"wss://relay.cloistr.xyz",
 				"wss://relay.damus.io",

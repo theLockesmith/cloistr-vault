@@ -49,7 +49,7 @@ func TestRecoverAccount_InvalidRequestFormat(t *testing.T) {
 	defer db.Close()
 
 	router := setupTestRouter()
-	authService := auth.NewAuthService(db)
+	authService := auth.NewAuthService(db, nil)
 	handlers := NewHandlers(authService, nil)
 
 	router.POST("/api/v1/auth/recover", handlers.RecoverAccount)
@@ -75,7 +75,7 @@ func TestRecoverAccount_UserNotFound(t *testing.T) {
 	defer db.Close()
 
 	router := setupTestRouter()
-	authService := auth.NewAuthService(db)
+	authService := auth.NewAuthService(db, nil)
 	handlers := NewHandlers(authService, nil)
 
 	router.POST("/api/v1/auth/recover", handlers.RecoverAccount)
@@ -117,7 +117,7 @@ func TestRecoverAccount_InvalidRecoveryCode(t *testing.T) {
 	defer db.Close()
 
 	router := setupTestRouter()
-	authService := auth.NewAuthService(db)
+	authService := auth.NewAuthService(db, nil)
 	handlers := NewHandlers(authService, nil)
 
 	router.POST("/api/v1/auth/recover", handlers.RecoverAccount)
@@ -171,7 +171,7 @@ func TestGetRecoveryStatus_Success(t *testing.T) {
 	defer db.Close()
 
 	router := setupTestRouter()
-	authService := auth.NewAuthService(db)
+	authService := auth.NewAuthService(db, nil)
 	handlers := NewHandlers(authService, nil)
 
 	// Add auth middleware simulation
@@ -218,7 +218,7 @@ func TestGetRecoveryStatus_NoUserID(t *testing.T) {
 	defer db.Close()
 
 	router := setupTestRouter()
-	authService := auth.NewAuthService(db)
+	authService := auth.NewAuthService(db, nil)
 	handlers := NewHandlers(authService, nil)
 
 	// No userID in context
@@ -242,7 +242,7 @@ func TestGetRecoveryStatus_InvalidUserID(t *testing.T) {
 	defer db.Close()
 
 	router := setupTestRouter()
-	authService := auth.NewAuthService(db)
+	authService := auth.NewAuthService(db, nil)
 	handlers := NewHandlers(authService, nil)
 
 	// Invalid userID in context
@@ -269,7 +269,7 @@ func TestGetRecoveryStatus_DatabaseError(t *testing.T) {
 	defer db.Close()
 
 	router := setupTestRouter()
-	authService := auth.NewAuthService(db)
+	authService := auth.NewAuthService(db, nil)
 	handlers := NewHandlers(authService, nil)
 
 	userID := uuid.New()
@@ -303,7 +303,7 @@ func TestGetRecoveryStatus_NoCodes(t *testing.T) {
 	defer db.Close()
 
 	router := setupTestRouter()
-	authService := auth.NewAuthService(db)
+	authService := auth.NewAuthService(db, nil)
 	handlers := NewHandlers(authService, nil)
 
 	userID := uuid.New()
@@ -342,7 +342,7 @@ func TestRegenerateRecoveryCodes_Success(t *testing.T) {
 	defer db.Close()
 
 	router := setupTestRouter()
-	authService := auth.NewAuthService(db)
+	authService := auth.NewAuthService(db, nil)
 	handlers := NewHandlers(authService, nil)
 
 	userID := uuid.New()
@@ -392,7 +392,7 @@ func TestRegenerateRecoveryCodes_NoUserID(t *testing.T) {
 	defer db.Close()
 
 	router := setupTestRouter()
-	authService := auth.NewAuthService(db)
+	authService := auth.NewAuthService(db, nil)
 	handlers := NewHandlers(authService, nil)
 
 	router.POST("/api/v1/recovery/regenerate", handlers.RegenerateRecoveryCodes)
@@ -415,7 +415,7 @@ func TestRegenerateRecoveryCodes_InvalidUserID(t *testing.T) {
 	defer db.Close()
 
 	router := setupTestRouter()
-	authService := auth.NewAuthService(db)
+	authService := auth.NewAuthService(db, nil)
 	handlers := NewHandlers(authService, nil)
 
 	router.POST("/api/v1/recovery/regenerate", func(c *gin.Context) {
@@ -441,7 +441,7 @@ func TestRegenerateRecoveryCodes_DatabaseError(t *testing.T) {
 	defer db.Close()
 
 	router := setupTestRouter()
-	authService := auth.NewAuthService(db)
+	authService := auth.NewAuthService(db, nil)
 	handlers := NewHandlers(authService, nil)
 
 	userID := uuid.New()
@@ -475,7 +475,7 @@ func TestRecoverAccount_MissingFields(t *testing.T) {
 	defer db.Close()
 
 	router := setupTestRouter()
-	authService := auth.NewAuthService(db)
+	authService := auth.NewAuthService(db, nil)
 	handlers := NewHandlers(authService, nil)
 
 	router.POST("/api/v1/auth/recover", handlers.RecoverAccount)
@@ -538,7 +538,7 @@ func TestGetRecoveryStatus_AllCodesUsed(t *testing.T) {
 	defer db.Close()
 
 	router := setupTestRouter()
-	authService := auth.NewAuthService(db)
+	authService := auth.NewAuthService(db, nil)
 	handlers := NewHandlers(authService, nil)
 
 	userID := uuid.New()

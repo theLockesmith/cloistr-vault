@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"git.coldforge.xyz/coldforge/cloistr-common/relayprefs"
 	"github.com/coldforge/vault/internal/api"
 	"github.com/coldforge/vault/internal/auth"
 	"github.com/coldforge/vault/internal/config"
@@ -89,8 +90,17 @@ func main() {
 
 	observability.Info("kms initialized", "provider", kmsConfig.Provider)
 
+	// Initialize relay preferences client (for user relay preferences in NIP-05)
+	relayPrefsClient := relayprefs.NewClientFromEnv()
+	if err := relayPrefsClient.Validate(); err != nil {
+		observability.Warn("relay prefs client validation warning", "error", err)
+	}
+	observability.Info("relay preferences client initialized",
+		"use_cloistr_fallback", relayPrefsClient.Config().UseCloistrFallback,
+	)
+
 	// Initialize services
-	authService := auth.NewAuthService(db.DB)
+	authService := auth.NewAuthService(db.DB, relayPrefsClient)
 	vaultService := vault.NewService(db)
 
 	// Setup router

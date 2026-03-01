@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"git.coldforge.xyz/coldforge/cloistr-common/relayprefs"
 	"github.com/coldforge/vault/internal/crypto"
 	"github.com/coldforge/vault/internal/identity"
 	"github.com/coldforge/vault/internal/models"
@@ -28,6 +29,7 @@ type AuthService struct {
 	db              *sql.DB
 	recoveryService *recovery.Service
 	webauthn        *webauthn.WebAuthn
+	relayPrefs      *relayprefs.Client
 }
 
 type Challenge struct {
@@ -40,10 +42,11 @@ type Challenge struct {
 
 var challengeStore = make(map[string]Challenge) // In production, use Redis or database
 
-func NewAuthService(db *sql.DB) *AuthService {
+func NewAuthService(db *sql.DB, relayPrefsClient *relayprefs.Client) *AuthService {
 	return &AuthService{
 		db:              db,
 		recoveryService: recovery.NewService(db),
+		relayPrefs:      relayPrefsClient,
 	}
 }
 

@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: coldforge-vault
-  labels:
-    name: coldforge-vault
-    app.kubernetes.io/name: coldforge-vault
-    app.kubernetes.io/version: "1.0.0"

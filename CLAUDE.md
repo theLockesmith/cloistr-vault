@@ -104,7 +104,7 @@ cloistr-vault/
 - **LUD-04**: LNURL-auth (Lightning Network authentication)
 - **secp256k1**: Nostr/Lightning key cryptography
 
-## Current Status (Updated 2026-03-01)
+## Current Status (Updated 2026-03-03)
 
 ### Completed
 - **Recovery codes** - Full implementation with secure hashing
@@ -116,7 +116,7 @@ cloistr-vault/
 - **Production deployment** - Running on Kubernetes at vault.cloistr.xyz
 - **Nostr user display** - Shows `npub1...` bech32 format instead of `@nostr.local`
 - **Lightning auth (LNURL-auth)** - Full implementation with secp256k1 signature verification
-- **HA deployment** - Scaled to 3 replicas for high availability
+- **HA deployment** - Scaled to 2 replicas for high availability
 - **NIP-05 verification** - Link and verify NIP-05 addresses for Nostr users
 - **Frontend Lightning UI** - Lightning authentication in Login component
 - **Frontend NIP-05 UI** - Settings page with NIP-05 verification for Nostr users
@@ -125,6 +125,7 @@ cloistr-vault/
 - **Component-based frontend** - React Router integration with protected routes, Layout, Dashboard, Settings
 - **Relay preferences** - Integrated cloistr-common library for user relay preferences in NIP-05
 - **Branding rebrand** - Renamed all user-facing "Coldforge Vault" to "Cloistr Vault" across all platforms
+- **Shared PostgreSQL cluster** - Migrated to `postgres-rw.db.coldforge.xyz` (cloistr database)
 
 ### NIP-05 Verification
 NIP-05 allows linking human-readable identifiers (`alice@domain.com`) to Nostr pubkeys:
@@ -157,10 +158,11 @@ The implementation follows LUD-04 (LNURL-auth) specification:
 
 ### Production Environment
 - **Namespace**: `cloistr`
-- **Image**: `registry.coldforge.xyz/cloistr/vault:latest`
+- **Image**: `registry.coldforge.xyz/coldforge/cloistr-vault:latest`
 - **Ingress**: `vault.cloistr.xyz`
-- **Database**: PostgreSQL 15 with persistent storage
+- **Database**: Shared PostgreSQL cluster at `postgres-rw.db.coldforge.xyz` (database: `cloistr`)
 - **Monitoring**: ServiceMonitor configured for Prometheus scraping
+- **Deployment**: Via Atlas (`atlas kube apply cloistr-vault`) + ArgoCD image updates
 
 ### WebAuthn/Passkey Authentication
 Backend implementation complete with database migration and API endpoints:

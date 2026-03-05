@@ -55,7 +55,7 @@
 
   "applications": {
     "gecko": {
-      "id": "cloistr-vault@cloistr.com",
+      "id": "cloistr-vault@cloistr.xyz",
       "strict_min_version": "91.0"
     }
   }

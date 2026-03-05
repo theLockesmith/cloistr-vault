@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloistr Vault</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">
+      <img src="../../icons/icon32.png" alt="Cloistr Vault" />
+      <span>Cloistr Vault</span>
+    </div>
+    <div class="status" id="status">
+      <span class="status-indicator" id="statusIndicator"></span>
+    </div>
+  </div>
+
+  <!-- Unlock Screen -->
+  <div id="unlockScreen" class="screen">
+    <div class="unlock-container">
+      <div class="icon-container">
+        <img src="../../icons/icon48.png" alt="Lock" />
+      </div>
+      <h2>Unlock Your Vault</h2>
+      <p>Enter your master password to access your passwords</p>
+      
+      <form id="unlockForm">
+        <div class="input-group">
+          <input 
+            type="password" 
+            id="masterPassword" 
+            placeholder="Master password" 
+            required 
+          />
+          <button type="button" id="togglePassword" class="toggle-password">
+            👁️
+          </button>
+        </div>
+        <button type="submit" class="btn btn-primary" id="unlockBtn">
+          Unlock Vault
+        </button>
+      </form>
+      
+      <div class="unlock-options">
+        <a href="#" id="forgotPassword">Forgot password?</a>
+        <a href="#" id="openWebApp">Open web app</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Screen -->
+  <div id="mainScreen" class="screen hidden">
+    <!-- Search -->
+    <div class="search-container">
+      <input 
+        type="text" 
+        id="searchInput" 
+        placeholder="Search passwords..." 
+      />
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <button class="action-btn" id="fillBtn">
+        <span class="icon">🔑</span>
+        Fill Password
+      </button>
+      <button class="action-btn" id="generateBtn">
+        <span class="icon">⚡</span>
+        Generate
+      </button>
+      <button class="action-btn" id="addBtn">
+        <span class="icon">➕</span>
+        Add Item
+      </button>
+    </div>
+
+    <!-- Password List -->
+    <div id="passwordList" class="password-list">
+      <!-- Populated by JavaScript -->
+    </div>
+
+    <!-- No Results -->
+    <div id="noResults" class="no-results hidden">
+      <div class="icon">🔍</div>
+      <h3>No passwords found</h3>
+      <p>Try adjusting your search or add a new password</p>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <button id="settingsBtn" class="footer-btn">⚙️ Settings</button>
+      <button id="lockBtn" class="footer-btn">🔒 Lock</button>
+    </div>
+  </div>
+
+  <!-- Password Detail Modal -->
+  <div id="passwordModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Password Details</h3>
+        <button id="closeModal" class="close-btn">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="field-group">
+          <label>Website</label>
+          <div class="field-value">
+            <span id="modalWebsite"></span>
+            <button class="copy-btn" data-field="website">📋</button>
+          </div>
+        </div>
+        <div class="field-group">
+          <label>Username</label>
+          <div class="field-value">
+            <span id="modalUsername"></span>
+            <button class="copy-btn" data-field="username">📋</button>
+          </div>
+        </div>
+        <div class="field-group">
+          <label>Password</label>
+          <div class="field-value">
+            <span id="modalPassword" class="password-hidden">••••••••</span>
+            <button id="toggleModalPassword" class="toggle-btn">👁️</button>
+            <button class="copy-btn" data-field="password">📋</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="fillFromModal" class="btn btn-primary">Fill Password</button>
+        <button id="editPassword" class="btn btn-secondary">Edit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading" class="loading hidden">
+    <div class="spinner"></div>
+    <p>Loading...</p>
+  </div>
+
+  <!-- Toast Notifications -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

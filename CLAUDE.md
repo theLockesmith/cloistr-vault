@@ -106,6 +106,9 @@ cloistr-vault/
 
 ## Current Status (Updated 2026-03-05)
 
+### In Progress
+- **Browser extension** - Chrome (Manifest V3) and Firefox (Manifest V2) extensions with popup UI, autofill, and context menus
+
 ### Completed
 - **Recovery codes** - Full implementation with secure hashing
 - **Prometheus metrics** - Instrumented in `backend/internal/observability/metrics.go`
@@ -205,9 +208,27 @@ Mobile app now supports passkey authentication via `react-native-passkey`:
 - iOS: Configure Associated Domains with `webcredentials:vault.cloistr.xyz`
 - Android: Host `/.well-known/assetlinks.json` for Digital Asset Links
 
+### Browser Extension
+Chrome and Firefox extensions with complete popup UI and autofill:
+
+**Structure:**
+- `frontend/browser-extension/chrome/` - Chrome Manifest V3 extension
+- `frontend/browser-extension/firefox/` - Firefox Manifest V2 extension
+
+**Features:**
+- Popup UI with unlock screen and password list
+- Content script with fill indicators on password fields
+- Context menu integration (fill, generate, open vault)
+- Auto-lock after inactivity
+- Search and filter passwords
+
+**Testing:**
+- Chrome: Load unpacked from `chrome/` directory in `chrome://extensions/`
+- Firefox: Load temporary add-on from `firefox/manifest.json` in `about:debugging`
+
 ### Next Steps (Priority Order)
 1. **Initialize React Native project** - Run `npx react-native init` and configure native projects
-2. **Browser extension** - Implement vault browser extension
+2. **Connect browser extension to backend** - Replace demo auth with real vault.cloistr.xyz API
 3. **Vault item CRUD** - Complete add/edit/delete functionality for vault entries
 4. **Mobile registration flow** - Add account registration screen
 

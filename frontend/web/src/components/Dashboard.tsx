@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useVault, VaultEntry } from '../contexts/VaultContext';
-import { Globe, StickyNote, CreditCard, User, Star, Eye, EyeOff, Copy, ExternalLink, Shield, Plus, Lock } from 'lucide-react';
+import { Globe, StickyNote, CreditCard, User, Star, Eye, EyeOff, Copy, ExternalLink, Shield, Plus, Lock, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import VaultEntryModal from './VaultEntryModal';
 
@@ -10,6 +10,20 @@ export default function Dashboard() {
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<VaultEntry | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+
+  // Filter entries based on search query and type filter
+  const filteredEntries = vaultData?.entries.filter(entry => {
+    const matchesSearch = searchQuery === '' ||
+      entry.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entry.fields.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entry.fields.url?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesType = typeFilter === null || entry.type === typeFilter;
+
+    return matchesSearch && matchesType;
+  }) || [];
 
   const getEntryIcon = (type: string) => {
     switch (type) {
@@ -129,6 +143,62 @@ export default function Dashboard() {
         </button>
       </div>
 
+      {/* Search and Filter */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search vault..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input w-full pl-10"
+          />
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setTypeFilter(null)}
+            className={`px-3 py-2 rounded-md text-sm transition-colors ${
+              typeFilter === null
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted hover:bg-muted/80'
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setTypeFilter('login')}
+            className={`px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-1 ${
+              typeFilter === 'login'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted hover:bg-muted/80'
+            }`}
+          >
+            <Globe className="h-3 w-3" /> Logins
+          </button>
+          <button
+            onClick={() => setTypeFilter('note')}
+            className={`px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-1 ${
+              typeFilter === 'note'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted hover:bg-muted/80'
+            }`}
+          >
+            <StickyNote className="h-3 w-3" /> Notes
+          </button>
+          <button
+            onClick={() => setTypeFilter('card')}
+            className={`px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-1 ${
+              typeFilter === 'card'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted hover:bg-muted/80'
+            }`}
+          >
+            <CreditCard className="h-3 w-3" /> Cards
+          </button>
+        </div>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card">
@@ -207,9 +277,28 @@ export default function Dashboard() {
                 </button>
               </div>
             </div>
+          ) : filteredEntries.length === 0 ? (
+            <div className="card">
+              <div className="card-content p-8 text-center">
+                <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No results found</h3>
+                <p className="text-muted-foreground mb-4">
+                  Try adjusting your search or filter criteria.
+                </p>
+                <button
+                  className="btn-outline"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setTypeFilter(null);
+                  }}
+                >
+                  Clear filters
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="space-y-2">
-              {vaultData?.entries.map((entry) => {
+              {filteredEntries.map((entry) => {
                 const IconComponent = getEntryIcon(entry.type);
                 return (
                   <div

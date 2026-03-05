@@ -106,8 +106,6 @@ cloistr-vault/
 
 ## Current Status (Updated 2026-03-05)
 
-### In Progress
-- **Browser extension** - Chrome (Manifest V3) and Firefox (Manifest V2) extensions with popup UI, autofill, and context menus
 
 ### Completed
 - **Recovery codes** - Full implementation with secure hashing
@@ -131,6 +129,7 @@ cloistr-vault/
 - **Shared PostgreSQL cluster** - Migrated to `postgres-rw.db.coldforge.xyz` (cloistr database)
 - **Mobile passkey support** - React Native passkey integration using `react-native-passkey`
 - **Passkey domain association** - Backend serves AASA (iOS) and assetlinks.json (Android)
+- **Browser extension** - Chrome (Manifest V3) and Firefox (Manifest V2) with backend API integration
 
 ### NIP-05 Verification
 NIP-05 allows linking human-readable identifiers (`alice@domain.com`) to Nostr pubkeys:
@@ -228,9 +227,9 @@ Chrome and Firefox extensions with complete popup UI and autofill:
 
 ### Next Steps (Priority Order)
 1. **Initialize React Native project** - Run `npx react-native init` and configure native projects
-2. **Connect browser extension to backend** - Replace demo auth with real vault.cloistr.xyz API
-3. **Vault item CRUD** - Complete add/edit/delete functionality for vault entries
-4. **Mobile registration flow** - Add account registration screen
+2. **Vault item CRUD** - Complete add/edit/delete functionality for vault entries
+3. **Mobile registration flow** - Add account registration screen
+4. **Browser extension testing** - Test extension with real backend in development
 
 ## Monitoring
 

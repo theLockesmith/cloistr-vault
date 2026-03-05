@@ -132,6 +132,7 @@ cloistr-vault/
 - **Browser extension** - Chrome (Manifest V3) and Firefox (Manifest V2) with backend API integration
 - **Vault item CRUD** - Frontend add/edit/delete/favorite functionality with VaultEntryModal component
 - **Master password management** - VaultContext with secure memory-only storage and auto-lock timeout
+- **Search and filter** - Dashboard search by name/username/URL with type filters
 
 ### NIP-05 Verification
 NIP-05 allows linking human-readable identifiers (`alice@domain.com`) to Nostr pubkeys:
@@ -231,7 +232,7 @@ Chrome and Firefox extensions with complete popup UI and autofill:
 1. **Initialize React Native project** - Run `npx react-native init` and configure native projects
 2. **Mobile registration flow** - Add account registration screen
 3. **Browser extension testing** - Test extension with real backend in development
-4. **Search and filter** - Add search/filter functionality to Dashboard
+4. **Folder organization** - Add folder support for organizing vault entries
 
 ## Monitoring
 

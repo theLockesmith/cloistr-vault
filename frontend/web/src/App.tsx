@@ -2,11 +2,13 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CryptoProvider } from './contexts/CryptoContext';
+import { VaultProvider } from './contexts/VaultContext';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 import Layout from './components/Layout';
+import UnlockModal from './components/UnlockModal';
 
 // Protected Route component - redirects to login if not authenticated
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -24,7 +26,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  return <Layout>{children}</Layout>;
+  return (
+    <>
+      <UnlockModal />
+      <Layout>{children}</Layout>
+    </>
+  );
 }
 
 // Public Route component - redirects to dashboard if already authenticated
@@ -96,7 +103,9 @@ function App() {
   return (
     <AuthProvider>
       <CryptoProvider>
-        <AppRoutes />
+        <VaultProvider>
+          <AppRoutes />
+        </VaultProvider>
       </CryptoProvider>
     </AuthProvider>
   );

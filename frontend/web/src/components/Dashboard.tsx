@@ -1,149 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useCrypto } from '../contexts/CryptoContext';
-import { Globe, StickyNote, CreditCard, User, Star, Eye, EyeOff, Copy, ExternalLink, Shield, Plus } from 'lucide-react';
-import axios from 'axios';
+import React, { useState } from 'react';
+import { useVault, VaultEntry } from '../contexts/VaultContext';
+import { Globe, StickyNote, CreditCard, User, Star, Eye, EyeOff, Copy, ExternalLink, Shield, Plus, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
-import VaultEntryModal, { VaultEntry } from './VaultEntryModal';
-
-interface VaultData {
-  entries: VaultEntry[];
-  folders: Array<{
-    id: string;
-    name: string;
-    created_at: string;
-  }>;
-}
+import VaultEntryModal from './VaultEntryModal';
 
 export default function Dashboard() {
-  const _auth = useAuth(); // Available for future use
-  const { decryptVault, encryptVault } = useCrypto();
-  const [vaultData, setVaultData] = useState<VaultData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const { vaultData, isLocked, saving, addEntry, updateEntry, deleteEntry, toggleFavorite } = useVault();
   const [selectedEntry, setSelectedEntry] = useState<VaultEntry | null>(null);
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<VaultEntry | null>(null);
-  // TODO: Replace with actual master password from secure storage/context
-  const [masterPassword] = useState<string>('demo-password-123');
-
-  useEffect(() => {
-    loadVault();
-  }, []);
-
-  const loadVault = async () => {
-    try {
-      const response = await axios.get('/vault');
-      const { encrypted_data } = response.data;
-      
-      // For demo purposes, we'll use a mock master password
-      // In reality, we'd prompt the user for their master password
-      const mockPassword = 'demo-password-123';
-      const decrypted = decryptVault(encrypted_data, mockPassword);
-      
-      if (decrypted) {
-        setVaultData(decrypted);
-      } else {
-        toast.error('Failed to decrypt vault data');
-      }
-    } catch (error: any) {
-      if (error.response?.status === 404) {
-        // No vault exists yet, create empty one
-        setVaultData({ entries: [], folders: [] });
-      } else {
-        toast.error('Failed to load vault');
-        console.error('Vault loading error:', error);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveVault = async (updatedData: VaultData) => {
-    setSaving(true);
-    try {
-      const encryptedData = encryptVault(updatedData, masterPassword);
-      await axios.put('/vault', { encrypted_data: encryptedData });
-      setVaultData(updatedData);
-      toast.success('Vault saved successfully');
-    } catch (error) {
-      toast.error('Failed to save vault');
-      console.error('Vault save error:', error);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleAddEntry = () => {
-    setEditingEntry(null);
-    setModalOpen(true);
-  };
-
-  const handleEditEntry = (entry: VaultEntry) => {
-    setEditingEntry(entry);
-    setModalOpen(true);
-  };
-
-  const handleSaveEntry = (entry: VaultEntry) => {
-    if (!vaultData) return;
-
-    let updatedEntries: VaultEntry[];
-    const existingIndex = vaultData.entries.findIndex((e) => e.id === entry.id);
-
-    if (existingIndex >= 0) {
-      // Update existing entry
-      updatedEntries = [...vaultData.entries];
-      updatedEntries[existingIndex] = entry;
-    } else {
-      // Add new entry
-      updatedEntries = [...vaultData.entries, entry];
-    }
-
-    const updatedData = {
-      ...vaultData,
-      entries: updatedEntries,
-    };
-
-    saveVault(updatedData);
-    setSelectedEntry(entry);
-  };
-
-  const handleDeleteEntry = (id: string) => {
-    if (!vaultData) return;
-
-    const updatedEntries = vaultData.entries.filter((e) => e.id !== id);
-    const updatedData = {
-      ...vaultData,
-      entries: updatedEntries,
-    };
-
-    saveVault(updatedData);
-    setSelectedEntry(null);
-    toast.success('Item deleted');
-  };
-
-  const handleToggleFavorite = (entry: VaultEntry) => {
-    if (!vaultData) return;
-
-    const updatedEntry = {
-      ...entry,
-      favorite: !entry.favorite,
-      updated_at: new Date().toISOString(),
-    };
-
-    const updatedEntries = vaultData.entries.map((e) =>
-      e.id === entry.id ? updatedEntry : e
-    );
-
-    const updatedData = {
-      ...vaultData,
-      entries: updatedEntries,
-    };
-
-    saveVault(updatedData);
-    setSelectedEntry(updatedEntry);
-  };
 
   const getEntryIcon = (type: string) => {
     switch (type) {
@@ -176,10 +42,69 @@ export default function Dashboard() {
     }
   };
 
-  if (loading) {
+  const handleAddEntry = () => {
+    setEditingEntry(null);
+    setModalOpen(true);
+  };
+
+  const handleEditEntry = (entry: VaultEntry) => {
+    setEditingEntry(entry);
+    setModalOpen(true);
+  };
+
+  const handleSaveEntry = async (entry: VaultEntry) => {
+    try {
+      const isNew = !editingEntry;
+      if (isNew) {
+        // New entry - use addEntry which generates id and timestamps
+        await addEntry({
+          type: entry.type,
+          name: entry.name,
+          fields: entry.fields,
+          notes: entry.notes,
+          favorite: entry.favorite,
+          folder_id: entry.folder_id,
+        });
+      } else {
+        // Editing existing entry
+        await updateEntry(entry);
+        setSelectedEntry(entry);
+      }
+    } catch (error) {
+      console.error('Save error:', error);
+    }
+  };
+
+  const handleDeleteEntry = async (id: string) => {
+    try {
+      await deleteEntry(id);
+      setSelectedEntry(null);
+    } catch (error) {
+      console.error('Delete error:', error);
+    }
+  };
+
+  const handleToggleFavorite = async (entry: VaultEntry) => {
+    try {
+      await toggleFavorite(entry.id);
+      // Update selected entry to reflect the change
+      setSelectedEntry(prev => prev?.id === entry.id ? { ...prev, favorite: !prev.favorite } : prev);
+    } catch (error) {
+      console.error('Favorite error:', error);
+    }
+  };
+
+  // Show locked state message if vault is locked
+  if (isLocked) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="text-center">
+          <Lock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h2 className="text-lg font-semibold mb-2">Vault Locked</h2>
+          <p className="text-muted-foreground">
+            Enter your master password to access your vault.
+          </p>
+        </div>
       </div>
     );
   }
@@ -191,7 +116,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Your Vault</h1>
           <p className="text-muted-foreground">
-            {vaultData?.entries.length || 0} items • All data encrypted locally
+            {vaultData?.entries.length || 0} items - All data encrypted locally
           </p>
         </div>
         <button
@@ -268,7 +193,7 @@ export default function Dashboard() {
         {/* Items List */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">Vault Items</h2>
-          
+
           {vaultData?.entries.length === 0 ? (
             <div className="card">
               <div className="card-content p-8 text-center">
@@ -296,7 +221,7 @@ export default function Dashboard() {
                       <div className="vault-item-icon">
                         <IconComponent className="h-4 w-4 text-primary" />
                       </div>
-                      
+
                       <div className="vault-item-content">
                         <div className="flex items-center space-x-2">
                           <span className="vault-item-title">{entry.name}</span>
@@ -323,7 +248,7 @@ export default function Dashboard() {
         {/* Item Details */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">Item Details</h2>
-          
+
           {selectedEntry ? (
             <div className="card">
               <div className="card-header">

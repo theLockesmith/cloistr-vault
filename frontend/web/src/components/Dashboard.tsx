@@ -1,21 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCrypto } from '../contexts/CryptoContext';
-import { Globe, StickyNote, CreditCard, User, Star, Folder, Eye, EyeOff, Copy, ExternalLink, Shield } from 'lucide-react';
+import { Globe, StickyNote, CreditCard, User, Star, Eye, EyeOff, Copy, ExternalLink, Shield, Plus } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-
-interface VaultEntry {
-  id: string;
-  type: 'login' | 'note' | 'card' | 'identity';
-  name: string;
-  fields: Record<string, string>;
-  notes: string;
-  created_at: string;
-  updated_at: string;
-  favorite: boolean;
-  folder_id?: string;
-}
+import VaultEntryModal, { VaultEntry } from './VaultEntryModal';
 
 interface VaultData {
   entries: VaultEntry[];
@@ -27,12 +16,17 @@ interface VaultData {
 }
 
 export default function Dashboard() {
-  const { user, token } = useAuth();
-  const { decryptVault } = useCrypto();
+  const _auth = useAuth(); // Available for future use
+  const { decryptVault, encryptVault } = useCrypto();
   const [vaultData, setVaultData] = useState<VaultData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<VaultEntry | null>(null);
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<VaultEntry | null>(null);
+  // TODO: Replace with actual master password from secure storage/context
+  const [masterPassword] = useState<string>('demo-password-123');
 
   useEffect(() => {
     loadVault();
@@ -64,6 +58,91 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const saveVault = async (updatedData: VaultData) => {
+    setSaving(true);
+    try {
+      const encryptedData = encryptVault(updatedData, masterPassword);
+      await axios.put('/vault', { encrypted_data: encryptedData });
+      setVaultData(updatedData);
+      toast.success('Vault saved successfully');
+    } catch (error) {
+      toast.error('Failed to save vault');
+      console.error('Vault save error:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddEntry = () => {
+    setEditingEntry(null);
+    setModalOpen(true);
+  };
+
+  const handleEditEntry = (entry: VaultEntry) => {
+    setEditingEntry(entry);
+    setModalOpen(true);
+  };
+
+  const handleSaveEntry = (entry: VaultEntry) => {
+    if (!vaultData) return;
+
+    let updatedEntries: VaultEntry[];
+    const existingIndex = vaultData.entries.findIndex((e) => e.id === entry.id);
+
+    if (existingIndex >= 0) {
+      // Update existing entry
+      updatedEntries = [...vaultData.entries];
+      updatedEntries[existingIndex] = entry;
+    } else {
+      // Add new entry
+      updatedEntries = [...vaultData.entries, entry];
+    }
+
+    const updatedData = {
+      ...vaultData,
+      entries: updatedEntries,
+    };
+
+    saveVault(updatedData);
+    setSelectedEntry(entry);
+  };
+
+  const handleDeleteEntry = (id: string) => {
+    if (!vaultData) return;
+
+    const updatedEntries = vaultData.entries.filter((e) => e.id !== id);
+    const updatedData = {
+      ...vaultData,
+      entries: updatedEntries,
+    };
+
+    saveVault(updatedData);
+    setSelectedEntry(null);
+    toast.success('Item deleted');
+  };
+
+  const handleToggleFavorite = (entry: VaultEntry) => {
+    if (!vaultData) return;
+
+    const updatedEntry = {
+      ...entry,
+      favorite: !entry.favorite,
+      updated_at: new Date().toISOString(),
+    };
+
+    const updatedEntries = vaultData.entries.map((e) =>
+      e.id === entry.id ? updatedEntry : e
+    );
+
+    const updatedData = {
+      ...vaultData,
+      entries: updatedEntries,
+    };
+
+    saveVault(updatedData);
+    setSelectedEntry(updatedEntry);
   };
 
   const getEntryIcon = (type: string) => {
@@ -115,6 +194,14 @@ export default function Dashboard() {
             {vaultData?.entries.length || 0} items • All data encrypted locally
           </p>
         </div>
+        <button
+          onClick={handleAddEntry}
+          className="btn-primary"
+          disabled={saving}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Item
+        </button>
       </div>
 
       {/* Stats */}
@@ -190,7 +277,7 @@ export default function Dashboard() {
                 <p className="text-muted-foreground mb-4">
                   Start adding passwords, notes, and other items to secure them with zero-knowledge encryption.
                 </p>
-                <button className="btn-primary">
+                <button className="btn-primary" onClick={handleAddEntry}>
                   Add your first item
                 </button>
               </div>
@@ -332,10 +419,18 @@ export default function Dashboard() {
 
                 {/* Actions */}
                 <div className="flex space-x-2 pt-4 border-t">
-                  <button className="btn-outline flex-1">
+                  <button
+                    className="btn-outline flex-1"
+                    onClick={() => handleEditEntry(selectedEntry)}
+                    disabled={saving}
+                  >
                     Edit
                   </button>
-                  <button className="btn-outline">
+                  <button
+                    className="btn-outline"
+                    onClick={() => handleToggleFavorite(selectedEntry)}
+                    disabled={saving}
+                  >
                     {selectedEntry.favorite ? (
                       <>
                         <Star className="h-4 w-4 mr-2 fill-current text-yellow-500" />
@@ -366,6 +461,19 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* Add/Edit Modal */}
+      <VaultEntryModal
+        isOpen={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          setEditingEntry(null);
+        }}
+        onSave={handleSaveEntry}
+        onDelete={handleDeleteEntry}
+        entry={editingEntry}
+        mode={editingEntry ? 'edit' : 'add'}
+      />
     </div>
   );
 }

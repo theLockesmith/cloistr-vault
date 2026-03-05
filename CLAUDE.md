@@ -130,6 +130,7 @@ cloistr-vault/
 - **Mobile passkey support** - React Native passkey integration using `react-native-passkey`
 - **Passkey domain association** - Backend serves AASA (iOS) and assetlinks.json (Android)
 - **Browser extension** - Chrome (Manifest V3) and Firefox (Manifest V2) with backend API integration
+- **Vault item CRUD** - Frontend add/edit/delete/favorite functionality with VaultEntryModal component
 
 ### NIP-05 Verification
 NIP-05 allows linking human-readable identifiers (`alice@domain.com`) to Nostr pubkeys:
@@ -227,9 +228,9 @@ Chrome and Firefox extensions with complete popup UI and autofill:
 
 ### Next Steps (Priority Order)
 1. **Initialize React Native project** - Run `npx react-native init` and configure native projects
-2. **Vault item CRUD** - Complete add/edit/delete functionality for vault entries
-3. **Mobile registration flow** - Add account registration screen
-4. **Browser extension testing** - Test extension with real backend in development
+2. **Mobile registration flow** - Add account registration screen
+3. **Browser extension testing** - Test extension with real backend in development
+4. **Master password storage** - Implement secure master password storage/context for frontend
 
 ## Monitoring
 

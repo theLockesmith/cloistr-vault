@@ -127,6 +127,7 @@ cloistr-vault/
 - **Branding rebrand** - Renamed all user-facing "Coldforge Vault" to "Cloistr Vault" across all platforms
 - **Shared PostgreSQL cluster** - Migrated to `postgres-rw.db.coldforge.xyz` (cloistr database)
 - **Mobile passkey support** - React Native passkey integration using `react-native-passkey`
+- **Passkey domain association** - Backend serves AASA (iOS) and assetlinks.json (Android)
 
 ### NIP-05 Verification
 NIP-05 allows linking human-readable identifiers (`alice@domain.com`) to Nostr pubkeys:
@@ -205,7 +206,7 @@ Mobile app now supports passkey authentication via `react-native-passkey`:
 - Android: Host `/.well-known/assetlinks.json` for Digital Asset Links
 
 ### Next Steps (Priority Order)
-1. **Mobile app native setup** - Configure iOS Associated Domains and Android assetlinks.json
+1. **Initialize React Native project** - Run `npx react-native init` and configure native projects
 2. **Browser extension** - Implement vault browser extension
 3. **Vault item CRUD** - Complete add/edit/delete functionality for vault entries
 4. **Mobile registration flow** - Add account registration screen

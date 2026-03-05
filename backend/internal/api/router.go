@@ -64,8 +64,14 @@ func SetupRouter(authService *auth.AuthService, vaultService VaultService) *gin.
 		}
 	}
 
-	// .well-known endpoint at root level (required for NIP-05)
+	// .well-known endpoints at root level
 	router.GET("/.well-known/nostr.json", handlers.GetNostrJSON)
+
+	// Passkey/WebAuthn domain association files
+	// iOS: Apple App Site Association (AASA)
+	router.GET("/.well-known/apple-app-site-association", handlers.AppleAppSiteAssociation)
+	// Android: Digital Asset Links
+	router.GET("/.well-known/assetlinks.json", handlers.AssetLinks)
 	
 	// Protected routes (require authentication)
 	protected := router.Group("/api/v1")
@@ -164,6 +170,8 @@ func SetupTestRouter(authService *auth.AuthService, vaultService VaultService) *
 	}
 
 	router.GET("/.well-known/nostr.json", handlers.GetNostrJSON)
+	router.GET("/.well-known/apple-app-site-association", handlers.AppleAppSiteAssociation)
+	router.GET("/.well-known/assetlinks.json", handlers.AssetLinks)
 
 	// Protected routes
 	protected := router.Group("/api/v1")

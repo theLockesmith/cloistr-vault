@@ -1,31 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
-
-// Mock API service - in real app would use axios
-class ApiService {
-  static async post(endpoint: string, data: any) {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    if (endpoint === '/auth/login' && data.email === 'demo@example.com' && data.password === 'demo123') {
-      return {
-        data: {
-          token: 'demo_token_123',
-          user: {
-            id: '1',
-            email: 'demo@example.com',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        }
-      };
-    }
-    
-    throw new Error('Invalid credentials');
-  }
-}
+import api from '../services/api';
+import passkeyService, { PasskeyCredential } from '../services/passkey';
 
 interface User {
   id: string;
@@ -37,12 +14,18 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
+  loading: boolean;
+  passkeySupported: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithPasskey: (email?: string) => Promise<void>;
   loginWithNostr: (publicKey: string, signature: string, challenge: string) => Promise<void>;
   register: (email: string, password: string, vaultData: string) => Promise<void>;
   registerWithNostr: (publicKey: string, vaultData: string) => Promise<void>;
+  registerPasskey: () => Promise<PasskeyCredential>;
+  getPasskeys: () => Promise<PasskeyCredential[]>;
+  renamePasskey: (id: string, name: string) => Promise<void>;
+  deletePasskey: (id: string) => Promise<void>;
   logout: () => void;
-  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -51,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [passkeySupported] = useState(() => passkeyService.isSupported());
 
   useEffect(() => {
     checkStoredAuth();
@@ -72,33 +56,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const saveAuthState = async (newToken: string, newUser: User) => {
+    setToken(newToken);
+    setUser(newUser);
+    await AsyncStorage.setItem('vault_token', newToken);
+    await AsyncStorage.setItem('vault_user', JSON.stringify(newUser));
+  };
+
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
-      const response = await ApiService.post('/auth/login', {
-        method: 'email',
-        email,
-        password,
-      });
+      const response = await api.login(email, password);
+      const { token: newToken, user: newUser } = response;
 
-      const { token: newToken, user: newUser } = response.data;
-      
-      setToken(newToken);
-      setUser(newUser);
-      
-      await AsyncStorage.setItem('vault_token', newToken);
-      await AsyncStorage.setItem('vault_user', JSON.stringify(newUser));
-      
+      await saveAuthState(newToken, newUser);
+
       Toast.show({
         type: 'success',
         text1: 'Success',
         text2: 'Successfully logged in!',
       });
     } catch (error: any) {
+      const message = error.response?.data?.error || error.message || 'Login failed';
       Toast.show({
         type: 'error',
         text1: 'Login Failed',
-        text2: error.message || 'Login failed',
+        text2: message,
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginWithPasskey = async (email?: string) => {
+    if (!passkeySupported) {
+      Toast.show({
+        type: 'error',
+        text1: 'Not Supported',
+        text2: 'Passkeys are not supported on this device',
+      });
+      throw new Error('Passkeys not supported');
+    }
+
+    try {
+      setLoading(true);
+      const result = await passkeyService.loginWithPasskey(email);
+      const { token: newToken, user: newUser } = result;
+
+      await saveAuthState(newToken, newUser);
+
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Authenticated with passkey!',
+      });
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Passkey Login Failed',
+        text2: error.message || 'Passkey authentication failed',
       });
       throw error;
     } finally {
@@ -109,7 +126,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithNostr = async (publicKey: string, signature: string, challenge: string) => {
     try {
       setLoading(true);
-      // Simulate Nostr login
       Toast.show({
         type: 'error',
         text1: 'Feature Coming Soon',
@@ -130,9 +146,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (email: string, password: string, vaultData: string) => {
     try {
       setLoading(true);
-      // Simulate registration
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       Toast.show({
         type: 'success',
         text1: 'Account Created',
@@ -153,7 +168,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const registerWithNostr = async (publicKey: string, vaultData: string) => {
     try {
       setLoading(true);
-      // Simulate Nostr registration
       Toast.show({
         type: 'error',
         text1: 'Feature Coming Soon',
@@ -171,14 +185,117 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const registerPasskey = async (): Promise<PasskeyCredential> => {
+    if (!passkeySupported) {
+      Toast.show({
+        type: 'error',
+        text1: 'Not Supported',
+        text2: 'Passkeys are not supported on this device',
+      });
+      throw new Error('Passkeys not supported');
+    }
+
+    if (!token) {
+      Toast.show({
+        type: 'error',
+        text1: 'Not Authenticated',
+        text2: 'Please log in first to register a passkey',
+      });
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      setLoading(true);
+      const credential = await passkeyService.registerPasskey();
+
+      Toast.show({
+        type: 'success',
+        text1: 'Passkey Registered',
+        text2: 'You can now use this passkey to sign in',
+      });
+
+      return credential;
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Registration Failed',
+        text2: error.message || 'Failed to register passkey',
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getPasskeys = async (): Promise<PasskeyCredential[]> => {
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      return await passkeyService.getCredentials();
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error.message || 'Failed to fetch passkeys',
+      });
+      throw error;
+    }
+  };
+
+  const renamePasskey = async (id: string, name: string): Promise<void> => {
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      await passkeyService.renameCredential(id, name);
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Passkey renamed',
+      });
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error.message || 'Failed to rename passkey',
+      });
+      throw error;
+    }
+  };
+
+  const deletePasskey = async (id: string): Promise<void> => {
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      await passkeyService.deleteCredential(id);
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Passkey removed',
+      });
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error.message || 'Failed to delete passkey',
+      });
+      throw error;
+    }
+  };
+
   const logout = async () => {
     try {
       setToken(null);
       setUser(null);
-      
+
       await AsyncStorage.removeItem('vault_token');
       await AsyncStorage.removeItem('vault_user');
-      
+
       Toast.show({
         type: 'success',
         text1: 'Logged Out',
@@ -192,12 +309,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = {
     user,
     token,
+    loading,
+    passkeySupported,
     login,
+    loginWithPasskey,
     loginWithNostr,
     register,
     registerWithNostr,
+    registerPasskey,
+    getPasskeys,
+    renamePasskey,
+    deletePasskey,
     logout,
-    loading,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

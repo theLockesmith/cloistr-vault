@@ -104,7 +104,7 @@ cloistr-vault/
 - **LUD-04**: LNURL-auth (Lightning Network authentication)
 - **secp256k1**: Nostr/Lightning key cryptography
 
-## Current Status (Updated 2026-03-03)
+## Current Status (Updated 2026-03-05)
 
 ### Completed
 - **Recovery codes** - Full implementation with secure hashing
@@ -126,6 +126,7 @@ cloistr-vault/
 - **Relay preferences** - Integrated cloistr-common library for user relay preferences in NIP-05
 - **Branding rebrand** - Renamed all user-facing "Coldforge Vault" to "Cloistr Vault" across all platforms
 - **Shared PostgreSQL cluster** - Migrated to `postgres-rw.db.coldforge.xyz` (cloistr database)
+- **Mobile passkey support** - React Native passkey integration using `react-native-passkey`
 
 ### NIP-05 Verification
 NIP-05 allows linking human-readable identifiers (`alice@domain.com`) to Nostr pubkeys:
@@ -184,10 +185,30 @@ Key files:
 - `backend/internal/api/handlers_webauthn.go` - API handlers
 - `backend/migrations/003_webauthn_support.up.sql` - Database schema
 
+### Mobile Passkey Implementation
+Mobile app now supports passkey authentication via `react-native-passkey`:
+
+**New files:**
+- `frontend/mobile/ColdforgeVault/src/services/api.ts` - API client with WebAuthn endpoints
+- `frontend/mobile/ColdforgeVault/src/services/passkey.ts` - Passkey service wrapper
+- `frontend/mobile/ColdforgeVault/src/screens/main/SettingsScreen.tsx` - Passkey management UI
+- `frontend/mobile/ColdforgeVault/src/screens/main/VaultScreen.tsx` - Main vault screen
+
+**Features:**
+- Passkey login (with optional email hint or discoverable credentials)
+- Passkey registration from Settings
+- Passkey management (list, rename, delete)
+- Platform detection (iOS 15+, Android API 28+)
+
+**Requirements for production:**
+- iOS: Configure Associated Domains with `webcredentials:vault.cloistr.xyz`
+- Android: Host `/.well-known/assetlinks.json` for Digital Asset Links
+
 ### Next Steps (Priority Order)
-1. **Mobile app passkey support** - Add WebAuthn to React Native app
+1. **Mobile app native setup** - Configure iOS Associated Domains and Android assetlinks.json
 2. **Browser extension** - Implement vault browser extension
 3. **Vault item CRUD** - Complete add/edit/delete functionality for vault entries
+4. **Mobile registration flow** - Add account registration screen
 
 ## Monitoring
 

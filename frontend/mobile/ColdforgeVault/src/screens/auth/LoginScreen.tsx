@@ -34,10 +34,11 @@ interface LoginForm {
 
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
-  const { login, loginWithNostr, loading } = useAuth();
+  const { login, loginWithPasskey, loginWithNostr, loading, passkeySupported } = useAuth();
   const theme = useTheme();
   const [authMethod, setAuthMethod] = useState('email');
   const [nostrPublicKey, setNostrPublicKey] = useState('');
+  const [passkeyEmail, setPasskeyEmail] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
 
   const {
@@ -49,6 +50,16 @@ const LoginScreen: React.FC = () => {
   const onEmailSubmit = async (data: LoginForm) => {
     try {
       await login(data.email, data.password);
+    } catch (error) {
+      // Error handling is done in AuthContext
+    }
+  };
+
+  const onPasskeyLogin = async () => {
+    try {
+      // If email is provided, use it for credential hints
+      // Otherwise, use discoverable credentials (usernameless)
+      await loginWithPasskey(passkeyEmail || undefined);
     } catch (error) {
       // Error handling is done in AuthContext
     }
@@ -76,7 +87,6 @@ const LoginScreen: React.FC = () => {
   };
 
   const handleBiometricSuccess = () => {
-    // In a real implementation, this would log in with stored credentials
     Toast.show({
       type: 'success',
       text1: 'Biometric Authentication',
@@ -86,8 +96,203 @@ const LoginScreen: React.FC = () => {
 
   const authMethodOptions = [
     { value: 'email', label: 'Email' },
+    { value: 'passkey', label: 'Passkey', disabled: !passkeySupported },
     { value: 'nostr', label: 'Nostr' },
   ];
+
+  const renderEmailForm = () => (
+    <View style={styles.formContainer}>
+      <Controller
+        control={control}
+        rules={{
+          required: 'Email is required',
+          pattern: {
+            value: /\S+@\S+\.\S+/,
+            message: 'Please enter a valid email',
+          },
+        }}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <TextInput
+            mode="outlined"
+            label="Email Address"
+            placeholder="Enter your email"
+            value={value}
+            onBlur={onBlur}
+            onChangeText={onChange}
+            error={!!errors.email}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            left={<TextInput.Icon icon="email" />}
+            style={styles.input}
+          />
+        )}
+        name="email"
+      />
+      {errors.email && (
+        <Text variant="bodySmall" style={styles.errorText}>
+          {errors.email.message}
+        </Text>
+      )}
+
+      <Controller
+        control={control}
+        rules={{
+          required: 'Password is required',
+          minLength: {
+            value: 8,
+            message: 'Password must be at least 8 characters',
+          },
+        }}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <TextInput
+            mode="outlined"
+            label="Password"
+            placeholder="Enter your password"
+            value={value}
+            onBlur={onBlur}
+            onChangeText={onChange}
+            error={!!errors.password}
+            secureTextEntry={!passwordVisible}
+            left={<TextInput.Icon icon="lock" />}
+            right={
+              <TextInput.Icon
+                icon={passwordVisible ? 'eye-off' : 'eye'}
+                onPress={() => setPasswordVisible(!passwordVisible)}
+              />
+            }
+            style={styles.input}
+          />
+        )}
+        name="password"
+      />
+      {errors.password && (
+        <Text variant="bodySmall" style={styles.errorText}>
+          {errors.password.message}
+        </Text>
+      )}
+
+      <Button
+        mode="contained"
+        onPress={handleSubmit(onEmailSubmit)}
+        loading={loading}
+        disabled={loading}
+        style={styles.submitButton}
+        contentStyle={styles.buttonContent}
+      >
+        {loading ? 'Signing in...' : 'Sign In'}
+      </Button>
+    </View>
+  );
+
+  const renderPasskeyForm = () => (
+    <View style={styles.formContainer}>
+      <Card style={styles.infoCard}>
+        <Card.Content>
+          <View style={styles.infoHeader}>
+            <Icon name="fingerprint" size={24} color={theme.colors.primary} />
+            <Text variant="titleSmall" style={styles.infoTitle}>
+              Sign in with Passkey
+            </Text>
+          </View>
+          <Text variant="bodySmall" style={styles.infoText}>
+            Use your device's biometric authentication (Face ID, Touch ID, or fingerprint) to sign in securely without a password.
+          </Text>
+        </Card.Content>
+      </Card>
+
+      <TextInput
+        mode="outlined"
+        label="Email (Optional)"
+        placeholder="Enter your email for faster login"
+        value={passkeyEmail}
+        onChangeText={setPasskeyEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+        left={<TextInput.Icon icon="email" />}
+        style={styles.input}
+      />
+      <Text variant="bodySmall" style={styles.helperText}>
+        Leave empty to use any registered passkey
+      </Text>
+
+      <Button
+        mode="contained"
+        onPress={onPasskeyLogin}
+        loading={loading}
+        disabled={loading}
+        style={styles.submitButton}
+        contentStyle={styles.buttonContent}
+        icon="fingerprint"
+      >
+        {loading ? 'Authenticating...' : 'Sign In with Passkey'}
+      </Button>
+
+      {!passkeySupported && (
+        <Card style={styles.warningCard}>
+          <Card.Content>
+            <View style={styles.infoHeader}>
+              <Icon name="alert-circle" size={20} color={theme.colors.error} />
+              <Text variant="bodySmall" style={[styles.infoTitle, { color: theme.colors.error }]}>
+                Passkeys Not Supported
+              </Text>
+            </View>
+            <Text variant="bodySmall" style={styles.infoText}>
+              Your device does not support passkeys. Please use email/password or another authentication method.
+            </Text>
+          </Card.Content>
+        </Card>
+      )}
+    </View>
+  );
+
+  const renderNostrForm = () => (
+    <View style={styles.formContainer}>
+      <TextInput
+        mode="outlined"
+        label="Nostr Public Key"
+        placeholder="Enter your 64-character Nostr public key"
+        value={nostrPublicKey}
+        onChangeText={setNostrPublicKey}
+        maxLength={64}
+        multiline
+        numberOfLines={3}
+        left={<TextInput.Icon icon="key-variant" />}
+        style={[styles.input, styles.nostrKeyInput]}
+      />
+      <Text variant="bodySmall" style={styles.helperText}>
+        Your public key should be 64 hexadecimal characters
+      </Text>
+
+      <Card style={styles.infoCard}>
+        <Card.Content>
+          <View style={styles.infoHeader}>
+            <Icon name="information" size={20} color={theme.colors.primary} />
+            <Text variant="titleSmall" style={styles.infoTitle}>
+              Nostr Integration
+            </Text>
+          </View>
+          <Text variant="bodySmall" style={styles.infoText}>
+            • Your vault is encrypted using your Nostr identity
+            {'\n'}• Requires a Nostr client for authentication
+            {'\n'}• Currently in development - coming soon
+          </Text>
+        </Card.Content>
+      </Card>
+
+      <Button
+        mode="contained"
+        onPress={onNostrLogin}
+        loading={loading}
+        disabled={loading || !nostrPublicKey}
+        style={styles.submitButton}
+        contentStyle={styles.buttonContent}
+      >
+        {loading ? 'Signing in...' : 'Sign In with Nostr'}
+      </Button>
+    </View>
+  );
 
   return (
     <KeyboardAvoidingView
@@ -122,135 +327,9 @@ const LoginScreen: React.FC = () => {
                 style={styles.segmentedButtons}
               />
 
-              {authMethod === 'email' ? (
-                <View style={styles.formContainer}>
-                  <Controller
-                    control={control}
-                    rules={{
-                      required: 'Email is required',
-                      pattern: {
-                        value: /\S+@\S+\.\S+/,
-                        message: 'Please enter a valid email',
-                      },
-                    }}
-                    render={({ field: { onChange, onBlur, value } }) => (
-                      <TextInput
-                        mode="outlined"
-                        label="Email Address"
-                        placeholder="Enter your email"
-                        value={value}
-                        onBlur={onBlur}
-                        onChangeText={onChange}
-                        error={!!errors.email}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        left={<TextInput.Icon icon="email" />}
-                        style={styles.input}
-                      />
-                    )}
-                    name="email"
-                  />
-                  {errors.email && (
-                    <Text variant="bodySmall" style={styles.errorText}>
-                      {errors.email.message}
-                    </Text>
-                  )}
-
-                  <Controller
-                    control={control}
-                    rules={{
-                      required: 'Password is required',
-                      minLength: {
-                        value: 8,
-                        message: 'Password must be at least 8 characters',
-                      },
-                    }}
-                    render={({ field: { onChange, onBlur, value } }) => (
-                      <TextInput
-                        mode="outlined"
-                        label="Password"
-                        placeholder="Enter your password"
-                        value={value}
-                        onBlur={onBlur}
-                        onChangeText={onChange}
-                        error={!!errors.password}
-                        secureTextEntry={!passwordVisible}
-                        left={<TextInput.Icon icon="lock" />}
-                        right={
-                          <TextInput.Icon
-                            icon={passwordVisible ? 'eye-off' : 'eye'}
-                            onPress={() => setPasswordVisible(!passwordVisible)}
-                          />
-                        }
-                        style={styles.input}
-                      />
-                    )}
-                    name="password"
-                  />
-                  {errors.password && (
-                    <Text variant="bodySmall" style={styles.errorText}>
-                      {errors.password.message}
-                    </Text>
-                  )}
-
-                  <Button
-                    mode="contained"
-                    onPress={handleSubmit(onEmailSubmit)}
-                    loading={loading}
-                    disabled={loading}
-                    style={styles.submitButton}
-                    contentStyle={styles.buttonContent}
-                  >
-                    {loading ? 'Signing in...' : 'Sign In'}
-                  </Button>
-                </View>
-              ) : (
-                <View style={styles.formContainer}>
-                  <TextInput
-                    mode="outlined"
-                    label="Nostr Public Key"
-                    placeholder="Enter your 64-character Nostr public key"
-                    value={nostrPublicKey}
-                    onChangeText={setNostrPublicKey}
-                    maxLength={64}
-                    multiline
-                    numberOfLines={3}
-                    left={<TextInput.Icon icon="key-variant" />}
-                    style={[styles.input, styles.nostrKeyInput]}
-                  />
-                  <Text variant="bodySmall" style={styles.helperText}>
-                    Your public key should be 64 hexadecimal characters
-                  </Text>
-
-                  <Card style={styles.nostrInfoCard}>
-                    <Card.Content>
-                      <View style={styles.nostrInfoHeader}>
-                        <Icon name="information" size={20} color={theme.colors.primary} />
-                        <Text variant="titleSmall" style={styles.nostrInfoTitle}>
-                          Nostr Integration
-                        </Text>
-                      </View>
-                      <Text variant="bodySmall" style={styles.nostrInfoText}>
-                        • Your vault is encrypted using your Nostr identity
-                        {'\n'}• Requires a Nostr client for authentication
-                        {'\n'}• Currently in development - coming soon
-                      </Text>
-                    </Card.Content>
-                  </Card>
-
-                  <Button
-                    mode="contained"
-                    onPress={onNostrLogin}
-                    loading={loading}
-                    disabled={loading || !nostrPublicKey}
-                    style={styles.submitButton}
-                    contentStyle={styles.buttonContent}
-                  >
-                    {loading ? 'Signing in...' : 'Sign In with Nostr'}
-                  </Button>
-                </View>
-              )}
+              {authMethod === 'email' && renderEmailForm()}
+              {authMethod === 'passkey' && renderPasskeyForm()}
+              {authMethod === 'nostr' && renderNostrForm()}
 
               <Button
                 mode="text"
@@ -327,20 +406,24 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginTop: -12,
   },
-  nostrInfoCard: {
+  infoCard: {
     backgroundColor: '#f1f5f9',
     marginVertical: 8,
   },
-  nostrInfoHeader: {
+  warningCard: {
+    backgroundColor: '#fef2f2',
+    marginTop: 16,
+  },
+  infoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
   },
-  nostrInfoTitle: {
+  infoTitle: {
     marginLeft: 8,
     fontWeight: '600',
   },
-  nostrInfoText: {
+  infoText: {
     color: '#475569',
     lineHeight: 18,
   },

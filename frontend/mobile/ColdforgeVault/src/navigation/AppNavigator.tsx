@@ -1,15 +1,13 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { View, Text, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { useAuth } from '../contexts/AuthContext';
 import LoginScreen from '../screens/auth/LoginScreen';
-import RegisterScreen from '../screens/auth/RegisterScreen';
-import VaultScreen from '../screens/vault/VaultScreen';
-import SettingsScreen from '../screens/settings/SettingsScreen';
-import AddItemScreen from '../screens/vault/AddItemScreen';
-import ItemDetailScreen from '../screens/vault/ItemDetailScreen';
+import VaultScreen from '../screens/main/VaultScreen';
+import SettingsScreen from '../screens/main/SettingsScreen';
 import LoadingScreen from '../components/LoadingScreen';
 
 export type RootStackParamList = {
@@ -32,6 +30,36 @@ export type MainTabParamList = {
 const RootStack = createStackNavigator<RootStackParamList>();
 const AuthStack = createStackNavigator<AuthStackParamList>();
 const MainTab = createBottomTabNavigator<MainTabParamList>();
+
+// Placeholder screen for Register
+function RegisterScreen() {
+  return (
+    <View style={styles.placeholder}>
+      <Icon name="account-plus" size={64} color="#94a3b8" />
+      <Text style={styles.placeholderText}>Registration Coming Soon</Text>
+    </View>
+  );
+}
+
+// Placeholder screen for AddItem
+function AddItemScreen() {
+  return (
+    <View style={styles.placeholder}>
+      <Icon name="plus-circle" size={64} color="#94a3b8" />
+      <Text style={styles.placeholderText}>Add Item Coming Soon</Text>
+    </View>
+  );
+}
+
+// Placeholder screen for ItemDetail
+function ItemDetailScreen() {
+  return (
+    <View style={styles.placeholder}>
+      <Icon name="file-document" size={64} color="#94a3b8" />
+      <Text style={styles.placeholderText}>Item Details Coming Soon</Text>
+    </View>
+  );
+}
 
 function AuthNavigator() {
   return (
@@ -82,13 +110,13 @@ function MainNavigator() {
         },
       })}
     >
-      <MainTab.Screen 
-        name="Vault" 
+      <MainTab.Screen
+        name="Vault"
         component={VaultScreen}
         options={{ title: 'My Vault' }}
       />
-      <MainTab.Screen 
-        name="Settings" 
+      <MainTab.Screen
+        name="Settings"
         component={SettingsScreen}
         options={{ title: 'Settings' }}
       />
@@ -108,13 +136,13 @@ export default function AppNavigator() {
       {user ? (
         <>
           <RootStack.Screen name="Main" component={MainNavigator} />
-          <RootStack.Screen 
-            name="AddItem" 
+          <RootStack.Screen
+            name="AddItem"
             component={AddItemScreen}
             options={{ presentation: 'modal' }}
           />
-          <RootStack.Screen 
-            name="ItemDetail" 
+          <RootStack.Screen
+            name="ItemDetail"
             component={ItemDetailScreen}
             options={{ presentation: 'card' }}
           />
@@ -125,3 +153,17 @@ export default function AppNavigator() {
     </RootStack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  placeholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  placeholderText: {
+    marginTop: 16,
+    fontSize: 18,
+    color: '#64748b',
+  },
+});

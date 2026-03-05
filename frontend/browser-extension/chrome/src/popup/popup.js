@@ -1,7 +1,9 @@
 // Cloistr Vault Browser Extension - Popup Script
+// Connects to vault.cloistr.xyz backend
 
 class CloistrVaultPopup {
   constructor() {
+    this.isAuthenticated = false;
     this.isUnlocked = false;
     this.passwords = [];
     this.filteredPasswords = [];
@@ -24,6 +26,7 @@ class CloistrVaultPopup {
       const response = await this.sendMessage({ type: 'GET_VAULT_STATUS' });
 
       if (response.success) {
+        this.isAuthenticated = response.status.authenticated;
         this.isUnlocked = response.status.unlocked;
         this.updateUI();
       }
@@ -33,22 +36,73 @@ class CloistrVaultPopup {
   }
 
   updateUI() {
+    const loginScreen = document.getElementById('loginScreen');
     const unlockScreen = document.getElementById('unlockScreen');
     const mainScreen = document.getElementById('mainScreen');
     const statusIndicator = document.getElementById('statusIndicator');
 
-    if (this.isUnlocked) {
-      unlockScreen.classList.add('hidden');
+    // Hide all screens first
+    if (loginScreen) loginScreen.classList.add('hidden');
+    if (unlockScreen) unlockScreen.classList.add('hidden');
+    if (mainScreen) mainScreen.classList.add('hidden');
+
+    if (!this.isAuthenticated) {
+      // Show login screen
+      if (loginScreen) {
+        loginScreen.classList.remove('hidden');
+      } else if (unlockScreen) {
+        // Fall back to unlock screen for backwards compatibility
+        unlockScreen.classList.remove('hidden');
+      }
+      statusIndicator.classList.remove('unlocked');
+    } else if (!this.isUnlocked) {
+      // Authenticated but vault locked - show unlock screen
+      unlockScreen.classList.remove('hidden');
+      statusIndicator.classList.remove('unlocked');
+    } else {
+      // Fully unlocked
       mainScreen.classList.remove('hidden');
       statusIndicator.classList.add('unlocked');
-    } else {
-      unlockScreen.classList.remove('hidden');
-      mainScreen.classList.add('hidden');
-      statusIndicator.classList.remove('unlocked');
     }
   }
 
   bindEvents() {
+    // Login form
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+      loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.handleLogin();
+      });
+    }
+
+    // Toggle login password visibility
+    const toggleLoginPassword = document.getElementById('toggleLoginPassword');
+    if (toggleLoginPassword) {
+      toggleLoginPassword.addEventListener('click', () => {
+        const input = document.getElementById('loginPassword');
+        input.type = input.type === 'password' ? 'text' : 'password';
+      });
+    }
+
+    // Create account link
+    const createAccount = document.getElementById('createAccount');
+    if (createAccount) {
+      createAccount.addEventListener('click', (e) => {
+        e.preventDefault();
+        chrome.tabs.create({ url: 'https://vault.cloistr.xyz/register' });
+      });
+    }
+
+    // Open web app from login
+    const openWebAppLogin = document.getElementById('openWebAppLogin');
+    if (openWebAppLogin) {
+      openWebAppLogin.addEventListener('click', (e) => {
+        e.preventDefault();
+        chrome.tabs.create({ url: 'https://vault.cloistr.xyz' });
+      });
+    }
+
     // Unlock form
     document.getElementById('unlockForm').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -61,11 +115,14 @@ class CloistrVaultPopup {
       input.type = input.type === 'password' ? 'text' : 'password';
     });
 
-    // Open web app
-    document.getElementById('openWebApp').addEventListener('click', (e) => {
-      e.preventDefault();
-      chrome.tabs.create({ url: 'https://vault.cloistr.xyz' });
-    });
+    // Logout link
+    const logoutLink = document.getElementById('logoutLink');
+    if (logoutLink) {
+      logoutLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.handleLogout();
+      });
+    }
 
     // Forgot password
     document.getElementById('forgotPassword').addEventListener('click', (e) => {
@@ -98,6 +155,55 @@ class CloistrVaultPopup {
         this.copyField(e.target.dataset.field);
       });
     });
+  }
+
+  async handleLogin() {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+
+    if (!email || !password) {
+      this.showToast('Please enter email and password', 'error');
+      return;
+    }
+
+    this.showLoading(true);
+
+    try {
+      const response = await this.sendMessage({
+        type: 'LOGIN',
+        email,
+        password
+      });
+
+      if (response.success) {
+        this.isAuthenticated = true;
+        this.updateUI();
+        this.showToast('Signed in successfully', 'success');
+      } else {
+        this.showToast(response.error || 'Invalid credentials', 'error');
+        document.getElementById('loginPassword').value = '';
+        document.getElementById('loginPassword').focus();
+      }
+    } catch (error) {
+      this.showToast('Failed to sign in', 'error');
+      console.error('Login error:', error);
+    } finally {
+      this.showLoading(false);
+    }
+  }
+
+  async handleLogout() {
+    try {
+      await this.sendMessage({ type: 'LOCK_VAULT' });
+      this.isAuthenticated = false;
+      this.isUnlocked = false;
+      this.passwords = [];
+      this.filteredPasswords = [];
+      this.updateUI();
+      this.showToast('Signed out', 'success');
+    } catch (error) {
+      this.showToast('Failed to sign out', 'error');
+    }
   }
 
   async handleUnlock() {

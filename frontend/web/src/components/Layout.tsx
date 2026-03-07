@@ -1,7 +1,7 @@
 import React, { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Shield, LogOut, Settings, Plus, Search, Key, Zap, Mail, BadgeCheck } from 'lucide-react';
+import { LogOut, Settings, Plus, Search, Key, Zap, Mail, BadgeCheck } from 'lucide-react';
 
 interface LayoutProps {
   children: ReactNode;
@@ -36,12 +36,10 @@ export default function Layout({ children }: LayoutProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <div className="flex items-center space-x-2">
-              <div className="h-8 w-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Shield className="h-5 w-5 text-primary" />
-              </div>
+            <Link to="/" className="flex items-center space-x-2">
+              <img src="/cloistr-icon.svg" alt="Cloistr" className="h-8 w-8" />
               <span className="font-bold text-lg">Cloistr Vault</span>
-            </div>
+            </Link>
 
             {/* Search bar */}
             <div className="flex-1 max-w-md mx-8">

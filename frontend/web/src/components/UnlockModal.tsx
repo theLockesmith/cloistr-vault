@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, Eye, EyeOff, Shield, LogOut } from 'lucide-react';
+import { Lock, Eye, EyeOff, LogOut } from 'lucide-react';
 import { useVault } from '../contexts/VaultContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -52,8 +52,8 @@ export default function UnlockModal({ onUnlock }: UnlockModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
-            <Shield className="h-8 w-8 text-primary" />
+          <div className="inline-flex items-center justify-center w-16 h-16 mb-4">
+            <img src="/cloistr-icon.svg" alt="Cloistr" className="h-16 w-16" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">Cloistr Vault</h1>
           <p className="text-muted-foreground mt-2">

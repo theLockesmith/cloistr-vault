@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Shield, Key, Zap, CheckCircle, AlertCircle, Search, ArrowLeft, Fingerprint, Plus, Trash2, Edit2, X } from 'lucide-react';
+import { Shield, Key, Zap, CheckCircle, AlertCircle, Search, ArrowLeft, Fingerprint, Plus, Trash2, Edit2, X, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -181,7 +181,7 @@ export default function Settings() {
               <div className="flex items-center space-x-2">
                 {user?.auth_method === 'nostr' && <Key className="h-5 w-5 text-purple-500" />}
                 {user?.auth_method === 'lightning_address' && <Zap className="h-5 w-5 text-yellow-500" />}
-                {(!user?.auth_method || user?.auth_method === 'email') && <Shield className="h-5 w-5 text-blue-500" />}
+                {(!user?.auth_method || user?.auth_method === 'email') && <Mail className="h-5 w-5 text-blue-500" />}
               </div>
             </div>
           </div>

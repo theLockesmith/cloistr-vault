@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
 import { useCrypto } from '../contexts/CryptoContext';
-import { Shield, Mail, Lock, Key, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Key, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface RegisterForm {
@@ -87,8 +87,8 @@ export default function Register() {
       <div className="max-w-md w-full space-y-8 p-8">
         <div className="card">
           <div className="card-header text-center">
-            <div className="mx-auto h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-              <Shield className="h-6 w-6 text-primary" />
+            <div className="mx-auto h-12 w-12 mb-4">
+              <img src="/cloistr-icon.svg" alt="Cloistr" className="h-12 w-12" />
             </div>
             <h2 className="card-title">Create Your Vault</h2>
             <p className="card-description">

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
-import { Shield, Mail, Key, Zap, Fingerprint } from 'lucide-react';
+import { Mail, Key, Zap, Fingerprint } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface LoginForm {
@@ -117,8 +117,8 @@ export default function Login() {
       <div className="max-w-md w-full space-y-8 p-8">
         <div className="card">
           <div className="card-header text-center">
-            <div className="mx-auto h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-              <Shield className="h-6 w-6 text-primary" />
+            <div className="mx-auto h-12 w-12 mb-4">
+              <img src="/cloistr-icon.svg" alt="Cloistr" className="h-12 w-12" />
             </div>
             <h2 className="card-title">Welcome to Cloistr Vault</h2>
             <p className="card-description">

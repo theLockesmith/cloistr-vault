@@ -5,7 +5,7 @@ go 1.24.1
 toolchain go1.24.13
 
 require (
-	git.coldforge.xyz/coldforge/cloistr-common v0.0.0
+	git.coldforge.xyz/coldforge/cloistr-common v0.1.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
 	github.com/gin-gonic/gin v1.9.1
@@ -77,5 +77,3 @@ require (
 	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace git.coldforge.xyz/coldforge/cloistr-common => /home/forgemaster/Development/cloistr-common

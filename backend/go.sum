@@ -1,3 +1,5 @@
+git.coldforge.xyz/coldforge/cloistr-common v0.1.0 h1:f0Gwjth4TuLmnQ3J4qPGRz7UV9K8dieKN5gugFc5qrE=
+git.coldforge.xyz/coldforge/cloistr-common v0.1.0/go.mod h1:QCsFfBYxCzAg9R3HUkin/nT1QPuMQKUAkKEfVlQj8BE=
 github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 h1:L/gRVlceqvL25UVaW/CKtUDjefjrs0SPonmDGUVOYP0=
 github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161/go.mod h1:xomTg63KZ2rFqZQzSB4Vz2SUXa1BpHTVz9L5PTmPC4E=
 github.com/DATA-DOG/go-sqlmock v1.5.2 h1:OcvFkGmslmlZibjAjaHm3L//6LiuBgolP7OputlJIzU=

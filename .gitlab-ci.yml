@@ -2,16 +2,20 @@ stages:
   - test
   - build
 
+variables:
+  GO_VERSION: "1.25"
+  GIT_STRATEGY: none
+
 .go-cache: &go-cache
   cache:
-    key: ${CI_COMMIT_REF_SLUG}
+    key: ${CI_COMMIT_REF_SLUG}-go
     paths:
       - .go/pkg/mod/
-    policy: pull-push
 
 test:unit:
   stage: test
-  image: golang:1.25-bookworm
+  tags: [local]
+  image: golang:${GO_VERSION}-bookworm
   <<: *go-cache
   variables:
     GOPATH: ${CI_PROJECT_DIR}/.go
@@ -19,6 +23,14 @@ test:unit:
   before_script:
     - apt-get update && apt-get install -y --no-install-recommends git ca-certificates build-essential
     - mkdir -p .go
+    - |
+      for i in 1 2 3 4 5; do
+        git clone --depth 20 --branch ${CI_COMMIT_REF_NAME} ${CI_REPOSITORY_URL} /tmp/src && break
+        echo "Clone attempt $i failed, retrying in $((i*5))s..."
+        sleep $((i*5))
+      done
+    - cp -r /tmp/src/. .
+    - git checkout ${CI_COMMIT_SHA}
   script:
     - cd backend
     - go mod tidy
@@ -27,26 +39,64 @@ test:unit:
 
 lint:
   stage: test
-  image: golang:1.25-bookworm
+  tags: [local]
+  image: golangci/golangci-lint:latest
   <<: *go-cache
-  variables:
-    GOPATH: ${CI_PROJECT_DIR}/.go
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl
-    - mkdir -p .go
-    - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin latest
+    - |
+      for i in 1 2 3 4 5; do
+        git clone --depth 20 --branch ${CI_COMMIT_REF_NAME} ${CI_REPOSITORY_URL} /tmp/src && break
+        echo "Clone attempt $i failed, retrying in $((i*5))s..."
+        sleep $((i*5))
+      done
+    - cp -r /tmp/src/. .
+    - git checkout ${CI_COMMIT_SHA}
   script:
     - cd backend
-    - ${GOPATH}/bin/golangci-lint run --timeout 10m ./...
+    - golangci-lint run --timeout 10m ./...
   allow_failure: true
 
 build:
   stage: build
-  image:
-    name: gcr.io/kaniko-project/executor:debug
-    entrypoint: [""]
+  tags: [local]
+  image: docker:latest
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: unix:///var/run/docker.sock
+    DOCKER_TLS_CERTDIR: ""
   before_script:
-    - mkdir -p /kaniko/.docker
-    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+    - apk add --no-cache git
+    - |
+      for i in 1 2 3 4 5; do
+        git clone --depth 20 --branch ${CI_COMMIT_REF_NAME} ${CI_REPOSITORY_URL} /tmp/src && break
+        echo "Clone attempt $i failed, retrying in $((i*5))s..."
+        sleep $((i*5))
+      done
+    - cp -r /tmp/src/. .
+    - git checkout ${CI_COMMIT_SHA}
+    - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
   script:
-    - /kaniko/executor --context ${CI_PROJECT_DIR} --dockerfile ${CI_PROJECT_DIR}/Dockerfile --destination ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA} --destination ${CI_REGISTRY_IMAGE}:latest
+    - docker build -t ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA} -t ${CI_REGISTRY_IMAGE}:latest .
+    - |
+      success=false
+      for i in 1 2 3 4 5; do
+        if docker push ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}; then
+          success=true
+          break
+        fi
+        echo "Push attempt $i failed, retrying in $((i*10))s..."
+        sleep $((i*10))
+      done
+      $success || { echo "ERROR: All push attempts failed for ${CI_COMMIT_SHORT_SHA}"; exit 1; }
+    - |
+      success=false
+      for i in 1 2 3 4 5; do
+        if docker push ${CI_REGISTRY_IMAGE}:latest; then
+          success=true
+          break
+        fi
+        echo "Push attempt $i failed, retrying in $((i*10))s..."
+        sleep $((i*10))
+      done
+      $success || { echo "ERROR: All push attempts failed for latest"; exit 1; }

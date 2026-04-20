@@ -82,7 +82,7 @@ frontend/
 ## Deployment
 
 - **Namespace:** cloistr
-- **Image:** `registry.coldforge.xyz/coldforge/cloistr-vault:latest`
+- **Image:** `registry.aegis-hq.xyz/coldforge/cloistr-vault:latest`
 - **Database:** `postgres-rw.db.coldforge.xyz` (cloistr database)
 
 ```bash

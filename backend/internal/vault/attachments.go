@@ -170,7 +170,7 @@ func (s *AttachmentService) ListAttachments(entryID, userID uuid.UUID) ([]models
 	if err != nil {
 		return nil, fmt.Errorf("failed to list attachments: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var attachments []models.AttachmentMetadata
 	for rows.Next() {

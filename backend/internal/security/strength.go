@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -304,7 +305,7 @@ func CheckHIBP(password string) *BreachResult {
 		result.Error = "Unable to check breach database"
 		return result
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		result.Error = "Breach check service unavailable"
@@ -323,7 +324,9 @@ func CheckHIBP(password string) *BreachResult {
 		parts := strings.Split(line, ":")
 		if len(parts) == 2 && parts[0] == suffix {
 			result.Compromised = true
-			fmt.Sscanf(parts[1], "%d", &result.Count)
+			if count, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
+				result.Count = count
+			}
 			break
 		}
 	}

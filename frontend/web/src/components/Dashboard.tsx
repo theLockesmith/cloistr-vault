@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useVault, VaultEntry } from '../contexts/VaultContext';
-import { Globe, StickyNote, CreditCard, User, Star, Eye, EyeOff, Copy, ExternalLink, Shield, Plus, Lock, Search } from 'lucide-react';
+import { Globe, StickyNote, CreditCard, User, Star, Eye, EyeOff, Copy, ExternalLink, Shield, Plus, Lock, Search, PanelLeftClose, PanelLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import VaultEntryModal from './VaultEntryModal';
+import FolderTree from './FolderTree';
+import { VaultFolder } from '../services/folderApi';
 
 export default function Dashboard() {
   const { vaultData, isLocked, saving, addEntry, updateEntry, deleteEntry, toggleFavorite } = useVault();
@@ -12,8 +14,11 @@ export default function Dashboard() {
   const [editingEntry, setEditingEntry] = useState<VaultEntry | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [folders, setFolders] = useState<VaultFolder[]>([]);
+  const [showSidebar, setShowSidebar] = useState(true);
 
-  // Filter entries based on search query and type filter
+  // Filter entries based on search query, type filter, and folder
   const filteredEntries = vaultData?.entries.filter(entry => {
     const matchesSearch = searchQuery === '' ||
       entry.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -22,8 +27,23 @@ export default function Dashboard() {
 
     const matchesType = typeFilter === null || entry.type === typeFilter;
 
-    return matchesSearch && matchesType;
+    const matchesFolder = selectedFolderId === null || entry.folder_id === selectedFolderId;
+
+    return matchesSearch && matchesType && matchesFolder;
   }) || [];
+
+  // Get selected folder name for display
+  const findFolderName = (foldersArr: VaultFolder[], id: string): string | null => {
+    for (const f of foldersArr) {
+      if (f.id === id) return f.name;
+      if (f.children) {
+        const found = findFolderName(f.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  const selectedFolderName = selectedFolderId ? findFolderName(folders, selectedFolderId) : null;
 
   const getEntryIcon = (type: string) => {
     switch (type) {
@@ -124,24 +144,65 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Your Vault</h1>
-          <p className="text-muted-foreground">
-            {vaultData?.entries.length || 0} items - All data encrypted locally
-          </p>
+    <div className="flex gap-6">
+      {/* Folder Sidebar */}
+      {showSidebar && (
+        <div className="w-64 flex-shrink-0">
+          <div className="card sticky top-4">
+            <div className="card-header py-3 px-4 flex items-center justify-between">
+              <h3 className="text-sm font-medium">Folders</h3>
+              <button
+                onClick={() => setShowSidebar(false)}
+                className="p-1 hover:bg-muted rounded"
+                title="Hide sidebar"
+              >
+                <PanelLeftClose className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
+            <div className="card-content p-0">
+              <FolderTree
+                selectedFolderId={selectedFolderId}
+                onSelectFolder={setSelectedFolderId}
+                onFoldersChange={setFolders}
+              />
+            </div>
+          </div>
         </div>
-        <button
-          onClick={handleAddEntry}
-          className="btn-primary"
-          disabled={saving}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Item
-        </button>
-      </div>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {!showSidebar && (
+              <button
+                onClick={() => setShowSidebar(true)}
+                className="p-2 hover:bg-muted rounded"
+                title="Show folders"
+              >
+                <PanelLeft className="h-4 w-4" />
+              </button>
+            )}
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">
+                {selectedFolderName || 'Your Vault'}
+              </h1>
+              <p className="text-muted-foreground">
+                {filteredEntries.length} item{filteredEntries.length !== 1 ? 's' : ''}
+                {selectedFolderId ? ' in this folder' : ''} - All data encrypted locally
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleAddEntry}
+            className="btn-primary"
+            disabled={saving}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Item
+          </button>
+        </div>
 
       {/* Search and Filter */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -476,18 +537,19 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Add/Edit Modal */}
-      <VaultEntryModal
-        isOpen={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          setEditingEntry(null);
-        }}
-        onSave={handleSaveEntry}
-        onDelete={handleDeleteEntry}
-        entry={editingEntry}
-        mode={editingEntry ? 'edit' : 'add'}
-      />
+        {/* Add/Edit Modal */}
+        <VaultEntryModal
+          isOpen={modalOpen}
+          onClose={() => {
+            setModalOpen(false);
+            setEditingEntry(null);
+          }}
+          onSave={handleSaveEntry}
+          onDelete={handleDeleteEntry}
+          entry={editingEntry}
+          mode={editingEntry ? 'edit' : 'add'}
+        />
+      </div>
     </div>
   );
 }

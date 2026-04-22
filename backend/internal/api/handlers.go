@@ -316,6 +316,33 @@ func (h *Handlers) GetAPIInfo(c *gin.Context) {
 				"get":    "/api/v1/vault",
 				"update": "/api/v1/vault",
 			},
+			"folders": gin.H{
+				"list":    "/api/v1/folders",
+				"create":  "/api/v1/folders",
+				"get":     "/api/v1/folders/:id",
+				"update":  "/api/v1/folders/:id",
+				"delete":  "/api/v1/folders/:id",
+				"reorder": "/api/v1/folders/reorder",
+			},
+			"entries": gin.H{
+				"list":       "/api/v1/entries",
+				"create":     "/api/v1/entries",
+				"get":        "/api/v1/entries/:id",
+				"update":     "/api/v1/entries/:id",
+				"delete":     "/api/v1/entries/:id",
+				"record_use": "/api/v1/entries/:id/usage",
+				"secrets": gin.H{
+					"list":    "/api/v1/entries/:id/secrets",
+					"add":     "/api/v1/entries/:id/secrets",
+					"update":  "/api/v1/entries/:id/secrets/:secretId",
+					"delete":  "/api/v1/entries/:id/secrets/:secretId",
+					"reorder": "/api/v1/entries/:id/secrets/reorder",
+				},
+			},
+			"password": gin.H{
+				"generate": "/api/v1/password/generate",
+				"history":  "/api/v1/password/history",
+			},
 			"recovery": gin.H{
 				"status":     "/api/v1/recovery/status",
 				"regenerate": "/api/v1/recovery/regenerate",

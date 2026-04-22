@@ -9,13 +9,14 @@ import (
 	"syscall"
 	"time"
 
-	"git.coldforge.xyz/coldforge/cloistr-common/relayprefs"
+	"git.aegis-hq.xyz/coldforge/cloistr-common/relayprefs"
 	"github.com/coldforge/vault/internal/api"
 	"github.com/coldforge/vault/internal/auth"
 	"github.com/coldforge/vault/internal/config"
 	"github.com/coldforge/vault/internal/database"
 	"github.com/coldforge/vault/internal/kms"
 	"github.com/coldforge/vault/internal/observability"
+	"github.com/coldforge/vault/internal/security"
 	"github.com/coldforge/vault/internal/vault"
 )
 
@@ -102,9 +103,18 @@ func main() {
 	// Initialize services
 	authService := auth.NewAuthService(db.DB, relayPrefsClient)
 	vaultService := vault.NewService(db)
+	folderService := vault.NewFolderService(db)
+	entryService := vault.NewEntryService(db)
+	secretService := vault.NewSecretService(db)
+	passwordService := vault.NewPasswordService(db)
+	tagService := vault.NewTagService(db)
+	searchService := vault.NewSearchService(db, entryService, folderService, tagService)
+	securityService := security.NewSecurityService(db)
+	attachmentService := vault.NewAttachmentService(db)
+	sharingService := vault.NewSharingService(db)
 
 	// Setup router
-	router := api.SetupRouter(authService, vaultService)
+	router := api.SetupRouter(authService, vaultService, folderService, entryService, secretService, passwordService, tagService, searchService, securityService, attachmentService, sharingService)
 
 	// Create HTTP server
 	server := &http.Server{

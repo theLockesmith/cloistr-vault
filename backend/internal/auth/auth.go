@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"git.coldforge.xyz/coldforge/cloistr-common/relayprefs"
+	"git.aegis-hq.xyz/coldforge/cloistr-common/relayprefs"
 	"github.com/coldforge/vault/internal/crypto"
 	"github.com/coldforge/vault/internal/identity"
 	"github.com/coldforge/vault/internal/models"

@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"git.aegis-hq.xyz/coldforge/cloistr-common/relayprefs"
+	"git.coldforge.xyz/coldforge/cloistr-common/relayprefs"
 	"github.com/coldforge/vault/internal/api"
 	"github.com/coldforge/vault/internal/auth"
 	"github.com/coldforge/vault/internal/config"

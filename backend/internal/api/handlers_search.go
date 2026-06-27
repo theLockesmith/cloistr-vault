@@ -1,6 +1,7 @@
 package api
 
 import (
+	"git.aegis-hq.xyz/coldforge/cloistr-common/errors"
 	"net/http"
 	"strconv"
 
@@ -24,13 +25,13 @@ func NewSearchHandlers(searchService *vault.SearchService) *SearchHandlers {
 func (h *SearchHandlers) Search(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	query := c.Query("q")
 	if query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Search query is required"})
+		errors.BadRequest(errors.CodeValidationFailed, "Search query is required").Abort(c)
 		return
 	}
 
@@ -52,7 +53,7 @@ func (h *SearchHandlers) Search(c *gin.Context) {
 
 	result, err := h.searchService.Search(userID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to perform search"})
+		errors.InternalError(errors.CodeInternalError, "Failed to perform search").Abort(c)
 		return
 	}
 
@@ -63,7 +64,7 @@ func (h *SearchHandlers) Search(c *gin.Context) {
 func (h *SearchHandlers) GetRecentEntries(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
@@ -76,7 +77,7 @@ func (h *SearchHandlers) GetRecentEntries(c *gin.Context) {
 
 	entries, err := h.searchService.GetRecentEntries(userID, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get recent entries"})
+		errors.InternalError(errors.CodeInternalError, "Failed to get recent entries").Abort(c)
 		return
 	}
 
@@ -87,7 +88,7 @@ func (h *SearchHandlers) GetRecentEntries(c *gin.Context) {
 func (h *SearchHandlers) GetFrequentEntries(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
@@ -100,7 +101,7 @@ func (h *SearchHandlers) GetFrequentEntries(c *gin.Context) {
 
 	entries, err := h.searchService.GetFrequentEntries(userID, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get frequent entries"})
+		errors.InternalError(errors.CodeInternalError, "Failed to get frequent entries").Abort(c)
 		return
 	}
 

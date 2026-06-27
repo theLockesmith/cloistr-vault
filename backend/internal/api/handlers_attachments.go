@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"git.aegis-hq.xyz/coldforge/cloistr-common/errors"
 	"github.com/coldforge/vault/internal/models"
 	"github.com/coldforge/vault/internal/vault"
 	"github.com/gin-gonic/gin"
@@ -25,13 +26,13 @@ func NewAttachmentHandlers(attachmentService *vault.AttachmentService) *Attachme
 func (h *AttachmentHandlers) ListAttachments(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	entryID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid entry ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid entry ID").Abort(c)
 		return
 	}
 
@@ -39,10 +40,10 @@ func (h *AttachmentHandlers) ListAttachments(c *gin.Context) {
 	if err != nil {
 		errMsg := err.Error()
 		if errMsg == "entry not found" || errMsg == "entry not found or access denied" {
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list attachments"})
+		errors.InternalError(errors.CodeInternalError, "Failed to list attachments").Abort(c)
 		return
 	}
 
@@ -53,19 +54,19 @@ func (h *AttachmentHandlers) ListAttachments(c *gin.Context) {
 func (h *AttachmentHandlers) AddAttachment(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	entryID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid entry ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid entry ID").Abort(c)
 		return
 	}
 
 	var req models.CreateAttachmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
@@ -77,13 +78,13 @@ func (h *AttachmentHandlers) AddAttachment(c *gin.Context) {
 		errMsg := err.Error()
 		switch errMsg {
 		case "entry not found", "entry not found or access denied":
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 		case "maximum attachments per entry reached (10)":
-			c.JSON(http.StatusConflict, gin.H{"error": errMsg})
+			errors.Conflict(errors.CodeResourceConflict, errMsg).Abort(c)
 		case "file size exceeds 10MB limit":
-			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": errMsg})
+			errors.InsufficientStorage(errors.CodeQuotaExceeded, errMsg).Abort(c)
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create attachment"})
+			errors.InternalError(errors.CodeInternalError, "Failed to create attachment").Abort(c)
 		}
 		return
 	}
@@ -106,23 +107,23 @@ func (h *AttachmentHandlers) AddAttachment(c *gin.Context) {
 func (h *AttachmentHandlers) GetAttachment(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	attachmentID, err := uuid.Parse(c.Param("attachmentId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid attachment ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid attachment ID").Abort(c)
 		return
 	}
 
 	attachment, err := h.attachmentService.GetAttachment(attachmentID, userID)
 	if err != nil {
 		if err.Error() == "attachment not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
+			errors.NotFound(errors.CodeResourceNotFound, "Attachment not found").Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get attachment"})
+		errors.InternalError(errors.CodeInternalError, "Failed to get attachment").Abort(c)
 		return
 	}
 
@@ -133,23 +134,23 @@ func (h *AttachmentHandlers) GetAttachment(c *gin.Context) {
 func (h *AttachmentHandlers) GetAttachmentMetadata(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	attachmentID, err := uuid.Parse(c.Param("attachmentId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid attachment ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid attachment ID").Abort(c)
 		return
 	}
 
 	meta, err := h.attachmentService.GetAttachmentMetadata(attachmentID, userID)
 	if err != nil {
 		if err.Error() == "attachment not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
+			errors.NotFound(errors.CodeResourceNotFound, "Attachment not found").Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get attachment"})
+		errors.InternalError(errors.CodeInternalError, "Failed to get attachment").Abort(c)
 		return
 	}
 
@@ -160,24 +161,24 @@ func (h *AttachmentHandlers) GetAttachmentMetadata(c *gin.Context) {
 func (h *AttachmentHandlers) UpdateAttachment(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	attachmentID, err := uuid.Parse(c.Param("attachmentId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid attachment ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid attachment ID").Abort(c)
 		return
 	}
 
 	var req models.UpdateAttachmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
 	if req.Name == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No update fields provided"})
+		errors.BadRequest(errors.CodeValidationFailed, "No update fields provided").Abort(c)
 		return
 	}
 
@@ -185,10 +186,10 @@ func (h *AttachmentHandlers) UpdateAttachment(c *gin.Context) {
 	if err != nil {
 		errMsg := err.Error()
 		if errMsg == "attachment not found" || errMsg == "attachment not found or access denied" {
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update attachment"})
+		errors.InternalError(errors.CodeInternalError, "Failed to update attachment").Abort(c)
 		return
 	}
 
@@ -199,13 +200,13 @@ func (h *AttachmentHandlers) UpdateAttachment(c *gin.Context) {
 func (h *AttachmentHandlers) DeleteAttachment(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	attachmentID, err := uuid.Parse(c.Param("attachmentId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid attachment ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid attachment ID").Abort(c)
 		return
 	}
 
@@ -213,10 +214,10 @@ func (h *AttachmentHandlers) DeleteAttachment(c *gin.Context) {
 	if err != nil {
 		errMsg := err.Error()
 		if errMsg == "attachment not found" || errMsg == "attachment not found or access denied" {
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete attachment"})
+		errors.InternalError(errors.CodeInternalError, "Failed to delete attachment").Abort(c)
 		return
 	}
 
@@ -227,13 +228,13 @@ func (h *AttachmentHandlers) DeleteAttachment(c *gin.Context) {
 func (h *AttachmentHandlers) GetStorageUsage(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	totalSize, count, err := h.attachmentService.GetUserStorageUsage(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get storage usage"})
+		errors.InternalError(errors.CodeInternalError, "Failed to get storage usage").Abort(c)
 		return
 	}
 

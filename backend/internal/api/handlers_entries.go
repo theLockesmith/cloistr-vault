@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"git.aegis-hq.xyz/coldforge/cloistr-common/errors"
 	"github.com/coldforge/vault/internal/models"
 	"github.com/coldforge/vault/internal/vault"
 	"github.com/gin-gonic/gin"
@@ -25,19 +26,19 @@ func NewEntryHandlers(entryService *vault.EntryService) *EntryHandlers {
 func (h *EntryHandlers) ListEntries(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	var req models.SearchRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid query parameters").Abort(c)
 		return
 	}
 
 	response, err := h.entryService.ListEntries(userID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve entries"})
+		errors.InternalError(errors.CodeInternalError, "Failed to retrieve entries").Abort(c)
 		return
 	}
 
@@ -48,23 +49,23 @@ func (h *EntryHandlers) ListEntries(c *gin.Context) {
 func (h *EntryHandlers) GetEntry(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	entryID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid entry ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid entry ID").Abort(c)
 		return
 	}
 
 	entry, err := h.entryService.GetEntry(entryID, userID)
 	if err != nil {
 		if err.Error() == "entry not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Entry not found"})
+			errors.NotFound(errors.CodeResourceNotFound, "Entry not found").Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve entry"})
+		errors.InternalError(errors.CodeInternalError, "Failed to retrieve entry").Abort(c)
 		return
 	}
 
@@ -75,13 +76,13 @@ func (h *EntryHandlers) GetEntry(c *gin.Context) {
 func (h *EntryHandlers) CreateEntry(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	var req models.CreateEntryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
@@ -89,10 +90,10 @@ func (h *EntryHandlers) CreateEntry(c *gin.Context) {
 	if err != nil {
 		errMsg := err.Error()
 		if errMsg == "folder not found or access denied" {
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create entry"})
+		errors.InternalError(errors.CodeInternalError, "Failed to create entry").Abort(c)
 		return
 	}
 
@@ -103,19 +104,19 @@ func (h *EntryHandlers) CreateEntry(c *gin.Context) {
 func (h *EntryHandlers) UpdateEntry(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	entryID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid entry ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid entry ID").Abort(c)
 		return
 	}
 
 	var req models.UpdateEntryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
@@ -124,11 +125,11 @@ func (h *EntryHandlers) UpdateEntry(c *gin.Context) {
 		errMsg := err.Error()
 		switch errMsg {
 		case "entry not found or access denied":
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 		case "folder not found or access denied":
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update entry"})
+			errors.InternalError(errors.CodeInternalError, "Failed to update entry").Abort(c)
 		}
 		return
 	}
@@ -140,23 +141,23 @@ func (h *EntryHandlers) UpdateEntry(c *gin.Context) {
 func (h *EntryHandlers) DeleteEntry(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	entryID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid entry ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid entry ID").Abort(c)
 		return
 	}
 
 	err = h.entryService.DeleteEntry(entryID, userID)
 	if err != nil {
 		if err.Error() == "entry not found or access denied" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			errors.NotFound(errors.CodeResourceNotFound, err.Error()).Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete entry"})
+		errors.InternalError(errors.CodeInternalError, "Failed to delete entry").Abort(c)
 		return
 	}
 
@@ -167,19 +168,19 @@ func (h *EntryHandlers) DeleteEntry(c *gin.Context) {
 func (h *EntryHandlers) RecordUsage(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	entryID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid entry ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid entry ID").Abort(c)
 		return
 	}
 
 	err = h.entryService.RecordUsage(entryID, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record usage"})
+		errors.InternalError(errors.CodeInternalError, "Failed to record usage").Abort(c)
 		return
 	}
 

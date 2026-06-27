@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"git.aegis-hq.xyz/coldforge/cloistr-common/errors"
 	"github.com/coldforge/vault/internal/models"
 	"github.com/coldforge/vault/internal/vault"
 	"github.com/gin-gonic/gin"
@@ -27,23 +28,23 @@ func NewSecretHandlers(secretService *vault.SecretService, passwordService *vaul
 func (h *SecretHandlers) ListSecrets(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	entryID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid entry ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid entry ID").Abort(c)
 		return
 	}
 
 	secrets, err := h.secretService.GetSecrets(entryID, userID)
 	if err != nil {
 		if err.Error() == "entry not found or access denied" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			errors.NotFound(errors.CodeResourceNotFound, err.Error()).Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve secrets"})
+		errors.InternalError(errors.CodeInternalError, "Failed to retrieve secrets").Abort(c)
 		return
 	}
 
@@ -54,29 +55,29 @@ func (h *SecretHandlers) ListSecrets(c *gin.Context) {
 func (h *SecretHandlers) AddSecret(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	entryID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid entry ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid entry ID").Abort(c)
 		return
 	}
 
 	var req models.CreateSecretInput
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
 	secret, err := h.secretService.AddSecret(entryID, userID, &req)
 	if err != nil {
 		if err.Error() == "entry not found or access denied" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			errors.NotFound(errors.CodeResourceNotFound, err.Error()).Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add secret"})
+		errors.InternalError(errors.CodeInternalError, "Failed to add secret").Abort(c)
 		return
 	}
 
@@ -87,29 +88,29 @@ func (h *SecretHandlers) AddSecret(c *gin.Context) {
 func (h *SecretHandlers) UpdateSecret(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	secretID, err := uuid.Parse(c.Param("secretId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid secret ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid secret ID").Abort(c)
 		return
 	}
 
 	var req vault.UpdateSecretRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
 	secret, err := h.secretService.UpdateSecret(secretID, userID, &req)
 	if err != nil {
 		if err.Error() == "secret not found or access denied" || err.Error() == "secret not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Secret not found"})
+			errors.NotFound(errors.CodeResourceNotFound, "Secret not found").Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update secret"})
+		errors.InternalError(errors.CodeInternalError, "Failed to update secret").Abort(c)
 		return
 	}
 
@@ -120,23 +121,23 @@ func (h *SecretHandlers) UpdateSecret(c *gin.Context) {
 func (h *SecretHandlers) DeleteSecret(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	secretID, err := uuid.Parse(c.Param("secretId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid secret ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid secret ID").Abort(c)
 		return
 	}
 
 	err = h.secretService.DeleteSecret(secretID, userID)
 	if err != nil {
 		if err.Error() == "secret not found or access denied" || err.Error() == "secret not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Secret not found"})
+			errors.NotFound(errors.CodeResourceNotFound, "Secret not found").Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete secret"})
+		errors.InternalError(errors.CodeInternalError, "Failed to delete secret").Abort(c)
 		return
 	}
 
@@ -147,13 +148,13 @@ func (h *SecretHandlers) DeleteSecret(c *gin.Context) {
 func (h *SecretHandlers) ReorderSecrets(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	entryID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid entry ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid entry ID").Abort(c)
 		return
 	}
 
@@ -162,7 +163,7 @@ func (h *SecretHandlers) ReorderSecrets(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
@@ -171,14 +172,14 @@ func (h *SecretHandlers) ReorderSecrets(c *gin.Context) {
 	for idStr, pos := range req.Positions {
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid secret ID: " + idStr})
+			errors.BadRequest(errors.CodeInvalidInput, "Invalid secret ID: " + idStr).Abort(c)
 			return
 		}
 		positions[id] = pos
 	}
 
 	if err := h.secretService.ReorderSecrets(entryID, userID, positions); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reorder secrets"})
+		errors.InternalError(errors.CodeInternalError, "Failed to reorder secrets").Abort(c)
 		return
 	}
 
@@ -189,13 +190,13 @@ func (h *SecretHandlers) ReorderSecrets(c *gin.Context) {
 func (h *SecretHandlers) GeneratePassword(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	var req models.PasswordGenerateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
@@ -212,7 +213,7 @@ func (h *SecretHandlers) GeneratePassword(c *gin.Context) {
 
 	result, err := h.passwordService.GeneratePassword(&req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate password"})
+		errors.InternalError(errors.CodeInternalError, "Failed to generate password").Abort(c)
 		return
 	}
 
@@ -226,7 +227,7 @@ func (h *SecretHandlers) GeneratePassword(c *gin.Context) {
 func (h *SecretHandlers) GetPasswordHistory(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
@@ -241,7 +242,7 @@ func (h *SecretHandlers) GetPasswordHistory(c *gin.Context) {
 
 	history, err := h.passwordService.GetPasswordHistory(userID, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get password history"})
+		errors.InternalError(errors.CodeInternalError, "Failed to get password history").Abort(c)
 		return
 	}
 

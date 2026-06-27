@@ -1,10 +1,10 @@
 package api
 
 import (
-	"net/http"
 	"strings"
 	"time"
-	
+
+	"git.aegis-hq.xyz/coldforge/cloistr-common/errors"
 	"github.com/coldforge/vault/internal/auth"
 	"github.com/gin-gonic/gin"
 )
@@ -59,16 +59,14 @@ func AuthMiddleware(authService *auth.AuthService) gin.HandlerFunc {
 	return gin.HandlerFunc(func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
-			c.Abort()
+			errors.Unauthorized(errors.CodeAuthRequired, "Authorization header required").Abort(c)
 			return
 		}
 		
 		// Extract token from "Bearer <token>" format
 		tokenParts := strings.Split(authHeader, " ")
 		if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization format"})
-			c.Abort()
+			errors.Unauthorized(errors.CodeAuthInvalid, "Invalid authorization format").Abort(c)
 			return
 		}
 		
@@ -77,8 +75,7 @@ func AuthMiddleware(authService *auth.AuthService) gin.HandlerFunc {
 		// Validate token
 		user, err := authService.ValidateSession(token)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
-			c.Abort()
+			errors.Unauthorized(errors.CodeAuthInvalid, "Invalid or expired token").Abort(c)
 			return
 		}
 		
@@ -108,10 +105,7 @@ func ContentTypeMiddleware() gin.HandlerFunc {
 		if c.Request.Method == "POST" || c.Request.Method == "PUT" || c.Request.Method == "PATCH" {
 			contentType := c.GetHeader("Content-Type")
 			if !strings.Contains(contentType, "application/json") {
-				c.JSON(http.StatusUnsupportedMediaType, gin.H{
-					"error": "Content-Type must be application/json",
-				})
-				c.Abort()
+				errors.BadRequest(errors.CodeInvalidInput, "Content-Type must be application/json").Abort(c)
 				return
 			}
 		}

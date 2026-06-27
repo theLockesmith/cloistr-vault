@@ -67,7 +67,7 @@ func TestRecoverAccount_InvalidRequestFormat(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, "Invalid request format", response["error"])
+	assert.Equal(t, "Invalid request format", response["message"])
 }
 
 func TestRecoverAccount_UserNotFound(t *testing.T) {
@@ -107,7 +107,7 @@ func TestRecoverAccount_UserNotFound(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, "User not found", response["error"])
+	assert.Equal(t, "User not found", response["message"])
 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -160,7 +160,7 @@ func TestRecoverAccount_InvalidRecoveryCode(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, "Invalid or expired recovery code", response["error"])
+	assert.Equal(t, "Invalid or expired recovery code", response["message"])
 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -234,7 +234,7 @@ func TestGetRecoveryStatus_NoUserID(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, "User ID not found", response["error"])
+	assert.Equal(t, "User ID not found", response["message"])
 }
 
 func TestGetRecoveryStatus_InvalidUserID(t *testing.T) {
@@ -261,7 +261,7 @@ func TestGetRecoveryStatus_InvalidUserID(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, "Invalid user ID", response["error"])
+	assert.Equal(t, "Invalid user ID", response["message"])
 }
 
 func TestGetRecoveryStatus_DatabaseError(t *testing.T) {
@@ -293,7 +293,7 @@ func TestGetRecoveryStatus_DatabaseError(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, "Failed to get recovery status", response["error"])
+	assert.Equal(t, "Failed to get recovery status", response["message"])
 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -407,7 +407,7 @@ func TestRegenerateRecoveryCodes_NoUserID(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, "User ID not found", response["error"])
+	assert.Equal(t, "User ID not found", response["message"])
 }
 
 func TestRegenerateRecoveryCodes_InvalidUserID(t *testing.T) {
@@ -433,7 +433,7 @@ func TestRegenerateRecoveryCodes_InvalidUserID(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, "Invalid user ID", response["error"])
+	assert.Equal(t, "Invalid user ID", response["message"])
 }
 
 func TestRegenerateRecoveryCodes_DatabaseError(t *testing.T) {
@@ -463,7 +463,7 @@ func TestRegenerateRecoveryCodes_DatabaseError(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, "Failed to regenerate recovery codes", response["error"])
+	assert.Equal(t, "Failed to regenerate recovery codes", response["message"])
 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

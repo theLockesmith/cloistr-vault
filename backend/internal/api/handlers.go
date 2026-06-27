@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"git.aegis-hq.xyz/coldforge/cloistr-common/errors"
 	"github.com/coldforge/vault/internal/auth"
 	"github.com/coldforge/vault/internal/models"
 	"github.com/gin-gonic/gin"
@@ -43,18 +44,18 @@ func (h *Handlers) HealthCheck(c *gin.Context) {
 func (h *Handlers) Register(c *gin.Context) {
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
 	// Validate request
 	if req.Method == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Method is required"})
+		errors.BadRequest(errors.CodeValidationFailed, "Method is required").Abort(c)
 		return
 	}
 
 	if len(req.VaultData) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Vault data is required"})
+		errors.BadRequest(errors.CodeValidationFailed, "Vault data is required").Abort(c)
 		return
 	}
 
@@ -63,11 +64,11 @@ func (h *Handlers) Register(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case auth.ErrUserExists:
-			c.JSON(http.StatusConflict, gin.H{"error": "User already exists"})
+			errors.Conflict(errors.CodeResourceExists, "User already exists").Abort(c)
 		case auth.ErrInvalidAuthMethod:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid authentication method"})
+			errors.BadRequest(errors.CodeValidationFailed, "Invalid authentication method").Abort(c)
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
+			errors.InternalError(errors.CodeInternalError, "Registration failed").Abort(c)
 		}
 		return
 	}
@@ -79,13 +80,13 @@ func (h *Handlers) Register(c *gin.Context) {
 func (h *Handlers) Login(c *gin.Context) {
 	var req models.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
 	// Validate request
 	if req.Method == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Method is required"})
+		errors.BadRequest(errors.CodeValidationFailed, "Method is required").Abort(c)
 		return
 	}
 
@@ -96,11 +97,11 @@ func (h *Handlers) Login(c *gin.Context) {
 		if err != nil {
 			switch err {
 			case auth.ErrUserNotFound:
-				c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+				errors.NotFound(errors.CodeResourceNotFound, "User not found").Abort(c)
 			case auth.ErrInvalidCredentials:
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+				errors.Unauthorized(errors.CodeAuthInvalid, "Invalid credentials").Abort(c)
 			default:
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Login failed"})
+				errors.InternalError(errors.CodeInternalError, "Login failed").Abort(c)
 			}
 			return
 		}
@@ -109,13 +110,13 @@ func (h *Handlers) Login(c *gin.Context) {
 	case "nostr":
 		// Handle Nostr authentication
 		if req.NostrPubkey == nil || req.Signature == nil || req.Challenge == nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Nostr authentication requires pubkey, signature, and challenge"})
+			errors.BadRequest(errors.CodeValidationFailed, "Nostr authentication requires pubkey, signature, and challenge").Abort(c)
 			return
 		}
 
 		user, token, err := h.authService.AuthenticateWithNostr(*req.NostrPubkey, *req.Signature, *req.Challenge)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": fmt.Sprintf("Nostr authentication failed: %v", err)})
+			errors.Unauthorized(errors.CodeAuthInvalid, fmt.Sprintf("Nostr authentication failed: %v", err)).Abort(c)
 			return
 		}
 
@@ -130,7 +131,7 @@ func (h *Handlers) Login(c *gin.Context) {
 		h.handleLightningLogin(c, &req)
 
 	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid authentication method"})
+		errors.BadRequest(errors.CodeValidationFailed, "Invalid authentication method").Abort(c)
 	}
 }
 
@@ -139,14 +140,14 @@ func (h *Handlers) Logout(c *gin.Context) {
 	// Extract token from authorization header
 	token := extractTokenFromHeader(c.GetHeader("Authorization"))
 	if token == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid authorization header"})
+		errors.BadRequest(errors.CodeAuthInvalid, "Invalid authorization header").Abort(c)
 		return
 	}
 
 	// Revoke session
 	err := h.authService.RevokeSession(token)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Logout failed"})
+		errors.InternalError(errors.CodeInternalError, "Logout failed").Abort(c)
 		return
 	}
 
@@ -160,20 +161,20 @@ func (h *Handlers) NostrChallenge(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
 	// Validate public key format
 	if len(req.PublicKey) != 64 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid public key format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid public key format").Abort(c)
 		return
 	}
 
 	// For Nostr authentication, we don't require existing user - create challenge for any valid pubkey
 	challenge, err := h.authService.GenerateNostrChallengePublic(req.PublicKey)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Challenge generation failed"})
+		errors.InternalError(errors.CodeInternalError, "Challenge generation failed").Abort(c)
 		return
 	}
 
@@ -190,20 +191,20 @@ func (h *Handlers) LightningChallenge(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
 	// Validate Lightning Address format (basic: contains @)
 	if !strings.Contains(req.LightningAddress, "@") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Lightning Address format (expected user@domain)"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid Lightning Address format (expected user@domain)").Abort(c)
 		return
 	}
 
 	// Generate LNURL-auth k1 challenge
 	challenge, err := h.authService.GenerateLightningChallenge(req.LightningAddress)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Challenge generation failed: %v", err)})
+		errors.InternalError(errors.CodeInternalError, fmt.Sprintf("Challenge generation failed: %v", err)).Abort(c)
 		return
 	}
 
@@ -218,7 +219,7 @@ func (h *Handlers) LightningChallenge(c *gin.Context) {
 func (h *Handlers) GetProfile(c *gin.Context) {
 	user, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User not found in context").Abort(c)
 		return
 	}
 
@@ -229,19 +230,19 @@ func (h *Handlers) GetProfile(c *gin.Context) {
 func (h *Handlers) GetVault(c *gin.Context) {
 	userIDStr, exists := c.Get("userID")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid user ID").Abort(c)
 		return
 	}
 
 	vault, err := h.vaultService.GetVault(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve vault"})
+		errors.InternalError(errors.CodeInternalError, "Failed to retrieve vault").Abort(c)
 		return
 	}
 
@@ -252,13 +253,13 @@ func (h *Handlers) GetVault(c *gin.Context) {
 func (h *Handlers) UpdateVault(c *gin.Context) {
 	userIDStr, exists := c.Get("userID")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid user ID").Abort(c)
 		return
 	}
 
@@ -268,13 +269,13 @@ func (h *Handlers) UpdateVault(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
 	vault, err := h.vaultService.UpdateVault(userID, req.EncryptedData, req.Version)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update vault"})
+		errors.InternalError(errors.CodeInternalError, "Failed to update vault").Abort(c)
 		return
 	}
 
@@ -355,7 +356,7 @@ func (h *Handlers) GetAPIInfo(c *gin.Context) {
 func (h *Handlers) RecoverAccount(c *gin.Context) {
 	var req models.RecoveryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
@@ -363,11 +364,11 @@ func (h *Handlers) RecoverAccount(c *gin.Context) {
 	if err != nil {
 		switch {
 		case strings.Contains(err.Error(), "user not found"):
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			errors.NotFound(errors.CodeResourceNotFound, "User not found").Abort(c)
 		case strings.Contains(err.Error(), "invalid recovery code"):
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired recovery code"})
+			errors.Unauthorized(errors.CodeAuthInvalid, "Invalid or expired recovery code").Abort(c)
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Account recovery failed"})
+			errors.InternalError(errors.CodeInternalError, "Account recovery failed").Abort(c)
 		}
 		return
 	}
@@ -384,20 +385,20 @@ func (h *Handlers) RecoverAccount(c *gin.Context) {
 func (h *Handlers) GetRecoveryStatus(c *gin.Context) {
 	userIDStr, exists := c.Get("userID")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid user ID").Abort(c)
 		return
 	}
 
 	recoveryService := h.authService.GetRecoveryService()
 	codes, err := recoveryService.GetCodeStatus(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get recovery status"})
+		errors.InternalError(errors.CodeInternalError, "Failed to get recovery status").Abort(c)
 		return
 	}
 
@@ -422,20 +423,20 @@ func (h *Handlers) GetRecoveryStatus(c *gin.Context) {
 func (h *Handlers) RegenerateRecoveryCodes(c *gin.Context) {
 	userIDStr, exists := c.Get("userID")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid user ID").Abort(c)
 		return
 	}
 
 	recoveryService := h.authService.GetRecoveryService()
 	codes, err := recoveryService.RegenerateCodes(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to regenerate recovery codes"})
+		errors.InternalError(errors.CodeInternalError, "Failed to regenerate recovery codes").Abort(c)
 		return
 	}
 
@@ -470,15 +471,13 @@ func (h *Handlers) handleLightningLogin(c *gin.Context, req *models.LoginRequest
 
 	// Validate required fields
 	if lightningAddress == "" || signature == "" || k1 == "" || linkingKey == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Lightning authentication requires lightning_address, signature, challenge (k1), and linking_key",
-		})
+		errors.BadRequest(errors.CodeValidationFailed, "Lightning authentication requires lightning_address, signature, challenge (k1), and linking_key").Abort(c)
 		return
 	}
 
 	user, token, err := h.authService.AuthenticateWithLightning(lightningAddress, signature, k1, linkingKey)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": fmt.Sprintf("Lightning authentication failed: %v", err)})
+		errors.Unauthorized(errors.CodeAuthInvalid, fmt.Sprintf("Lightning authentication failed: %v", err)).Abort(c)
 		return
 	}
 
@@ -493,13 +492,13 @@ func (h *Handlers) handleLightningLogin(c *gin.Context, req *models.LoginRequest
 func (h *Handlers) VerifyNIP05(c *gin.Context) {
 	userIDStr, exists := c.Get("userID")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid user ID").Abort(c)
 		return
 	}
 
@@ -508,14 +507,14 @@ func (h *Handlers) VerifyNIP05(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
 	// Verify the NIP-05 address
 	err = h.authService.VerifyNIP05(userID, req.NIP05Address)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("NIP-05 verification failed: %v", err)})
+		errors.BadRequest(errors.CodeValidationFailed, fmt.Sprintf("NIP-05 verification failed: %v", err)).Abort(c)
 		return
 	}
 
@@ -529,13 +528,13 @@ func (h *Handlers) VerifyNIP05(c *gin.Context) {
 func (h *Handlers) LookupNIP05(c *gin.Context) {
 	address := c.Query("address")
 	if address == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "address query parameter is required"})
+		errors.BadRequest(errors.CodeValidationFailed, "address query parameter is required").Abort(c)
 		return
 	}
 
 	pubkey, relays, err := h.authService.LookupNIP05(address)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("NIP-05 lookup failed: %v", err)})
+		errors.NotFound(errors.CodeResourceNotFound, fmt.Sprintf("NIP-05 lookup failed: %v", err)).Abort(c)
 		return
 	}
 
@@ -560,7 +559,7 @@ func (h *Handlers) GetNostrJSON(c *gin.Context) {
 	// Get NIP-05 data
 	data, err := h.authService.GetNostrJSON(c.Request.Context(), domain)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get NIP-05 data"})
+		errors.InternalError(errors.CodeInternalError, "Failed to get NIP-05 data").Abort(c)
 		return
 	}
 

@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"git.coldforge.xyz/coldforge/cloistr-common/relayprefs"
+	"git.aegis-hq.xyz/coldforge/cloistr-common/relayprefs"
 	"github.com/coldforge/vault/internal/api"
 	"github.com/coldforge/vault/internal/auth"
 	"github.com/coldforge/vault/internal/config"
@@ -113,8 +113,20 @@ func main() {
 	attachmentService := vault.NewAttachmentService(db)
 	sharingService := vault.NewSharingService(db)
 
+	// Resolve the web UI directory. WEB_DIR overrides; otherwise serve ./web
+	// when present (baked into the container image). Empty = API-only mode.
+	webDir := os.Getenv("WEB_DIR")
+	if webDir == "" {
+		if info, err := os.Stat("./web"); err == nil && info.IsDir() {
+			webDir = "./web"
+		}
+	}
+	if webDir != "" {
+		observability.Info("serving web ui", "dir", webDir)
+	}
+
 	// Setup router
-	router := api.SetupRouter(authService, vaultService, folderService, entryService, secretService, passwordService, tagService, searchService, securityService, attachmentService, sharingService)
+	router := api.SetupRouter(authService, vaultService, folderService, entryService, secretService, passwordService, tagService, searchService, securityService, attachmentService, sharingService, webDir)
 
 	// Create HTTP server
 	server := &http.Server{

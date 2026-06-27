@@ -1,6 +1,7 @@
 package api
 
 import (
+	"git.aegis-hq.xyz/coldforge/cloistr-common/errors"
 	"encoding/base64"
 	"net/http"
 	"time"
@@ -15,13 +16,13 @@ import (
 func (h *Handlers) WebAuthnBeginRegistration(c *gin.Context) {
 	userIDStr, exists := c.Get("userID")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid user ID").Abort(c)
 		return
 	}
 
@@ -29,11 +30,11 @@ func (h *Handlers) WebAuthnBeginRegistration(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case auth.ErrWebAuthnNotConfigured:
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "WebAuthn not configured"})
+			errors.ServiceUnavailable(errors.CodeServiceUnavailable, "WebAuthn not configured", 0).Abort(c)
 		case auth.ErrUserNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			errors.NotFound(errors.CodeResourceNotFound, "User not found").Abort(c)
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin registration"})
+			errors.InternalError(errors.CodeInternalError, "Failed to begin registration").Abort(c)
 		}
 		return
 	}
@@ -45,13 +46,13 @@ func (h *Handlers) WebAuthnBeginRegistration(c *gin.Context) {
 func (h *Handlers) WebAuthnFinishRegistration(c *gin.Context) {
 	userIDStr, exists := c.Get("userID")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid user ID").Abort(c)
 		return
 	}
 
@@ -64,7 +65,7 @@ func (h *Handlers) WebAuthnFinishRegistration(c *gin.Context) {
 	// Parse the credential creation response
 	response, err := protocol.ParseCredentialCreationResponseBody(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid credential response: " + err.Error()})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid credential response: " + err.Error()).Abort(c)
 		return
 	}
 
@@ -73,11 +74,11 @@ func (h *Handlers) WebAuthnFinishRegistration(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case auth.ErrSessionNotFound:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Registration session not found - please start again"})
+			errors.BadRequest(errors.CodeValidationFailed, "Registration session not found - please start again").Abort(c)
 		case auth.ErrSessionExpired:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Registration session expired - please start again"})
+			errors.BadRequest(errors.CodeValidationFailed, "Registration session expired - please start again").Abort(c)
 		default:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Registration failed: " + err.Error()})
+			errors.BadRequest(errors.CodeInvalidInput, "Registration failed: " + err.Error()).Abort(c)
 		}
 		return
 	}
@@ -95,7 +96,7 @@ func (h *Handlers) WebAuthnBeginLogin(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
+		errors.BadRequest(errors.CodeValidationFailed, "Email is required").Abort(c)
 		return
 	}
 
@@ -103,13 +104,13 @@ func (h *Handlers) WebAuthnBeginLogin(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case auth.ErrWebAuthnNotConfigured:
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "WebAuthn not configured"})
+			errors.ServiceUnavailable(errors.CodeServiceUnavailable, "WebAuthn not configured", 0).Abort(c)
 		case auth.ErrUserNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			errors.NotFound(errors.CodeResourceNotFound, "User not found").Abort(c)
 		case auth.ErrNoCredentialsForUser:
-			c.JSON(http.StatusNotFound, gin.H{"error": "No passkeys registered for this user"})
+			errors.NotFound(errors.CodeResourceNotFound, "No passkeys registered for this user").Abort(c)
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin login"})
+			errors.InternalError(errors.CodeInternalError, "Failed to begin login").Abort(c)
 		}
 		return
 	}
@@ -123,9 +124,9 @@ func (h *Handlers) WebAuthnBeginDiscoverableLogin(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case auth.ErrWebAuthnNotConfigured:
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "WebAuthn not configured"})
+			errors.ServiceUnavailable(errors.CodeServiceUnavailable, "WebAuthn not configured", 0).Abort(c)
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin login"})
+			errors.InternalError(errors.CodeInternalError, "Failed to begin login").Abort(c)
 		}
 		return
 	}
@@ -149,7 +150,7 @@ func (h *Handlers) WebAuthnFinishLogin(c *gin.Context) {
 	// Parse the credential assertion response
 	response, err := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid credential response: " + err.Error()})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid credential response: " + err.Error()).Abort(c)
 		return
 	}
 
@@ -175,7 +176,7 @@ func (h *Handlers) WebAuthnFinishLogin(c *gin.Context) {
 		user = u
 		token = t
 	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Either email or session_id is required"})
+		errors.BadRequest(errors.CodeValidationFailed, "Either email or session_id is required").Abort(c)
 		return
 	}
 
@@ -189,15 +190,15 @@ func (h *Handlers) WebAuthnFinishLogin(c *gin.Context) {
 func handleWebAuthnLoginError(c *gin.Context, err error) {
 	switch err {
 	case auth.ErrSessionNotFound:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Login session not found - please start again"})
+		errors.BadRequest(errors.CodeValidationFailed, "Login session not found - please start again").Abort(c)
 	case auth.ErrSessionExpired:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Login session expired - please start again"})
+		errors.BadRequest(errors.CodeValidationFailed, "Login session expired - please start again").Abort(c)
 	case auth.ErrCredentialNotFound:
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Credential not recognized"})
+		errors.Unauthorized(errors.CodeAuthInvalid, "Credential not recognized").Abort(c)
 	case auth.ErrUserNotFound:
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		errors.NotFound(errors.CodeResourceNotFound, "User not found").Abort(c)
 	default:
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed: " + err.Error()})
+		errors.BadRequest(errors.CodeInvalidInput, "Authentication failed: " + err.Error()).Abort(c)
 	}
 }
 
@@ -205,19 +206,19 @@ func handleWebAuthnLoginError(c *gin.Context, err error) {
 func (h *Handlers) ListWebAuthnCredentials(c *gin.Context) {
 	userIDStr, exists := c.Get("userID")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid user ID").Abort(c)
 		return
 	}
 
 	credentials, err := h.authService.ListWebAuthnCredentials(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list credentials"})
+		errors.InternalError(errors.CodeInternalError, "Failed to list credentials").Abort(c)
 		return
 	}
 
@@ -234,26 +235,26 @@ func (h *Handlers) ListWebAuthnCredentials(c *gin.Context) {
 func (h *Handlers) DeleteWebAuthnCredential(c *gin.Context) {
 	userIDStr, exists := c.Get("userID")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid user ID").Abort(c)
 		return
 	}
 
 	credentialID := c.Param("id")
 	if credentialID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Credential ID is required"})
+		errors.BadRequest(errors.CodeValidationFailed, "Credential ID is required").Abort(c)
 		return
 	}
 
 	// URL decode the credential ID (it's base64url encoded)
 	_, err = base64.URLEncoding.DecodeString(credentialID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid credential ID format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid credential ID format").Abort(c)
 		return
 	}
 
@@ -261,9 +262,9 @@ func (h *Handlers) DeleteWebAuthnCredential(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case auth.ErrCredentialNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"error": "Credential not found"})
+			errors.NotFound(errors.CodeResourceNotFound, "Credential not found").Abort(c)
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete credential"})
+			errors.InternalError(errors.CodeInternalError, "Failed to delete credential").Abort(c)
 		}
 		return
 	}
@@ -277,19 +278,19 @@ func (h *Handlers) DeleteWebAuthnCredential(c *gin.Context) {
 func (h *Handlers) UpdateWebAuthnCredential(c *gin.Context) {
 	userIDStr, exists := c.Get("userID")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid user ID").Abort(c)
 		return
 	}
 
 	credentialID := c.Param("id")
 	if credentialID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Credential ID is required"})
+		errors.BadRequest(errors.CodeValidationFailed, "Credential ID is required").Abort(c)
 		return
 	}
 
@@ -298,7 +299,7 @@ func (h *Handlers) UpdateWebAuthnCredential(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Name is required"})
+		errors.BadRequest(errors.CodeValidationFailed, "Name is required").Abort(c)
 		return
 	}
 
@@ -306,9 +307,9 @@ func (h *Handlers) UpdateWebAuthnCredential(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case auth.ErrCredentialNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"error": "Credential not found"})
+			errors.NotFound(errors.CodeResourceNotFound, "Credential not found").Abort(c)
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update credential"})
+			errors.InternalError(errors.CodeInternalError, "Failed to update credential").Abort(c)
 		}
 		return
 	}

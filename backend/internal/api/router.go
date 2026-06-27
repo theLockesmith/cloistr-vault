@@ -1,6 +1,11 @@
 package api
 
 import (
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/coldforge/vault/internal/auth"
@@ -10,7 +15,35 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter(authService *auth.AuthService, vaultService VaultService, folderService *vault.FolderService, entryService *vault.EntryService, secretService *vault.SecretService, passwordService *vault.PasswordService, tagService *vault.TagService, searchService *vault.SearchService, securityService *security.SecurityService, attachmentService *vault.AttachmentService, sharingService *vault.SharingService) *gin.Engine {
+// notFoundJSON is the JSON 404 used for unmatched API/metrics/.well-known paths.
+func notFoundJSON(c *gin.Context) {
+	c.JSON(http.StatusNotFound, gin.H{
+		"error":   "Not Found",
+		"message": "The requested endpoint does not exist",
+	})
+}
+
+// spaHandler serves the React build from webDir, falling back to index.html for
+// client-side routes. API/metrics/.well-known paths keep returning JSON 404s.
+// http.Dir guards against path traversal when serving real files.
+func spaHandler(webDir string) gin.HandlerFunc {
+	fileServer := http.FileServer(http.Dir(webDir))
+	return func(c *gin.Context) {
+		p := c.Request.URL.Path
+		if strings.HasPrefix(p, "/api") || strings.HasPrefix(p, "/metrics") || strings.HasPrefix(p, "/.well-known") {
+			notFoundJSON(c)
+			return
+		}
+		full := filepath.Join(webDir, filepath.FromSlash(path.Clean("/"+p)))
+		if info, err := os.Stat(full); err == nil && !info.IsDir() {
+			fileServer.ServeHTTP(c.Writer, c.Request)
+			return
+		}
+		c.File(filepath.Join(webDir, "index.html"))
+	}
+}
+
+func SetupRouter(authService *auth.AuthService, vaultService VaultService, folderService *vault.FolderService, entryService *vault.EntryService, secretService *vault.SecretService, passwordService *vault.PasswordService, tagService *vault.TagService, searchService *vault.SearchService, securityService *security.SecurityService, attachmentService *vault.AttachmentService, sharingService *vault.SharingService, webDir string) *gin.Engine {
 	// Set Gin mode
 	gin.SetMode(gin.ReleaseMode) // Change to gin.DebugMode for development
 
@@ -235,14 +268,14 @@ func SetupRouter(authService *auth.AuthService, vaultService VaultService, folde
 		}
 	}
 	
-	// Add a catch-all route for 404s
-	router.NoRoute(func(c *gin.Context) {
-		c.JSON(404, gin.H{
-			"error":   "Not Found",
-			"message": "The requested endpoint does not exist",
-		})
-	})
-	
+	// Catch-all: serve the web UI (SPA) when a build dir is configured,
+	// otherwise return a JSON 404 (API-only mode).
+	if webDir != "" {
+		router.NoRoute(spaHandler(webDir))
+	} else {
+		router.NoRoute(notFoundJSON)
+	}
+
 	return router
 }
 

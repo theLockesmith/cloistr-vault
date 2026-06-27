@@ -1,3 +1,17 @@
+# Web build stage - build the React app (served as static files by the API)
+FROM node:22-alpine AS webbuilder
+
+WORKDIR /web
+
+# Install dependencies from lockfile first for layer caching
+COPY frontend/web/package.json frontend/web/package-lock.json ./
+RUN npm ci
+
+# Build the production bundle. INLINE_RUNTIME_CHUNK=false keeps all JS in
+# external files so the strict default-src 'self' CSP is not violated.
+COPY frontend/web/ ./
+RUN CI=false INLINE_RUNTIME_CHUNK=false npm run build
+
 # Build stage
 # Use Harbor pull-through proxy to avoid Docker Hub rate limits
 FROM oci.coldforge.xyz/docker-hub/library/golang:1.25-alpine AS builder
@@ -35,6 +49,9 @@ WORKDIR /app
 # Copy the binary from builder stage
 COPY --from=builder /app/main .
 COPY --from=builder /app/migrations ./migrations
+
+# Copy the built web UI (served as static files by the API at /)
+COPY --from=webbuilder /web/build ./web
 
 # Change ownership to app user
 RUN chown -R appuser:appgroup /app

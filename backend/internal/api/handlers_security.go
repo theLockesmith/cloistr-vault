@@ -1,6 +1,7 @@
 package api
 
 import (
+	"git.aegis-hq.xyz/coldforge/cloistr-common/errors"
 	"net/http"
 
 	"github.com/coldforge/vault/internal/security"
@@ -23,13 +24,13 @@ func NewSecurityHandlers(securityService *security.SecurityService) *SecurityHan
 func (h *SecurityHandlers) GetSecurityScore(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	score, err := h.securityService.AnalyzeVaultSecurity(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to analyze security"})
+		errors.InternalError(errors.CodeInternalError, "Failed to analyze security").Abort(c)
 		return
 	}
 
@@ -44,7 +45,7 @@ type AnalyzePasswordRequest struct {
 func (h *SecurityHandlers) AnalyzePassword(c *gin.Context) {
 	var req AnalyzePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Password is required"})
+		errors.BadRequest(errors.CodeValidationFailed, "Password is required").Abort(c)
 		return
 	}
 
@@ -60,7 +61,7 @@ type CheckBreachRequest struct {
 func (h *SecurityHandlers) CheckBreach(c *gin.Context) {
 	var req CheckBreachRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Password is required"})
+		errors.BadRequest(errors.CodeValidationFailed, "Password is required").Abort(c)
 		return
 	}
 
@@ -72,7 +73,7 @@ func (h *SecurityHandlers) CheckBreach(c *gin.Context) {
 func (h *SecurityHandlers) GetWeakPasswords(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
@@ -87,7 +88,7 @@ func (h *SecurityHandlers) GetWeakPasswords(c *gin.Context) {
 
 	rows, err := h.securityService.DB().Query(query, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query weak passwords"})
+		errors.InternalError(errors.CodeInternalError, "Failed to query weak passwords").Abort(c)
 		return
 	}
 	defer rows.Close()
@@ -105,7 +106,7 @@ func (h *SecurityHandlers) GetWeakPasswords(c *gin.Context) {
 		var entry WeakEntry
 		err := rows.Scan(&entry.ID, &entry.Name, &entry.EntryType, &entry.URL, &entry.StrengthScore)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan results"})
+			errors.InternalError(errors.CodeInternalError, "Failed to scan results").Abort(c)
 			return
 		}
 		entries = append(entries, entry)
@@ -118,7 +119,7 @@ func (h *SecurityHandlers) GetWeakPasswords(c *gin.Context) {
 func (h *SecurityHandlers) GetBreachedPasswords(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
@@ -131,7 +132,7 @@ func (h *SecurityHandlers) GetBreachedPasswords(c *gin.Context) {
 
 	rows, err := h.securityService.DB().Query(query, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query breached passwords"})
+		errors.InternalError(errors.CodeInternalError, "Failed to query breached passwords").Abort(c)
 		return
 	}
 	defer rows.Close()
@@ -149,7 +150,7 @@ func (h *SecurityHandlers) GetBreachedPasswords(c *gin.Context) {
 		var entry BreachedEntry
 		err := rows.Scan(&entry.ID, &entry.Name, &entry.EntryType, &entry.URL, &entry.LastBreachCheck)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan results"})
+			errors.InternalError(errors.CodeInternalError, "Failed to scan results").Abort(c)
 			return
 		}
 		entries = append(entries, entry)
@@ -162,7 +163,7 @@ func (h *SecurityHandlers) GetBreachedPasswords(c *gin.Context) {
 func (h *SecurityHandlers) GetReusedPasswords(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
@@ -175,7 +176,7 @@ func (h *SecurityHandlers) GetReusedPasswords(c *gin.Context) {
 
 	rows, err := h.securityService.DB().Query(query, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query reused passwords"})
+		errors.InternalError(errors.CodeInternalError, "Failed to query reused passwords").Abort(c)
 		return
 	}
 	defer rows.Close()
@@ -192,7 +193,7 @@ func (h *SecurityHandlers) GetReusedPasswords(c *gin.Context) {
 		var entry ReusedEntry
 		err := rows.Scan(&entry.ID, &entry.Name, &entry.EntryType, &entry.URL)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan results"})
+			errors.InternalError(errors.CodeInternalError, "Failed to scan results").Abort(c)
 			return
 		}
 		entries = append(entries, entry)
@@ -205,7 +206,7 @@ func (h *SecurityHandlers) GetReusedPasswords(c *gin.Context) {
 func (h *SecurityHandlers) GetExpiringSecrets(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
@@ -221,7 +222,7 @@ func (h *SecurityHandlers) GetExpiringSecrets(c *gin.Context) {
 
 	rows, err := h.securityService.DB().Query(query, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query expiring secrets"})
+		errors.InternalError(errors.CodeInternalError, "Failed to query expiring secrets").Abort(c)
 		return
 	}
 	defer rows.Close()
@@ -241,7 +242,7 @@ func (h *SecurityHandlers) GetExpiringSecrets(c *gin.Context) {
 		err := rows.Scan(&secret.EntryID, &secret.EntryName, &secret.EntryType,
 			&secret.URL, &secret.SecretName, &secret.ExpiresAt)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan results"})
+			errors.InternalError(errors.CodeInternalError, "Failed to scan results").Abort(c)
 			return
 		}
 		secrets = append(secrets, secret)

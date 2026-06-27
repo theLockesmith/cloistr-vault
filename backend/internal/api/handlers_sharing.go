@@ -1,6 +1,7 @@
 package api
 
 import (
+	"git.aegis-hq.xyz/coldforge/cloistr-common/errors"
 	"net/http"
 
 	"github.com/coldforge/vault/internal/models"
@@ -27,19 +28,19 @@ func NewSharingHandlers(sharingService *vault.SharingService) *SharingHandlers {
 func (h *SharingHandlers) CreateTeam(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	var req models.CreateTeamRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
 	team, err := h.sharingService.CreateTeam(userID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create team"})
+		errors.InternalError(errors.CodeInternalError, "Failed to create team").Abort(c)
 		return
 	}
 
@@ -50,13 +51,13 @@ func (h *SharingHandlers) CreateTeam(c *gin.Context) {
 func (h *SharingHandlers) GetTeam(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	teamID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid team ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid team ID").Abort(c)
 		return
 	}
 
@@ -64,10 +65,10 @@ func (h *SharingHandlers) GetTeam(c *gin.Context) {
 	if err != nil {
 		errMsg := err.Error()
 		if errMsg == "team not found" || errMsg == "team not found or access denied" {
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get team"})
+		errors.InternalError(errors.CodeInternalError, "Failed to get team").Abort(c)
 		return
 	}
 
@@ -78,13 +79,13 @@ func (h *SharingHandlers) GetTeam(c *gin.Context) {
 func (h *SharingHandlers) ListTeams(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	teams, err := h.sharingService.ListUserTeams(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list teams"})
+		errors.InternalError(errors.CodeInternalError, "Failed to list teams").Abort(c)
 		return
 	}
 
@@ -95,26 +96,26 @@ func (h *SharingHandlers) ListTeams(c *gin.Context) {
 func (h *SharingHandlers) GetTeamMembers(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	teamID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid team ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid team ID").Abort(c)
 		return
 	}
 
 	// Verify membership
 	_, err = h.sharingService.GetTeam(teamID, userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Team not found or access denied"})
+		errors.NotFound(errors.CodeAccessDenied, "Team not found or access denied").Abort(c)
 		return
 	}
 
 	members, err := h.sharingService.GetTeamMembers(teamID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get team members"})
+		errors.InternalError(errors.CodeInternalError, "Failed to get team members").Abort(c)
 		return
 	}
 
@@ -125,19 +126,19 @@ func (h *SharingHandlers) GetTeamMembers(c *gin.Context) {
 func (h *SharingHandlers) InviteToTeam(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	teamID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid team ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid team ID").Abort(c)
 		return
 	}
 
 	var req models.InviteToTeamRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
@@ -146,13 +147,13 @@ func (h *SharingHandlers) InviteToTeam(c *gin.Context) {
 		errMsg := err.Error()
 		switch errMsg {
 		case "not a team member":
-			c.JSON(http.StatusForbidden, gin.H{"error": errMsg})
+			errors.Forbidden(errors.CodeAccessDenied, errMsg).Abort(c)
 		case "insufficient permissions to invite":
-			c.JSON(http.StatusForbidden, gin.H{"error": errMsg})
+			errors.Forbidden(errors.CodeAccessDenied, errMsg).Abort(c)
 		case "email or pubkey required":
-			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+			errors.BadRequest(errors.CodeValidationFailed, errMsg).Abort(c)
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create invitation"})
+			errors.InternalError(errors.CodeInternalError, "Failed to create invitation").Abort(c)
 		}
 		return
 	}
@@ -164,13 +165,13 @@ func (h *SharingHandlers) InviteToTeam(c *gin.Context) {
 func (h *SharingHandlers) AcceptTeamInvitation(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	invitationID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid invitation ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid invitation ID").Abort(c)
 		return
 	}
 
@@ -179,14 +180,14 @@ func (h *SharingHandlers) AcceptTeamInvitation(c *gin.Context) {
 		errMsg := err.Error()
 		switch errMsg {
 		case "invitation not found":
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 		case "invitation expired":
-			c.JSON(http.StatusGone, gin.H{"error": errMsg})
+			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 		default:
 			if len(errMsg) > 18 && errMsg[:18] == "invitation already" {
-				c.JSON(http.StatusConflict, gin.H{"error": errMsg})
+				errors.Conflict(errors.CodeResourceConflict, errMsg).Abort(c)
 			} else {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to accept invitation"})
+				errors.InternalError(errors.CodeInternalError, "Failed to accept invitation").Abort(c)
 			}
 		}
 		return
@@ -201,13 +202,13 @@ func (h *SharingHandlers) AcceptTeamInvitation(c *gin.Context) {
 func (h *SharingHandlers) ShareFolder(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	var req models.ShareFolderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
@@ -216,13 +217,13 @@ func (h *SharingHandlers) ShareFolder(c *gin.Context) {
 		errMsg := err.Error()
 		switch errMsg {
 		case "folder not found":
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 		case "not the folder owner":
-			c.JSON(http.StatusForbidden, gin.H{"error": errMsg})
+			errors.Forbidden(errors.CodeAccessDenied, errMsg).Abort(c)
 		case "team_id or user_id required":
-			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+			errors.BadRequest(errors.CodeValidationFailed, errMsg).Abort(c)
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to share folder"})
+			errors.InternalError(errors.CodeInternalError, "Failed to share folder").Abort(c)
 		}
 		return
 	}
@@ -234,13 +235,13 @@ func (h *SharingHandlers) ShareFolder(c *gin.Context) {
 func (h *SharingHandlers) GetSharedFolders(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	folders, err := h.sharingService.GetSharedFolders(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get shared folders"})
+		errors.InternalError(errors.CodeInternalError, "Failed to get shared folders").Abort(c)
 		return
 	}
 
@@ -251,23 +252,23 @@ func (h *SharingHandlers) GetSharedFolders(c *gin.Context) {
 func (h *SharingHandlers) GetFolderKey(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	folderID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid folder ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid folder ID").Abort(c)
 		return
 	}
 
 	key, err := h.sharingService.GetFolderKey(folderID, userID)
 	if err != nil {
 		if err.Error() == "folder key not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "No access to this folder"})
+			errors.Forbidden(errors.CodeAccessDenied, "No access to this folder").Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get folder key"})
+		errors.InternalError(errors.CodeInternalError, "Failed to get folder key").Abort(c)
 		return
 	}
 
@@ -278,13 +279,13 @@ func (h *SharingHandlers) GetFolderKey(c *gin.Context) {
 func (h *SharingHandlers) RevokeShare(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	shareID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid share ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid share ID").Abort(c)
 		return
 	}
 
@@ -293,11 +294,11 @@ func (h *SharingHandlers) RevokeShare(c *gin.Context) {
 		errMsg := err.Error()
 		switch errMsg {
 		case "shared folder not found":
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 		case "not authorized to revoke this share":
-			c.JSON(http.StatusForbidden, gin.H{"error": errMsg})
+			errors.Forbidden(errors.CodeAccessDenied, errMsg).Abort(c)
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to revoke share"})
+			errors.InternalError(errors.CodeInternalError, "Failed to revoke share").Abort(c)
 		}
 		return
 	}

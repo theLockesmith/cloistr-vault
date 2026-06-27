@@ -1,6 +1,7 @@
 package api
 
 import (
+	"git.aegis-hq.xyz/coldforge/cloistr-common/errors"
 	"net/http"
 
 	"github.com/coldforge/vault/internal/models"
@@ -25,7 +26,7 @@ func NewFolderHandlers(folderService *vault.FolderService) *FolderHandlers {
 func (h *FolderHandlers) ListFolders(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
@@ -40,7 +41,7 @@ func (h *FolderHandlers) ListFolders(c *gin.Context) {
 	}
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve folders"})
+		errors.InternalError(errors.CodeInternalError, "Failed to retrieve folders").Abort(c)
 		return
 	}
 
@@ -51,23 +52,23 @@ func (h *FolderHandlers) ListFolders(c *gin.Context) {
 func (h *FolderHandlers) GetFolder(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	folderID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid folder ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid folder ID").Abort(c)
 		return
 	}
 
 	folder, err := h.folderService.GetFolder(folderID, userID)
 	if err != nil {
 		if err.Error() == "folder not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Folder not found"})
+			errors.NotFound(errors.CodeResourceNotFound, "Folder not found").Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve folder"})
+		errors.InternalError(errors.CodeInternalError, "Failed to retrieve folder").Abort(c)
 		return
 	}
 
@@ -78,23 +79,23 @@ func (h *FolderHandlers) GetFolder(c *gin.Context) {
 func (h *FolderHandlers) CreateFolder(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	var req models.CreateFolderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
 	folder, err := h.folderService.CreateFolder(userID, &req)
 	if err != nil {
 		if err.Error() == "parent folder not found or access denied" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			errors.NotFound(errors.CodeResourceNotFound, err.Error()).Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create folder"})
+		errors.InternalError(errors.CodeInternalError, "Failed to create folder").Abort(c)
 		return
 	}
 
@@ -105,19 +106,19 @@ func (h *FolderHandlers) CreateFolder(c *gin.Context) {
 func (h *FolderHandlers) UpdateFolder(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	folderID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid folder ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid folder ID").Abort(c)
 		return
 	}
 
 	var req models.UpdateFolderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
@@ -126,15 +127,15 @@ func (h *FolderHandlers) UpdateFolder(c *gin.Context) {
 		errMsg := err.Error()
 		switch {
 		case errMsg == "folder not found or access denied":
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 		case errMsg == "folder cannot be its own parent":
-			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+			errors.BadRequest(errors.CodeValidationFailed, errMsg).Abort(c)
 		case errMsg == "cannot move folder: would create circular reference":
-			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+			errors.BadRequest(errors.CodeValidationFailed, errMsg).Abort(c)
 		case errMsg == "parent folder not found or access denied":
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update folder"})
+			errors.InternalError(errors.CodeInternalError, "Failed to update folder").Abort(c)
 		}
 		return
 	}
@@ -146,13 +147,13 @@ func (h *FolderHandlers) UpdateFolder(c *gin.Context) {
 func (h *FolderHandlers) DeleteFolder(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	folderID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid folder ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid folder ID").Abort(c)
 		return
 	}
 
@@ -164,11 +165,11 @@ func (h *FolderHandlers) DeleteFolder(c *gin.Context) {
 		errMsg := err.Error()
 		switch {
 		case errMsg == "folder not found or access denied":
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 		case len(errMsg) > 20 && errMsg[:20] == "cannot delete folder":
-			c.JSON(http.StatusConflict, gin.H{"error": errMsg})
+			errors.Conflict(errors.CodeResourceConflict, errMsg).Abort(c)
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete folder"})
+			errors.InternalError(errors.CodeInternalError, "Failed to delete folder").Abort(c)
 		}
 		return
 	}
@@ -180,7 +181,7 @@ func (h *FolderHandlers) DeleteFolder(c *gin.Context) {
 func (h *FolderHandlers) ReorderFolders(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
@@ -189,7 +190,7 @@ func (h *FolderHandlers) ReorderFolders(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
@@ -198,14 +199,14 @@ func (h *FolderHandlers) ReorderFolders(c *gin.Context) {
 	for idStr, pos := range req.Positions {
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid folder ID: " + idStr})
+			errors.BadRequest(errors.CodeInvalidInput, "Invalid folder ID: " + idStr).Abort(c)
 			return
 		}
 		positions[id] = pos
 	}
 
 	if err := h.folderService.ReorderFolders(userID, positions); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reorder folders"})
+		errors.InternalError(errors.CodeInternalError, "Failed to reorder folders").Abort(c)
 		return
 	}
 

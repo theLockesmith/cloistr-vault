@@ -1,6 +1,7 @@
 package api
 
 import (
+	"git.aegis-hq.xyz/coldforge/cloistr-common/errors"
 	"net/http"
 
 	"github.com/coldforge/vault/internal/models"
@@ -25,7 +26,7 @@ func NewTagHandlers(tagService *vault.TagService) *TagHandlers {
 func (h *TagHandlers) ListTags(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
@@ -38,7 +39,7 @@ func (h *TagHandlers) ListTags(c *gin.Context) {
 
 	tags, err := h.tagService.GetTags(userID, categoryPtr)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve tags"})
+		errors.InternalError(errors.CodeInternalError, "Failed to retrieve tags").Abort(c)
 		return
 	}
 
@@ -49,23 +50,23 @@ func (h *TagHandlers) ListTags(c *gin.Context) {
 func (h *TagHandlers) GetTag(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	tagID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tag ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid tag ID").Abort(c)
 		return
 	}
 
 	tag, err := h.tagService.GetTag(tagID, userID)
 	if err != nil {
 		if err.Error() == "tag not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Tag not found"})
+			errors.NotFound(errors.CodeResourceNotFound, "Tag not found").Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve tag"})
+		errors.InternalError(errors.CodeInternalError, "Failed to retrieve tag").Abort(c)
 		return
 	}
 
@@ -76,23 +77,23 @@ func (h *TagHandlers) GetTag(c *gin.Context) {
 func (h *TagHandlers) CreateTag(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	var req models.CreateTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
 	tag, err := h.tagService.CreateTag(userID, &req)
 	if err != nil {
 		if err.Error() == "tag with this name already exists" {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			errors.Conflict(errors.CodeResourceConflict, err.Error()).Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create tag"})
+		errors.InternalError(errors.CodeInternalError, "Failed to create tag").Abort(c)
 		return
 	}
 
@@ -103,19 +104,19 @@ func (h *TagHandlers) CreateTag(c *gin.Context) {
 func (h *TagHandlers) UpdateTag(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	tagID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tag ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid tag ID").Abort(c)
 		return
 	}
 
 	var req vault.UpdateTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
 		return
 	}
 
@@ -124,13 +125,13 @@ func (h *TagHandlers) UpdateTag(c *gin.Context) {
 		errMsg := err.Error()
 		switch errMsg {
 		case "tag not found":
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 		case "cannot update system tags":
-			c.JSON(http.StatusForbidden, gin.H{"error": errMsg})
+			errors.Forbidden(errors.CodeAccessDenied, errMsg).Abort(c)
 		case "tag with this name already exists":
-			c.JSON(http.StatusConflict, gin.H{"error": errMsg})
+			errors.Conflict(errors.CodeResourceConflict, errMsg).Abort(c)
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update tag"})
+			errors.InternalError(errors.CodeInternalError, "Failed to update tag").Abort(c)
 		}
 		return
 	}
@@ -142,13 +143,13 @@ func (h *TagHandlers) UpdateTag(c *gin.Context) {
 func (h *TagHandlers) DeleteTag(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	tagID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tag ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid tag ID").Abort(c)
 		return
 	}
 
@@ -157,11 +158,11 @@ func (h *TagHandlers) DeleteTag(c *gin.Context) {
 		errMsg := err.Error()
 		switch errMsg {
 		case "tag not found":
-			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 		case "cannot delete system tags":
-			c.JSON(http.StatusForbidden, gin.H{"error": errMsg})
+			errors.Forbidden(errors.CodeAccessDenied, errMsg).Abort(c)
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete tag"})
+			errors.InternalError(errors.CodeInternalError, "Failed to delete tag").Abort(c)
 		}
 		return
 	}
@@ -173,23 +174,23 @@ func (h *TagHandlers) DeleteTag(c *gin.Context) {
 func (h *TagHandlers) GetTagEntries(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	tagID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tag ID"})
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid tag ID").Abort(c)
 		return
 	}
 
 	entryIDs, err := h.tagService.GetEntriesWithTag(tagID, userID)
 	if err != nil {
 		if err.Error() == "tag not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Tag not found"})
+			errors.NotFound(errors.CodeResourceNotFound, "Tag not found").Abort(c)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get entries"})
+		errors.InternalError(errors.CodeInternalError, "Failed to get entries").Abort(c)
 		return
 	}
 
@@ -200,13 +201,13 @@ func (h *TagHandlers) GetTagEntries(c *gin.Context) {
 func (h *TagHandlers) InitializeSystemTags(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		errors.Unauthorized(errors.CodeAuthRequired, "User ID not found").Abort(c)
 		return
 	}
 
 	err = h.tagService.EnsureSystemTags(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to initialize system tags"})
+		errors.InternalError(errors.CodeInternalError, "Failed to initialize system tags").Abort(c)
 		return
 	}
 

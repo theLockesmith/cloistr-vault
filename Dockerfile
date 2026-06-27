@@ -13,8 +13,7 @@ COPY frontend/web/ ./
 RUN CI=false INLINE_RUNTIME_CHUNK=false npm run build
 
 # Build stage
-# Use Harbor pull-through proxy to avoid Docker Hub rate limits
-FROM oci.coldforge.xyz/docker-hub/library/golang:1.25-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -35,7 +34,7 @@ COPY backend/ ./
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server
 
 # Final stage
-FROM oci.coldforge.xyz/docker-hub/library/alpine:latest
+FROM alpine:latest
 
 # Install CA certificates for HTTPS and curl for healthcheck
 RUN apk --no-cache add ca-certificates curl

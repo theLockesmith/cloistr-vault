@@ -42,6 +42,7 @@ type KMSConfig struct {
 	MountPath    string
 	KeyDir       string
 	AutoRotate   bool
+	SkipVerify   bool
 }
 
 func LoadConfig() *Config {
@@ -73,6 +74,7 @@ func LoadConfig() *Config {
 			MountPath:  getEnv("KMS_MOUNT_PATH", "secret"),
 			KeyDir:     getEnv("KMS_KEY_DIR", "./keys"),
 			AutoRotate: getEnvBool("KMS_AUTO_ROTATE", true),
+			SkipVerify: getEnvBool("KMS_SKIP_VERIFY", false),
 		},
 	}
 }

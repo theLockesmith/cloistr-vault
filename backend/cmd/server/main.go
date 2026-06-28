@@ -64,7 +64,8 @@ func main() {
 		Token:     cfg.KMS.Token,
 		MountPath: cfg.KMS.MountPath,
 		Options: map[string]string{
-			"key_dir": cfg.KMS.KeyDir,
+			"key_dir":         cfg.KMS.KeyDir,
+			"tls_skip_verify": fmt.Sprintf("%t", cfg.KMS.SkipVerify),
 		},
 		AutoRotate: cfg.KMS.AutoRotate,
 	}

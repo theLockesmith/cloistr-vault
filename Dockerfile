@@ -8,7 +8,10 @@ ARG NPM_AEGIS_TOKEN
 
 # Install dependencies from lockfile first for layer caching
 COPY frontend/web/package.json frontend/web/package-lock.json frontend/web/.npmrc ./
-RUN NPM_AEGIS_TOKEN=${NPM_AEGIS_TOKEN} npm ci
+# --legacy-peer-deps: nostr-tools (via @cloistr/auth) declares peerOptional
+# typescript>=5, but this CRA app pins typescript 4.9.5 (react-scripts). The
+# peer is optional, so ignore the conflict rather than break the CRA toolchain.
+RUN NPM_AEGIS_TOKEN=${NPM_AEGIS_TOKEN} npm ci --legacy-peer-deps
 
 # Build the production bundle. INLINE_RUNTIME_CHUNK=false keeps all JS in
 # external files so the strict default-src 'self' CSP is not violated.

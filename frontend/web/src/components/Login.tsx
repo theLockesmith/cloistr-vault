@@ -113,7 +113,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="max-w-md w-full space-y-8 p-8">
         <div className="card">
           <div className="card-header text-center">
@@ -133,7 +133,7 @@ export default function Login() {
                 type="button"
                 className={`py-2 px-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
                   authMethod === 'email'
-                    ? 'bg-white text-primary shadow-sm dark:bg-gray-800'
+                    ? 'bg-card text-primary shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
                 onClick={() => setAuthMethod('email')}
@@ -146,7 +146,7 @@ export default function Login() {
                   type="button"
                   className={`py-2 px-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
                     authMethod === 'passkey'
-                      ? 'bg-white text-primary shadow-sm dark:bg-gray-800'
+                      ? 'bg-card text-primary shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                   onClick={() => setAuthMethod('passkey')}
@@ -159,7 +159,7 @@ export default function Login() {
                 type="button"
                 className={`py-2 px-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
                   authMethod === 'nostr'
-                    ? 'bg-white text-primary shadow-sm dark:bg-gray-800'
+                    ? 'bg-card text-primary shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
                 onClick={() => setAuthMethod('nostr')}
@@ -171,7 +171,7 @@ export default function Login() {
                 type="button"
                 className={`py-2 px-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
                   authMethod === 'lightning'
-                    ? 'bg-white text-primary shadow-sm dark:bg-gray-800'
+                    ? 'bg-card text-primary shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
                 onClick={() => setAuthMethod('lightning')}

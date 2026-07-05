@@ -367,7 +367,7 @@ export default function FolderTree({
             className="p-1 hover:bg-muted rounded"
             onClick={handleSubmitCreate}
           >
-            <Check className="h-3 w-3 text-green-500" />
+            <Check className="h-3 w-3 text-cloistr-success" />
           </button>
           <button
             className="p-1 hover:bg-muted rounded"

@@ -179,9 +179,9 @@ export default function Settings() {
                 </p>
               </div>
               <div className="flex items-center space-x-2">
-                {user?.auth_method === 'nostr' && <Key className="h-5 w-5 text-purple-500" />}
-                {user?.auth_method === 'lightning_address' && <Zap className="h-5 w-5 text-yellow-500" />}
-                {(!user?.auth_method || user?.auth_method === 'email') && <Mail className="h-5 w-5 text-blue-500" />}
+                {user?.auth_method === 'nostr' && <Key className="h-5 w-5 text-cloistr-primary" />}
+                {user?.auth_method === 'lightning_address' && <Zap className="h-5 w-5 text-cloistr-warning" />}
+                {(!user?.auth_method || user?.auth_method === 'email') && <Mail className="h-5 w-5 text-cloistr-info" />}
               </div>
             </div>
           </div>
@@ -204,20 +204,20 @@ export default function Settings() {
                   <p className="text-sm font-medium">Lightning Address</p>
                   <p className="text-sm text-muted-foreground">{user.lightning_address}</p>
                 </div>
-                <Zap className="h-5 w-5 text-yellow-500" />
+                <Zap className="h-5 w-5 text-cloistr-warning" />
               </div>
             </div>
           )}
 
           {/* Verified NIP-05 */}
           {user?.nip05_address && (
-            <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+            <div className="p-4 bg-cloistr-success/10 border border-cloistr-success/20 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-green-700 dark:text-green-400">Verified NIP-05</p>
-                  <p className="text-sm text-green-600 dark:text-green-500">{user.nip05_address}</p>
+                  <p className="text-sm font-medium text-cloistr-success">Verified NIP-05</p>
+                  <p className="text-sm text-cloistr-success">{user.nip05_address}</p>
                 </div>
-                <CheckCircle className="h-5 w-5 text-green-500" />
+                <CheckCircle className="h-5 w-5 text-cloistr-success" />
               </div>
             </div>
           )}
@@ -337,7 +337,7 @@ export default function Settings() {
                             <Fingerprint className="h-4 w-4 text-muted-foreground" />
                             <span className="font-medium text-sm">{cred.name}</span>
                             {cred.backup_eligible && (
-                              <span className="text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded">
+                              <span className="text-xs bg-cloistr-info/10 text-cloistr-info px-1.5 py-0.5 rounded">
                                 Synced
                               </span>
                             )}
@@ -390,7 +390,7 @@ export default function Settings() {
         <div className="card">
           <div className="card-header">
             <div className="flex items-center space-x-2">
-              <Key className="h-5 w-5 text-purple-500" />
+              <Key className="h-5 w-5 text-cloistr-primary" />
               <h2 className="card-title">NIP-05 Verification</h2>
             </div>
             <p className="card-description">
@@ -437,7 +437,7 @@ export default function Settings() {
             {lookupResult && (
               <div className="p-4 bg-muted/50 rounded-lg space-y-3">
                 <div className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <CheckCircle className="h-4 w-4 text-cloistr-success" />
                   <span className="text-sm font-medium">NIP-05 Found</span>
                 </div>
 
@@ -462,8 +462,8 @@ export default function Settings() {
                 {user?.nostr_pubkey && (
                   <div className={`p-2 rounded ${
                     lookupResult.pubkey === user.nostr_pubkey
-                      ? 'bg-green-500/10 text-green-700 dark:text-green-400'
-                      : 'bg-red-500/10 text-red-700 dark:text-red-400'
+                      ? 'bg-cloistr-success/10 text-cloistr-success'
+                      : 'bg-cloistr-error/10 text-cloistr-error'
                   }`}>
                     <div className="flex items-center space-x-2 text-sm">
                       {lookupResult.pubkey === user.nostr_pubkey ? (
@@ -485,8 +485,8 @@ export default function Settings() {
 
             {/* Lookup Error */}
             {lookupError && (
-              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-                <div className="flex items-center space-x-2 text-red-700 dark:text-red-400">
+              <div className="p-4 bg-cloistr-error/10 border border-cloistr-error/20 rounded-lg">
+                <div className="flex items-center space-x-2 text-cloistr-error">
                   <AlertCircle className="h-4 w-4" />
                   <span className="text-sm">{lookupError}</span>
                 </div>

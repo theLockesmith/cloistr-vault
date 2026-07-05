@@ -83,7 +83,7 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="max-w-md w-full space-y-8 p-8">
         <div className="card">
           <div className="card-header text-center">
@@ -103,7 +103,7 @@ export default function Register() {
                 type="button"
                 className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
                   authMethod === 'email'
-                    ? 'bg-white text-primary shadow-sm dark:bg-gray-800'
+                    ? 'bg-card text-primary shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
                 onClick={() => setAuthMethod('email')}
@@ -115,7 +115,7 @@ export default function Register() {
                 type="button"
                 className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
                   authMethod === 'nostr'
-                    ? 'bg-white text-primary shadow-sm dark:bg-gray-800'
+                    ? 'bg-card text-primary shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
                 onClick={() => setAuthMethod('nostr')}

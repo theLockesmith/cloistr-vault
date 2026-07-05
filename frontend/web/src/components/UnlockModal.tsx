@@ -101,7 +101,7 @@ export default function UnlockModal({ onUnlock }: UnlockModalProps) {
                   )}
                 </button>
               </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
+              {error && <p className="text-sm text-cloistr-error">{error}</p>}
             </div>
 
             <button

@@ -265,7 +265,7 @@ export default function Dashboard() {
         <div className="card">
           <div className="card-content p-4">
             <div className="flex items-center space-x-2">
-              <Globe className="h-5 w-5 text-blue-500" />
+              <Globe className="h-5 w-5 text-cloistr-info" />
               <div>
                 <p className="text-sm text-muted-foreground">Logins</p>
                 <p className="text-2xl font-bold">
@@ -279,7 +279,7 @@ export default function Dashboard() {
         <div className="card">
           <div className="card-content p-4">
             <div className="flex items-center space-x-2">
-              <StickyNote className="h-5 w-5 text-green-500" />
+              <StickyNote className="h-5 w-5 text-cloistr-success" />
               <div>
                 <p className="text-sm text-muted-foreground">Notes</p>
                 <p className="text-2xl font-bold">
@@ -293,7 +293,7 @@ export default function Dashboard() {
         <div className="card">
           <div className="card-content p-4">
             <div className="flex items-center space-x-2">
-              <CreditCard className="h-5 w-5 text-purple-500" />
+              <CreditCard className="h-5 w-5 text-cloistr-primary" />
               <div>
                 <p className="text-sm text-muted-foreground">Cards</p>
                 <p className="text-2xl font-bold">
@@ -307,7 +307,7 @@ export default function Dashboard() {
         <div className="card">
           <div className="card-content p-4">
             <div className="flex items-center space-x-2">
-              <Star className="h-5 w-5 text-yellow-500" />
+              <Star className="h-5 w-5 text-cloistr-warning" />
               <div>
                 <p className="text-sm text-muted-foreground">Favorites</p>
                 <p className="text-2xl font-bold">
@@ -376,7 +376,7 @@ export default function Dashboard() {
                         <div className="flex items-center space-x-2">
                           <span className="vault-item-title">{entry.name}</span>
                           {entry.favorite && (
-                            <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                            <Star className="h-3 w-3 text-cloistr-warning fill-current" />
                           )}
                         </div>
                         <span className="vault-item-subtitle">
@@ -508,7 +508,7 @@ export default function Dashboard() {
                   >
                     {selectedEntry.favorite ? (
                       <>
-                        <Star className="h-4 w-4 mr-2 fill-current text-yellow-500" />
+                        <Star className="h-4 w-4 mr-2 fill-current text-cloistr-warning" />
                         Unfavorite
                       </>
                     ) : (

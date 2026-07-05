@@ -20,9 +20,9 @@ function getUserDisplayName(user: any): string {
 
 // Get auth method icon
 function getAuthIcon(user: any) {
-  if (user?.nip05_address) return <BadgeCheck className="h-4 w-4 text-blue-500" />;
-  if (user?.lightning_address) return <Zap className="h-4 w-4 text-yellow-500" />;
-  if (user?.nostr_pubkey) return <Key className="h-4 w-4 text-purple-500" />;
+  if (user?.nip05_address) return <BadgeCheck className="h-4 w-4 text-cloistr-info" />;
+  if (user?.lightning_address) return <Zap className="h-4 w-4 text-cloistr-warning" />;
+  if (user?.nostr_pubkey) return <Key className="h-4 w-4 text-cloistr-primary" />;
   return <Mail className="h-4 w-4 text-muted-foreground" />;
 }
 
@@ -104,7 +104,7 @@ export default function Layout({ children }: LayoutProps) {
             
             <div className="flex items-center space-x-4">
               <span className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-cloistr-success rounded-full"></div>
                 <span>Secure connection</span>
               </span>
             </div>

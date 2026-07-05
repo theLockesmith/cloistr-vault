@@ -3,9 +3,12 @@ FROM node:22-alpine AS webbuilder
 
 WORKDIR /web
 
+# Build arg for private @cloistr registry auth
+ARG NPM_AEGIS_TOKEN
+
 # Install dependencies from lockfile first for layer caching
-COPY frontend/web/package.json frontend/web/package-lock.json ./
-RUN npm ci
+COPY frontend/web/package.json frontend/web/package-lock.json frontend/web/.npmrc ./
+RUN NPM_AEGIS_TOKEN=${NPM_AEGIS_TOKEN} npm ci
 
 # Build the production bundle. INLINE_RUNTIME_CHUNK=false keeps all JS in
 # external files so the strict default-src 'self' CSP is not violated.

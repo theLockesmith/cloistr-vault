@@ -282,7 +282,7 @@ export default function VaultEntryModal({
               <button
                 type="button"
                 onClick={handleDelete}
-                className={`btn-outline ${confirmDelete ? 'border-red-500 text-red-500 hover:bg-red-500/10' : ''}`}
+                className={`btn-outline ${confirmDelete ? 'border-cloistr-error text-cloistr-error hover:bg-cloistr-error/10' : ''}`}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 {confirmDelete ? 'Confirm Delete' : 'Delete'}

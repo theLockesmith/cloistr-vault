@@ -23,7 +23,7 @@
     "react-hook-form": "^7.48.2",
     "react-hot-toast": "^2.4.1",
     "lucide-react": "^0.294.0",
-    "@cloistr/ui": "^0.10.1",
+    "@cloistr/ui": "^0.11.0",
     "@cloistr/auth": "^0.1.0",
     "@cloistr/tailwind-config": "^0.1.0",
     "nostr-tools": "^2.10.0",

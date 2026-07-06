@@ -473,6 +473,91 @@ func (a *AuthService) ValidateSession(token string) (*models.User, error) {
 	return &user, nil
 }
 
+// FindOrProvisionByNostrPubkey looks up an existing vault user by Nostr pubkey
+// (via the auth_methods table) and returns it. If no matching user exists, a new
+// user row and a 'nostr' auth_method row are INSERT-ed (additive only — no
+// existing rows are touched). The returned user is suitable for setting in the
+// Gin context just like a session-validated user.
+func (a *AuthService) FindOrProvisionByNostrPubkey(pubkey string) (*models.User, error) {
+	// --- 1. Look up existing user ---
+	var user models.User
+	query := `
+		SELECT u.id, u.email, u.created_at, u.updated_at
+		FROM users u
+		JOIN auth_methods am ON u.id = am.user_id
+		WHERE am.nostr_pubkey = $1 AND am.type = 'nostr'
+		LIMIT 1
+	`
+	err := a.db.QueryRow(query, pubkey).Scan(
+		&user.ID, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+	if err == nil {
+		user.AuthMethod = "nostr"
+		user.NostrPubkey = pubkey
+		user.DisplayName = identity.FormatNpubShort(pubkey)
+		return &user, nil
+	}
+	if err != sql.ErrNoRows {
+		return nil, fmt.Errorf("db lookup by nostr pubkey: %w", err)
+	}
+
+	// --- 2. Provision a new user (additive, no migration of existing rows) ---
+	tx, err := a.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("begin provision transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	userID := uuid.New()
+	now := time.Now()
+	// Pseudo-email keeps the NOT NULL constraint on users.email happy.
+	pseudoEmail := fmt.Sprintf("%s@signer.cloistr.xyz", pubkey[:16])
+
+	_, err = tx.Exec(
+		"INSERT INTO users (id, email, created_at, updated_at) VALUES ($1, $2, $3, $4)",
+		userID, pseudoEmail, now, now)
+	if err != nil {
+		return nil, fmt.Errorf("insert signer-provisioned user: %w", err)
+	}
+
+	authMethodID := uuid.New()
+	_, err = tx.Exec(
+		"INSERT INTO auth_methods (id, user_id, type, identifier, nostr_pubkey, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		authMethodID, userID, "nostr", pubkey, pubkey, now, now)
+	if err != nil {
+		return nil, fmt.Errorf("insert signer-provisioned auth_method: %w", err)
+	}
+
+	// Provision an empty vault so the user record is coherent.
+	vaultID := uuid.New()
+	_, err = tx.Exec(`
+		INSERT INTO vaults (id, user_id, encrypted_data, encryption_salt, encryption_nonce, version, last_modified, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		vaultID, userID, []byte{}, []byte{}, []byte{}, 1, now, now)
+	if err != nil {
+		return nil, fmt.Errorf("insert signer-provisioned vault: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit signer provisioning: %w", err)
+	}
+
+	observability.Info("signer-provisioned vault user",
+		"user_id", userID.String(),
+		"pubkey_prefix", pubkey[:16],
+	)
+
+	user = models.User{
+		ID:          userID,
+		Email:       pseudoEmail,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		AuthMethod:  "nostr",
+		NostrPubkey: pubkey,
+		DisplayName: identity.FormatNpubShort(pubkey),
+	}
+	return &user, nil
+}
+
 // RevokeSession revokes a session token
 func (a *AuthService) RevokeSession(token string) error {
 	_, err := a.db.Exec("DELETE FROM sessions WHERE token = $1", token)

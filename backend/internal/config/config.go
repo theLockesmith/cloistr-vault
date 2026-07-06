@@ -10,6 +10,16 @@ type Config struct {
 	Database DatabaseConfig
 	Security SecurityConfig
 	KMS      KMSConfig
+	Auth     AuthConfig
+}
+
+// AuthConfig holds unified-auth settings.
+type AuthConfig struct {
+	// SignerURL is the base URL of the Cloistr signer service used for unified-auth
+	// (slice 3). When set, AuthMiddleware will fall back to validating a signer
+	// session cookie / Bearer JWT and provisioning a vault user on first login.
+	// Empty string disables the feature. Env: VAULT_SIGNER_URL.
+	SignerURL string
 }
 
 type ServerConfig struct {
@@ -75,6 +85,10 @@ func LoadConfig() *Config {
 			KeyDir:     getEnv("KMS_KEY_DIR", "./keys"),
 			AutoRotate: getEnvBool("KMS_AUTO_ROTATE", true),
 			SkipVerify: getEnvBool("KMS_SKIP_VERIFY", false),
+		},
+		Auth: AuthConfig{
+			// Default: in-cluster signer address. Empty string disables unified-auth.
+			SignerURL: getEnv("VAULT_SIGNER_URL", "http://cloistr-signer.cloistr.svc.cluster.local:7777"),
 		},
 	}
 }

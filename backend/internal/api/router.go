@@ -43,7 +43,7 @@ func spaHandler(webDir string) gin.HandlerFunc {
 	}
 }
 
-func SetupRouter(authService *auth.AuthService, vaultService VaultService, folderService *vault.FolderService, entryService *vault.EntryService, secretService *vault.SecretService, passwordService *vault.PasswordService, tagService *vault.TagService, searchService *vault.SearchService, securityService *security.SecurityService, attachmentService *vault.AttachmentService, sharingService *vault.SharingService, webDir string) *gin.Engine {
+func SetupRouter(authService *auth.AuthService, vaultService VaultService, folderService *vault.FolderService, entryService *vault.EntryService, secretService *vault.SecretService, passwordService *vault.PasswordService, tagService *vault.TagService, searchService *vault.SearchService, securityService *security.SecurityService, attachmentService *vault.AttachmentService, sharingService *vault.SharingService, webDir string, signerURL string) *gin.Engine {
 	// Set Gin mode
 	gin.SetMode(gin.ReleaseMode) // Change to gin.DebugMode for development
 
@@ -118,7 +118,7 @@ func SetupRouter(authService *auth.AuthService, vaultService VaultService, folde
 	
 	// Protected routes (require authentication)
 	protected := router.Group("/api/v1")
-	protected.Use(AuthMiddleware(authService))
+	protected.Use(AuthMiddleware(authService, signerURL))
 	{
 		// Authentication routes that require being logged in
 		auth := protected.Group("/auth")
@@ -279,7 +279,8 @@ func SetupRouter(authService *auth.AuthService, vaultService VaultService, folde
 	return router
 }
 
-// SetupTestRouter creates a router for testing with minimal middleware
+// SetupTestRouter creates a router for testing with minimal middleware.
+// signerURL="" disables unified-auth in tests.
 func SetupTestRouter(authService *auth.AuthService, vaultService VaultService, folderService *vault.FolderService, entryService *vault.EntryService, secretService *vault.SecretService, passwordService *vault.PasswordService, tagService *vault.TagService, searchService *vault.SearchService, securityService *security.SecurityService, attachmentService *vault.AttachmentService, sharingService *vault.SharingService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	
@@ -331,7 +332,7 @@ func SetupTestRouter(authService *auth.AuthService, vaultService VaultService, f
 
 	// Protected routes
 	protected := router.Group("/api/v1")
-	protected.Use(AuthMiddleware(authService))
+	protected.Use(AuthMiddleware(authService, "" /* signerURL disabled in tests */))
 	{
 		auth := protected.Group("/auth")
 		{

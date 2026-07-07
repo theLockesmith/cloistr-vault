@@ -37,7 +37,13 @@ func SecurityHeadersMiddleware() gin.HandlerFunc {
 		c.Header("X-Frame-Options", "DENY")
 		c.Header("X-XSS-Protection", "1; mode=block")
 		c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-		c.Header("Content-Security-Policy", "default-src 'self'")
+		// Allow the cross-origin SSO session check to the signer (unified auth)
+		// and inline styles used by the UI's Tailwind/Radix components.
+		c.Header("Content-Security-Policy",
+			"default-src 'self'; "+
+				"connect-src 'self' https://signer.cloistr.xyz; "+
+				"style-src 'self' 'unsafe-inline'; "+
+				"img-src 'self' data: blob:")
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		
 		c.Next()

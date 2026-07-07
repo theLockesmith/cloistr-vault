@@ -50,7 +50,7 @@ const AUTO_LOCK_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 
 export function VaultProvider({ children }: { children: ReactNode }) {
   const { encryptVault, decryptVault } = useCrypto();
-  const { token } = useAuth();
+  const { token, sessionMode } = useAuth();
 
   const [isLocked, setIsLocked] = useState(true);
   const [masterPassword, setMasterPassword] = useState<string | null>(null);
@@ -137,7 +137,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   };
 
   const unlock = async (password: string): Promise<boolean> => {
-    if (!token) {
+    if (!token && sessionMode !== 'signer') {
       toast.error('Please log in first');
       return false;
     }

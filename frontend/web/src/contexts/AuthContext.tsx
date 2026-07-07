@@ -3,12 +3,13 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 
 interface User {
-  id: string;
-  email: string;
-  created_at: string;
-  updated_at: string;
+  id?: string;
+  email?: string;
+  created_at?: string;
+  updated_at?: string;
   auth_method?: string;
   nostr_pubkey?: string;
+  pubkey?: string;
   nip05_address?: string;
   lightning_address?: string;
   display_name?: string;
@@ -56,18 +57,23 @@ interface AuthContextType {
   isWebAuthnAvailable: boolean;
   logout: () => void;
   loading: boolean;
+  sessionMode: 'vault' | 'signer' | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Configure axios defaults
 axios.defaults.baseURL = '/api/v1';
+// Send cookies cross-origin so the .cloistr.xyz signer session cookie
+// reaches vault.cloistr.xyz automatically on every request.
+axios.defaults.withCredentials = true;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isWebAuthnAvailable, setIsWebAuthnAvailable] = useState(false);
+  const [sessionMode, setSessionMode] = useState<'vault' | 'signer' | null>(null);
 
   useEffect(() => {
     // Check WebAuthn availability
@@ -77,23 +83,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       typeof window.PublicKeyCredential === 'function'
     );
 
-    // Check for stored authentication on app load
-    const storedToken = localStorage.getItem('vault_token');
-    const storedUser = localStorage.getItem('vault_user');
+    void (async () => {
+      // 1. Vault token takes precedence -- restore immediately.
+      const storedToken = localStorage.getItem('vault_token');
+      const storedUser = localStorage.getItem('vault_user');
 
-    if (storedToken && storedUser) {
-      try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-        axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-      } catch (error) {
-        console.error('Error parsing stored user data:', error);
-        localStorage.removeItem('vault_token');
-        localStorage.removeItem('vault_user');
+      if (storedToken && storedUser) {
+        try {
+          setToken(storedToken);
+          setUser(JSON.parse(storedUser));
+          axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+          setSessionMode('vault');
+          setLoading(false);
+          return;
+        } catch (error) {
+          console.error('Error parsing stored user data:', error);
+          localStorage.removeItem('vault_token');
+          localStorage.removeItem('vault_user');
+        }
       }
-    }
 
-    setLoading(false);
+      // 2. No vault token -- probe the signer for a shared session.
+      //    The .cloistr.xyz auth_token cookie rides automatically because
+      //    withCredentials = true is set globally above.
+      try {
+        const resp = await fetch('https://signer.cloistr.xyz/api/v1/users/me', {
+          credentials: 'include',
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data?.pubkey) {
+            const signerUser: User = {
+              pubkey: data.pubkey,
+              nostr_pubkey: data.pubkey,
+              display_name: data.display_name ?? data.name ?? undefined,
+              nip05_address: data.nip05 ?? undefined,
+            };
+            setUser(signerUser);
+            setSessionMode('signer');
+            // No Authorization header -- backend authenticates via the cookie.
+            localStorage.setItem('vault_session_mode', 'signer');
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (err) {
+        // Signer unreachable or no active session -- fall through to login.
+        console.debug('No signer session available:', err);
+      }
+
+      // Clear stale signer flag if probe failed.
+      localStorage.removeItem('vault_session_mode');
+      setLoading(false);
+    })();
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -518,6 +560,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    if (sessionMode === 'signer') {
+      // Signer-session logout: clear local state and flag only.
+      // The .cloistr.xyz cookie remains valid -- vault just forgets the session.
+      setUser(null);
+      setSessionMode(null);
+      localStorage.removeItem('vault_session_mode');
+      toast.success('Logged out successfully');
+      return;
+    }
+
     try {
       if (token) {
         await axios.post('/auth/logout');
@@ -527,12 +579,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setToken(null);
       setUser(null);
-      
+      setSessionMode(null);
+
       localStorage.removeItem('vault_token');
       localStorage.removeItem('vault_user');
-      
+      localStorage.removeItem('vault_session_mode');
+
       delete axios.defaults.headers.common['Authorization'];
-      
+
       toast.success('Logged out successfully');
     }
   };
@@ -557,6 +611,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isWebAuthnAvailable,
     logout,
     loading,
+    sessionMode,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

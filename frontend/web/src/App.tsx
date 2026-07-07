@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider as NostrAuthProvider } from '@cloistr/ui';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CryptoProvider } from './contexts/CryptoContext';
 import { VaultProvider } from './contexts/VaultContext';
@@ -101,13 +102,18 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider>
-      <CryptoProvider>
-        <VaultProvider>
-          <AppRoutes />
-        </VaultProvider>
-      </CryptoProvider>
-    </AuthProvider>
+    // NostrAuthProvider satisfies the useNostrAuth() call inside @cloistr/ui Header.
+    // Vault manages its own session via AuthContext (vault token + signer cookie);
+    // the Nostr auth context is idle — it never takes over vault's auth flow.
+    <NostrAuthProvider>
+      <AuthProvider>
+        <CryptoProvider>
+          <VaultProvider>
+            <AppRoutes />
+          </VaultProvider>
+        </CryptoProvider>
+      </AuthProvider>
+    </NostrAuthProvider>
   );
 }
 

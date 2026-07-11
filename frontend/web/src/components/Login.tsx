@@ -122,7 +122,9 @@ export default function Login() {
             </div>
             <h2 className="card-title">Welcome to Cloistr Vault</h2>
             <p className="card-description">
-              Zero-knowledge password manager
+              Your zero-knowledge password manager. Secrets are encrypted on your
+              device before they ever leave it — not even we can read them. Sign
+              in with your Cloistr identity, or any method below.
             </p>
           </div>
 

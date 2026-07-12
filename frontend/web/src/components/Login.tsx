@@ -113,7 +113,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="min-h-screen flex items-center justify-center bg-cloistr-bg">
       <div className="max-w-md w-full space-y-8 p-8">
         <div className="card">
           <div className="card-header text-center">
@@ -130,13 +130,13 @@ export default function Login() {
 
           <div className="card-content space-y-6">
             {/* Auth Method Toggle */}
-            <div className="grid grid-cols-2 gap-1 bg-muted rounded-lg p-1">
+            <div className="grid grid-cols-2 gap-1 bg-cloistr-bg-hover rounded-lg p-1">
               <button
                 type="button"
                 className={`py-2 px-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
                   authMethod === 'email'
-                    ? 'bg-card text-primary shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-cloistr-bg-elevated text-cloistr-primary shadow-sm'
+                    : 'text-cloistr-text-muted hover:text-cloistr-text'
                 }`}
                 onClick={() => setAuthMethod('email')}
               >
@@ -148,8 +148,8 @@ export default function Login() {
                   type="button"
                   className={`py-2 px-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
                     authMethod === 'passkey'
-                      ? 'bg-card text-primary shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-cloistr-bg-elevated text-cloistr-primary shadow-sm'
+                      : 'text-cloistr-text-muted hover:text-cloistr-text'
                   }`}
                   onClick={() => setAuthMethod('passkey')}
                 >
@@ -161,8 +161,8 @@ export default function Login() {
                 type="button"
                 className={`py-2 px-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
                   authMethod === 'nostr'
-                    ? 'bg-card text-primary shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-cloistr-bg-elevated text-cloistr-primary shadow-sm'
+                    : 'text-cloistr-text-muted hover:text-cloistr-text'
                 }`}
                 onClick={() => setAuthMethod('nostr')}
               >
@@ -173,8 +173,8 @@ export default function Login() {
                 type="button"
                 className={`py-2 px-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
                   authMethod === 'lightning'
-                    ? 'bg-card text-primary shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-cloistr-bg-elevated text-cloistr-primary shadow-sm'
+                    : 'text-cloistr-text-muted hover:text-cloistr-text'
                 }`}
                 onClick={() => setAuthMethod('lightning')}
               >
@@ -186,7 +186,7 @@ export default function Login() {
             {authMethod === 'email' && (
               <form onSubmit={handleSubmit(onEmailSubmit)} className="space-y-4">
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
+                  <label htmlFor="email" className="block text-sm font-medium text-cloistr-text mb-2">
                     Email address
                   </label>
                   <input
@@ -202,12 +202,12 @@ export default function Login() {
                     placeholder="Enter your email"
                   />
                   {errors.email && (
-                    <p className="mt-1 text-sm text-destructive">{errors.email.message}</p>
+                    <p className="mt-1 text-sm text-cloistr-error">{errors.email.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
+                  <label htmlFor="password" className="block text-sm font-medium text-cloistr-text mb-2">
                     Password
                   </label>
                   <input
@@ -223,7 +223,7 @@ export default function Login() {
                     placeholder="Enter your password"
                   />
                   {errors.password && (
-                    <p className="mt-1 text-sm text-destructive">{errors.password.message}</p>
+                    <p className="mt-1 text-sm text-cloistr-error">{errors.password.message}</p>
                   )}
                 </div>
 
@@ -240,8 +240,8 @@ export default function Login() {
             {authMethod === 'passkey' && (
               <div className="space-y-4">
                 <div className="text-center">
-                  <Fingerprint className="w-12 h-12 mx-auto text-primary mb-2" />
-                  <p className="text-sm text-muted-foreground">
+                  <Fingerprint className="w-12 h-12 mx-auto text-cloistr-primary mb-2" />
+                  <p className="text-sm text-cloistr-text-muted">
                     Sign in with your device's built-in authenticator
                   </p>
                 </div>
@@ -257,15 +257,15 @@ export default function Login() {
 
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-muted"></div>
+                    <div className="w-full border-t border-cloistr-border"></div>
                   </div>
                   <div className="relative flex justify-center text-xs">
-                    <span className="bg-card px-2 text-muted-foreground">or enter email</span>
+                    <span className="bg-cloistr-bg-elevated px-2 text-cloistr-text-muted">or enter email</span>
                   </div>
                 </div>
 
                 <div>
-                  <label htmlFor="passkeyEmail" className="block text-sm font-medium text-foreground mb-2">
+                  <label htmlFor="passkeyEmail" className="block text-sm font-medium text-cloistr-text mb-2">
                     Email address
                   </label>
                   <input
@@ -286,8 +286,8 @@ export default function Login() {
                   {loading ? 'Authenticating...' : 'Sign in with Email + Passkey'}
                 </button>
 
-                <div className="bg-muted/50 p-3 rounded-lg">
-                  <p className="text-xs text-muted-foreground">
+                <div className="bg-cloistr-bg-hover/50 p-3 rounded-lg">
+                  <p className="text-xs text-cloistr-text-muted">
                     <strong>Note:</strong> Passkeys use Face ID, Touch ID, Windows Hello, or hardware security keys
                     for passwordless authentication.
                   </p>
@@ -298,7 +298,7 @@ export default function Login() {
             {authMethod === 'nostr' && (
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="nostrKey" className="block text-sm font-medium text-foreground mb-2">
+                  <label htmlFor="nostrKey" className="block text-sm font-medium text-cloistr-text mb-2">
                     Nostr Public Key
                   </label>
                   <input
@@ -309,7 +309,7 @@ export default function Login() {
                     placeholder="Enter your 64-character Nostr public key"
                     maxLength={64}
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 text-xs text-cloistr-text-muted">
                     Your public key should be 64 hexadecimal characters
                   </p>
                 </div>
@@ -323,8 +323,8 @@ export default function Login() {
                   {loading ? 'Signing in...' : 'Sign in with Nostr'}
                 </button>
 
-                <div className="bg-muted/50 p-3 rounded-lg">
-                  <p className="text-xs text-muted-foreground">
+                <div className="bg-cloistr-bg-hover/50 p-3 rounded-lg">
+                  <p className="text-xs text-cloistr-text-muted">
                     <strong>Note:</strong> Nostr authentication requires a compatible Nostr client or browser extension
                     to sign the authentication challenge.
                   </p>
@@ -337,7 +337,7 @@ export default function Login() {
                 {!lightningChallenge ? (
                   <>
                     <div>
-                      <label htmlFor="lightningAddress" className="block text-sm font-medium text-foreground mb-2">
+                      <label htmlFor="lightningAddress" className="block text-sm font-medium text-cloistr-text mb-2">
                         Lightning Address
                       </label>
                       <input
@@ -347,7 +347,7 @@ export default function Login() {
                         className="input w-full"
                         placeholder="user@wallet.com"
                       />
-                      <p className="mt-1 text-xs text-muted-foreground">
+                      <p className="mt-1 text-xs text-cloistr-text-muted">
                         Enter your Lightning address (e.g., alice@getalby.com)
                       </p>
                     </div>
@@ -363,15 +363,15 @@ export default function Login() {
                   </>
                 ) : (
                   <>
-                    <div className="bg-muted/50 p-3 rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-2">
+                    <div className="bg-cloistr-bg-hover/50 p-3 rounded-lg">
+                      <p className="text-xs text-cloistr-text-muted mb-2">
                         <strong>Challenge (k1):</strong>
                       </p>
                       <code className="text-xs break-all">{lightningChallenge.k1}</code>
                     </div>
 
                     <div>
-                      <label htmlFor="lightningSignature" className="block text-sm font-medium text-foreground mb-2">
+                      <label htmlFor="lightningSignature" className="block text-sm font-medium text-cloistr-text mb-2">
                         Signature
                       </label>
                       <input
@@ -385,7 +385,7 @@ export default function Login() {
                     </div>
 
                     <div>
-                      <label htmlFor="lightningLinkingKey" className="block text-sm font-medium text-foreground mb-2">
+                      <label htmlFor="lightningLinkingKey" className="block text-sm font-medium text-cloistr-text mb-2">
                         Linking Key
                       </label>
                       <input
@@ -422,8 +422,8 @@ export default function Login() {
                   </>
                 )}
 
-                <div className="bg-muted/50 p-3 rounded-lg">
-                  <p className="text-xs text-muted-foreground">
+                <div className="bg-cloistr-bg-hover/50 p-3 rounded-lg">
+                  <p className="text-xs text-cloistr-text-muted">
                     <strong>Note:</strong> Lightning authentication uses LNURL-auth. Sign the challenge with your
                     Lightning wallet and paste the signature and linking key above.
                   </p>
@@ -432,9 +432,9 @@ export default function Login() {
             )}
 
             <div className="text-center">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-cloistr-text-muted">
                 Don't have an account?{' '}
-                <Link to="/register" className="text-primary hover:underline">
+                <Link to="/register" className="text-cloistr-primary hover:underline">
                   Create one here
                 </Link>
               </p>
@@ -443,7 +443,7 @@ export default function Login() {
         </div>
 
         <div className="text-center">
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-cloistr-text-muted">
             Your data is encrypted locally and never stored unencrypted on our servers
           </p>
         </div>

@@ -17,7 +17,7 @@ export default function Layout({ children }: LayoutProps) {
   const pubkey = user?.nostr_pubkey ?? user?.pubkey ?? undefined;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-cloistr-bg flex flex-col">
       {/* Shared Cloistr Header: app-switcher, theme toggle, wordmark, user menu */}
       <Header
         activeServiceId="vault"
@@ -34,7 +34,7 @@ export default function Layout({ children }: LayoutProps) {
         {isAuthenticated && (
           <>
             <div className="relative hidden sm:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-cloistr-text-muted" />
               <input
                 type="text"
                 placeholder="Search your vault..."

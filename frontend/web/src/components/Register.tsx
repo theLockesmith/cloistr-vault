@@ -83,7 +83,7 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="min-h-screen flex items-center justify-center bg-cloistr-bg">
       <div className="max-w-md w-full space-y-8 p-8">
         <div className="card">
           <div className="card-header text-center">
@@ -98,13 +98,13 @@ export default function Register() {
 
           <div className="card-content space-y-6">
             {/* Auth Method Toggle */}
-            <div className="flex bg-muted rounded-lg p-1">
+            <div className="flex bg-cloistr-bg-hover rounded-lg p-1">
               <button
                 type="button"
                 className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
                   authMethod === 'email'
-                    ? 'bg-card text-primary shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-cloistr-bg-elevated text-cloistr-primary shadow-sm'
+                    : 'text-cloistr-text-muted hover:text-cloistr-text'
                 }`}
                 onClick={() => setAuthMethod('email')}
               >
@@ -115,8 +115,8 @@ export default function Register() {
                 type="button"
                 className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
                   authMethod === 'nostr'
-                    ? 'bg-card text-primary shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-cloistr-bg-elevated text-cloistr-primary shadow-sm'
+                    : 'text-cloistr-text-muted hover:text-cloistr-text'
                 }`}
                 onClick={() => setAuthMethod('nostr')}
               >
@@ -128,7 +128,7 @@ export default function Register() {
             {authMethod === 'email' ? (
               <form onSubmit={handleSubmit(onEmailSubmit)} className="space-y-4">
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
+                  <label htmlFor="email" className="block text-sm font-medium text-cloistr-text mb-2">
                     Email address
                   </label>
                   <input
@@ -144,12 +144,12 @@ export default function Register() {
                     placeholder="Enter your email"
                   />
                   {errors.email && (
-                    <p className="mt-1 text-sm text-destructive">{errors.email.message}</p>
+                    <p className="mt-1 text-sm text-cloistr-error">{errors.email.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
+                  <label htmlFor="password" className="block text-sm font-medium text-cloistr-text mb-2">
                     Master Password
                   </label>
                   <div className="relative">
@@ -175,19 +175,19 @@ export default function Register() {
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        <EyeOff className="h-4 w-4 text-cloistr-text-muted" />
                       ) : (
-                        <Eye className="h-4 w-4 text-muted-foreground" />
+                        <Eye className="h-4 w-4 text-cloistr-text-muted" />
                       )}
                     </button>
                   </div>
                   {errors.password && (
-                    <p className="mt-1 text-sm text-destructive">{errors.password.message}</p>
+                    <p className="mt-1 text-sm text-cloistr-error">{errors.password.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground mb-2">
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-cloistr-text mb-2">
                     Confirm Password
                   </label>
                   <div className="relative">
@@ -206,20 +206,20 @@ export default function Register() {
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     >
                       {showConfirmPassword ? (
-                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        <EyeOff className="h-4 w-4 text-cloistr-text-muted" />
                       ) : (
-                        <Eye className="h-4 w-4 text-muted-foreground" />
+                        <Eye className="h-4 w-4 text-cloistr-text-muted" />
                       )}
                     </button>
                   </div>
                   {errors.confirmPassword && (
-                    <p className="mt-1 text-sm text-destructive">{errors.confirmPassword.message}</p>
+                    <p className="mt-1 text-sm text-cloistr-error">{errors.confirmPassword.message}</p>
                   )}
                 </div>
 
-                <div className="bg-muted/50 p-3 rounded-lg">
-                  <h4 className="text-sm font-medium text-foreground mb-2">🔒 Zero-Knowledge Security</h4>
-                  <ul className="text-xs text-muted-foreground space-y-1">
+                <div className="bg-cloistr-bg-hover/50 p-3 rounded-lg">
+                  <h4 className="text-sm font-medium text-cloistr-text mb-2">🔒 Zero-Knowledge Security</h4>
+                  <ul className="text-xs text-cloistr-text-muted space-y-1">
                     <li>• Your master password encrypts all vault data locally</li>
                     <li>• We never store or have access to your unencrypted data</li>
                     <li>• If you lose your password, your data cannot be recovered</li>
@@ -237,7 +237,7 @@ export default function Register() {
             ) : (
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="nostrKey" className="block text-sm font-medium text-foreground mb-2">
+                  <label htmlFor="nostrKey" className="block text-sm font-medium text-cloistr-text mb-2">
                     Nostr Public Key
                   </label>
                   <input
@@ -248,14 +248,14 @@ export default function Register() {
                     placeholder="Enter your 64-character Nostr public key"
                     maxLength={64}
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 text-xs text-cloistr-text-muted">
                     Your public key should be 64 hexadecimal characters
                   </p>
                 </div>
 
-                <div className="bg-muted/50 p-3 rounded-lg">
-                  <h4 className="text-sm font-medium text-foreground mb-2">🔑 Nostr Integration</h4>
-                  <ul className="text-xs text-muted-foreground space-y-1">
+                <div className="bg-cloistr-bg-hover/50 p-3 rounded-lg">
+                  <h4 className="text-sm font-medium text-cloistr-text mb-2">🔑 Nostr Integration</h4>
+                  <ul className="text-xs text-cloistr-text-muted space-y-1">
                     <li>• Your vault will be encrypted using your Nostr identity</li>
                     <li>• Requires a Nostr client for authentication</li>
                     <li>• Currently in development - coming soon</li>
@@ -274,9 +274,9 @@ export default function Register() {
             )}
 
             <div className="text-center">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-cloistr-text-muted">
                 Already have an account?{' '}
-                <Link to="/login" className="text-primary hover:underline">
+                <Link to="/login" className="text-cloistr-primary hover:underline">
                   Sign in here
                 </Link>
               </p>

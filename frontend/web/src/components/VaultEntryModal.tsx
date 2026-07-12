@@ -160,18 +160,18 @@ export default function VaultEntryModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-card rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-cloistr-bg-elevated rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center space-x-2">
-            <IconComponent className="h-5 w-5 text-primary" />
+            <IconComponent className="h-5 w-5 text-cloistr-primary" />
             <h2 className="text-lg font-semibold">
               {mode === 'add' ? 'Add New Item' : 'Edit Item'}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-muted-foreground hover:text-foreground rounded"
+            className="p-1 text-cloistr-text-muted hover:text-cloistr-text rounded"
           >
             <X className="h-5 w-5" />
           </button>
@@ -195,8 +195,8 @@ export default function VaultEntryModal({
                       }}
                       className={`flex flex-col items-center p-3 rounded-lg border transition-colors ${
                         type === t
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border hover:border-primary/50'
+                          ? 'border-primary bg-cloistr-primary/10 text-cloistr-primary'
+                          : 'border-cloistr-border hover:border-cloistr-primary/50'
                       }`}
                     >
                       <TypeIcon className="h-5 w-5 mb-1" />
@@ -240,7 +240,7 @@ export default function VaultEntryModal({
                     <button
                       type="button"
                       onClick={() => togglePasswordVisibility(fieldName)}
-                      className="p-1 text-muted-foreground hover:text-foreground"
+                      className="p-1 text-cloistr-text-muted hover:text-cloistr-text"
                     >
                       {showPassword[fieldName] ? (
                         <EyeOff className="h-4 w-4" />
@@ -252,7 +252,7 @@ export default function VaultEntryModal({
                       <button
                         type="button"
                         onClick={handleGeneratePassword}
-                        className="p-1 text-muted-foreground hover:text-foreground"
+                        className="p-1 text-cloistr-text-muted hover:text-cloistr-text"
                         title="Generate password"
                       >
                         <RefreshCw className="h-4 w-4" />

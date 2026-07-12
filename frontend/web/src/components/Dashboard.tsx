@@ -133,9 +133,9 @@ export default function Dashboard() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <Lock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <Lock className="h-12 w-12 text-cloistr-text-muted mx-auto mb-4" />
           <h2 className="text-lg font-semibold mb-2">Vault Locked</h2>
-          <p className="text-muted-foreground">
+          <p className="text-cloistr-text-muted">
             Enter your master password to access your vault.
           </p>
         </div>
@@ -153,10 +153,10 @@ export default function Dashboard() {
               <h3 className="text-sm font-medium">Folders</h3>
               <button
                 onClick={() => setShowSidebar(false)}
-                className="p-1 hover:bg-muted rounded"
+                className="p-1 hover:bg-cloistr-bg-hover rounded"
                 title="Hide sidebar"
               >
-                <PanelLeftClose className="h-4 w-4 text-muted-foreground" />
+                <PanelLeftClose className="h-4 w-4 text-cloistr-text-muted" />
               </button>
             </div>
             <div className="card-content p-0">
@@ -178,17 +178,17 @@ export default function Dashboard() {
             {!showSidebar && (
               <button
                 onClick={() => setShowSidebar(true)}
-                className="p-2 hover:bg-muted rounded"
+                className="p-2 hover:bg-cloistr-bg-hover rounded"
                 title="Show folders"
               >
                 <PanelLeft className="h-4 w-4" />
               </button>
             )}
             <div>
-              <h1 className="text-2xl font-bold text-foreground">
+              <h1 className="text-2xl font-bold text-cloistr-text">
                 {selectedFolderName || 'Your Vault'}
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-cloistr-text-muted">
                 {filteredEntries.length} item{filteredEntries.length !== 1 ? 's' : ''}
                 {selectedFolderId ? ' in this folder' : ''} - All data encrypted locally
               </p>
@@ -207,7 +207,7 @@ export default function Dashboard() {
       {/* Search and Filter */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-cloistr-text-muted" />
           <input
             type="text"
             placeholder="Search vault..."
@@ -221,8 +221,8 @@ export default function Dashboard() {
             onClick={() => setTypeFilter(null)}
             className={`px-3 py-2 rounded-md text-sm transition-colors ${
               typeFilter === null
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted hover:bg-muted/80'
+                ? 'bg-cloistr-primary text-white'
+                : 'bg-cloistr-bg-hover hover:bg-cloistr-bg-hover/80'
             }`}
           >
             All
@@ -231,8 +231,8 @@ export default function Dashboard() {
             onClick={() => setTypeFilter('login')}
             className={`px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-1 ${
               typeFilter === 'login'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted hover:bg-muted/80'
+                ? 'bg-cloistr-primary text-white'
+                : 'bg-cloistr-bg-hover hover:bg-cloistr-bg-hover/80'
             }`}
           >
             <Globe className="h-3 w-3" /> Logins
@@ -241,8 +241,8 @@ export default function Dashboard() {
             onClick={() => setTypeFilter('note')}
             className={`px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-1 ${
               typeFilter === 'note'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted hover:bg-muted/80'
+                ? 'bg-cloistr-primary text-white'
+                : 'bg-cloistr-bg-hover hover:bg-cloistr-bg-hover/80'
             }`}
           >
             <StickyNote className="h-3 w-3" /> Notes
@@ -251,8 +251,8 @@ export default function Dashboard() {
             onClick={() => setTypeFilter('card')}
             className={`px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-1 ${
               typeFilter === 'card'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted hover:bg-muted/80'
+                ? 'bg-cloistr-primary text-white'
+                : 'bg-cloistr-bg-hover hover:bg-cloistr-bg-hover/80'
             }`}
           >
             <CreditCard className="h-3 w-3" /> Cards
@@ -267,7 +267,7 @@ export default function Dashboard() {
             <div className="flex items-center space-x-2">
               <Globe className="h-5 w-5 text-cloistr-info" />
               <div>
-                <p className="text-sm text-muted-foreground">Logins</p>
+                <p className="text-sm text-cloistr-text-muted">Logins</p>
                 <p className="text-2xl font-bold">
                   {vaultData?.entries.filter(e => e.type === 'login').length || 0}
                 </p>
@@ -281,7 +281,7 @@ export default function Dashboard() {
             <div className="flex items-center space-x-2">
               <StickyNote className="h-5 w-5 text-cloistr-success" />
               <div>
-                <p className="text-sm text-muted-foreground">Notes</p>
+                <p className="text-sm text-cloistr-text-muted">Notes</p>
                 <p className="text-2xl font-bold">
                   {vaultData?.entries.filter(e => e.type === 'note').length || 0}
                 </p>
@@ -295,7 +295,7 @@ export default function Dashboard() {
             <div className="flex items-center space-x-2">
               <CreditCard className="h-5 w-5 text-cloistr-primary" />
               <div>
-                <p className="text-sm text-muted-foreground">Cards</p>
+                <p className="text-sm text-cloistr-text-muted">Cards</p>
                 <p className="text-2xl font-bold">
                   {vaultData?.entries.filter(e => e.type === 'card').length || 0}
                 </p>
@@ -309,7 +309,7 @@ export default function Dashboard() {
             <div className="flex items-center space-x-2">
               <Star className="h-5 w-5 text-cloistr-warning" />
               <div>
-                <p className="text-sm text-muted-foreground">Favorites</p>
+                <p className="text-sm text-cloistr-text-muted">Favorites</p>
                 <p className="text-2xl font-bold">
                   {vaultData?.entries.filter(e => e.favorite).length || 0}
                 </p>
@@ -328,9 +328,9 @@ export default function Dashboard() {
           {vaultData?.entries.length === 0 ? (
             <div className="card">
               <div className="card-content p-8 text-center">
-                <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <Shield className="h-12 w-12 text-cloistr-text-muted mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Your vault is empty</h3>
-                <p className="text-muted-foreground mb-4">
+                <p className="text-cloistr-text-muted mb-4">
                   Start adding passwords, notes, and other items to secure them with zero-knowledge encryption.
                 </p>
                 <button className="btn-primary" onClick={handleAddEntry}>
@@ -341,9 +341,9 @@ export default function Dashboard() {
           ) : filteredEntries.length === 0 ? (
             <div className="card">
               <div className="card-content p-8 text-center">
-                <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <Search className="h-12 w-12 text-cloistr-text-muted mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No results found</h3>
-                <p className="text-muted-foreground mb-4">
+                <p className="text-cloistr-text-muted mb-4">
                   Try adjusting your search or filter criteria.
                 </p>
                 <button
@@ -364,12 +364,12 @@ export default function Dashboard() {
                 return (
                   <div
                     key={entry.id}
-                    className={`vault-item ${selectedEntry?.id === entry.id ? 'bg-accent' : ''}`}
+                    className={`vault-item ${selectedEntry?.id === entry.id ? 'bg-cloistr-bg-hover' : ''}`}
                     onClick={() => setSelectedEntry(entry)}
                   >
                     <div className="vault-item-info">
                       <div className="vault-item-icon">
-                        <IconComponent className="h-4 w-4 text-primary" />
+                        <IconComponent className="h-4 w-4 text-cloistr-primary" />
                       </div>
 
                       <div className="vault-item-content">
@@ -385,7 +385,7 @@ export default function Dashboard() {
                       </div>
                     </div>
 
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-cloistr-text-muted">
                       {entry.type.charAt(0).toUpperCase() + entry.type.slice(1)}
                     </div>
                   </div>
@@ -404,7 +404,7 @@ export default function Dashboard() {
               <div className="card-header">
                 <div className="flex items-center space-x-2">
                   {React.createElement(getEntryIcon(selectedEntry.type), {
-                    className: "h-5 w-5 text-primary"
+                    className: "h-5 w-5 text-cloistr-primary"
                   })}
                   <div>
                     <h3 className="card-title text-lg">{selectedEntry.name}</h3>
@@ -434,7 +434,7 @@ export default function Dashboard() {
                           <div className="absolute inset-y-0 right-0 flex items-center space-x-1 pr-2">
                             <button
                               onClick={() => togglePasswordVisibility(selectedEntry.id)}
-                              className="p-1 text-muted-foreground hover:text-foreground"
+                              className="p-1 text-cloistr-text-muted hover:text-cloistr-text"
                             >
                               {showPasswords[selectedEntry.id] ? (
                                 <EyeOff className="h-4 w-4" />
@@ -444,7 +444,7 @@ export default function Dashboard() {
                             </button>
                             <button
                               onClick={() => copyToClipboard(value, key)}
-                              className="p-1 text-muted-foreground hover:text-foreground"
+                              className="p-1 text-cloistr-text-muted hover:text-cloistr-text"
                             >
                               <Copy className="h-4 w-4" />
                             </button>
@@ -461,14 +461,14 @@ export default function Dashboard() {
                           <div className="absolute inset-y-0 right-0 flex items-center space-x-1 pr-2">
                             <button
                               onClick={() => copyToClipboard(value, key)}
-                              className="p-1 text-muted-foreground hover:text-foreground"
+                              className="p-1 text-cloistr-text-muted hover:text-cloistr-text"
                             >
                               <Copy className="h-4 w-4" />
                             </button>
                             {key.toLowerCase() === 'url' && value && (
                               <button
                                 onClick={() => window.open(value.startsWith('http') ? value : `https://${value}`, '_blank')}
-                                className="p-1 text-muted-foreground hover:text-foreground"
+                                className="p-1 text-cloistr-text-muted hover:text-cloistr-text"
                               >
                                 <ExternalLink className="h-4 w-4" />
                               </button>
@@ -493,7 +493,7 @@ export default function Dashboard() {
                 )}
 
                 {/* Actions */}
-                <div className="flex space-x-2 pt-4 border-t">
+                <div className="flex space-x-2 pt-4 border-t border-cloistr-border">
                   <button
                     className="btn-outline flex-1"
                     onClick={() => handleEditEntry(selectedEntry)}
@@ -524,11 +524,11 @@ export default function Dashboard() {
           ) : (
             <div className="card">
               <div className="card-content p-8 text-center">
-                <div className="h-12 w-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Globe className="h-6 w-6 text-muted-foreground" />
+                <div className="h-12 w-12 bg-cloistr-bg-hover rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Globe className="h-6 w-6 text-cloistr-text-muted" />
                 </div>
                 <h3 className="text-lg font-semibold mb-2">Select an item</h3>
-                <p className="text-muted-foreground">
+                <p className="text-cloistr-text-muted">
                   Choose an item from your vault to view its details here.
                 </p>
               </div>

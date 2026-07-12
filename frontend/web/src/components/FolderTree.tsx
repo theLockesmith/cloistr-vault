@@ -59,8 +59,8 @@ function FolderNode({
       <div
         className={`flex items-center px-2 py-1.5 rounded-md cursor-pointer group transition-colors ${
           isSelected
-            ? 'bg-primary/10 text-primary'
-            : 'hover:bg-muted'
+            ? 'bg-cloistr-primary/10 text-cloistr-primary'
+            : 'hover:bg-cloistr-bg-hover'
         }`}
         style={{ paddingLeft: `${level * 12 + 8}px` }}
         onClick={handleClick}
@@ -71,9 +71,9 @@ function FolderNode({
           onClick={handleToggleExpand}
         >
           {isExpanded ? (
-            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+            <ChevronDown className="h-3 w-3 text-cloistr-text-muted" />
           ) : (
-            <ChevronRight className="h-3 w-3 text-muted-foreground" />
+            <ChevronRight className="h-3 w-3 text-cloistr-text-muted" />
           )}
         </button>
 
@@ -91,7 +91,7 @@ function FolderNode({
 
         {/* Entry count */}
         {folder.entry_count !== undefined && folder.entry_count > 0 && (
-          <span className="text-xs text-muted-foreground mr-2">
+          <span className="text-xs text-cloistr-text-muted mr-2">
             {folder.entry_count}
           </span>
         )}
@@ -99,7 +99,7 @@ function FolderNode({
         {/* Context menu button */}
         <div className="relative">
           <button
-            className={`p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-muted-foreground/20 ${
+            className={`p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-cloistr-bg-hover-foreground/20 ${
               showMenu ? 'opacity-100' : ''
             }`}
             onClick={handleMenuClick}
@@ -113,9 +113,9 @@ function FolderNode({
                 className="fixed inset-0 z-10"
                 onClick={() => setShowMenu(false)}
               />
-              <div className="absolute right-0 top-full mt-1 py-1 bg-card border rounded-md shadow-lg z-20 min-w-[140px]">
+              <div className="absolute right-0 top-full mt-1 py-1 bg-cloistr-bg-elevated border rounded-md shadow-lg z-20 min-w-[140px]">
                 <button
-                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-muted flex items-center gap-2"
+                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-cloistr-bg-hover flex items-center gap-2"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowMenu(false);
@@ -126,7 +126,7 @@ function FolderNode({
                   Add subfolder
                 </button>
                 <button
-                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-muted flex items-center gap-2"
+                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-cloistr-bg-hover flex items-center gap-2"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowMenu(false);
@@ -137,7 +137,7 @@ function FolderNode({
                   Rename
                 </button>
                 <button
-                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-muted flex items-center gap-2 text-destructive"
+                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-cloistr-bg-hover flex items-center gap-2 text-cloistr-error"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowMenu(false);
@@ -305,9 +305,9 @@ export default function FolderTree({
     return (
       <div className="p-4">
         <div className="animate-pulse space-y-2">
-          <div className="h-6 bg-muted rounded w-3/4"></div>
-          <div className="h-6 bg-muted rounded w-1/2"></div>
-          <div className="h-6 bg-muted rounded w-2/3"></div>
+          <div className="h-6 bg-cloistr-bg-hover rounded w-3/4"></div>
+          <div className="h-6 bg-cloistr-bg-hover rounded w-1/2"></div>
+          <div className="h-6 bg-cloistr-bg-hover rounded w-2/3"></div>
         </div>
       </div>
     );
@@ -319,8 +319,8 @@ export default function FolderTree({
       <div
         className={`flex items-center px-3 py-1.5 rounded-md cursor-pointer transition-colors ${
           selectedFolderId === null
-            ? 'bg-primary/10 text-primary'
-            : 'hover:bg-muted'
+            ? 'bg-cloistr-primary/10 text-cloistr-primary'
+            : 'hover:bg-cloistr-bg-hover'
         }`}
         onClick={() => onSelectFolder(null)}
       >
@@ -350,7 +350,7 @@ export default function FolderTree({
           className="flex items-center gap-1 px-3 py-1"
           style={{ paddingLeft: newFolderParentId ? '32px' : '12px' }}
         >
-          <Folder className="h-4 w-4 text-muted-foreground" />
+          <Folder className="h-4 w-4 text-cloistr-text-muted" />
           <input
             type="text"
             className="flex-1 px-2 py-1 text-sm bg-transparent border rounded focus:outline-none focus:ring-1 focus:ring-primary"
@@ -364,16 +364,16 @@ export default function FolderTree({
             autoFocus
           />
           <button
-            className="p-1 hover:bg-muted rounded"
+            className="p-1 hover:bg-cloistr-bg-hover rounded"
             onClick={handleSubmitCreate}
           >
             <Check className="h-3 w-3 text-cloistr-success" />
           </button>
           <button
-            className="p-1 hover:bg-muted rounded"
+            className="p-1 hover:bg-cloistr-bg-hover rounded"
             onClick={handleCancelCreate}
           >
-            <X className="h-3 w-3 text-destructive" />
+            <X className="h-3 w-3 text-cloistr-error" />
           </button>
         </div>
       )}
@@ -381,7 +381,7 @@ export default function FolderTree({
       {/* Rename input (modal/inline) */}
       {editingFolder && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-card p-4 rounded-lg shadow-lg w-80">
+          <div className="bg-cloistr-bg-elevated p-4 rounded-lg shadow-lg w-80">
             <h3 className="text-sm font-medium mb-3">Rename Folder</h3>
             <input
               type="text"
@@ -396,13 +396,13 @@ export default function FolderTree({
             />
             <div className="flex justify-end gap-2 mt-4">
               <button
-                className="px-3 py-1.5 text-sm rounded hover:bg-muted"
+                className="px-3 py-1.5 text-sm rounded hover:bg-cloistr-bg-hover"
                 onClick={handleCancelRename}
               >
                 Cancel
               </button>
               <button
-                className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90"
+                className="px-3 py-1.5 text-sm bg-cloistr-primary text-cloistr-primary-foreground rounded hover:bg-cloistr-primary/90"
                 onClick={handleSubmitRename}
               >
                 Save
@@ -414,7 +414,7 @@ export default function FolderTree({
 
       {/* Add folder button */}
       <button
-        className="flex items-center gap-2 px-3 py-1.5 mt-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-md w-full transition-colors"
+        className="flex items-center gap-2 px-3 py-1.5 mt-2 text-sm text-cloistr-text-muted hover:text-cloistr-text hover:bg-cloistr-bg-hover rounded-md w-full transition-colors"
         onClick={() => handleStartCreate(null)}
       >
         <FolderPlus className="h-4 w-4" />

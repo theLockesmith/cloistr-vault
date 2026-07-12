@@ -49,14 +49,14 @@ export default function UnlockModal({ onUnlock }: UnlockModalProps) {
   if (!isLocked) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-cloistr-bg">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 mb-4">
             <img src="/cloistr-icon.svg" alt="Cloistr" className="h-16 w-16" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Cloistr Vault</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-2xl font-bold text-cloistr-text">Cloistr Vault</h1>
+          <p className="text-cloistr-text-muted mt-2">
             {user?.email || user?.display_name || 'Your vault is locked'}
           </p>
         </div>
@@ -64,7 +64,7 @@ export default function UnlockModal({ onUnlock }: UnlockModalProps) {
         <div className="card">
           <div className="card-header">
             <div className="flex items-center space-x-2">
-              <Lock className="h-5 w-5 text-primary" />
+              <Lock className="h-5 w-5 text-cloistr-primary" />
               <h2 className="card-title">Unlock Your Vault</h2>
             </div>
             <p className="card-description">
@@ -91,7 +91,7 @@ export default function UnlockModal({ onUnlock }: UnlockModalProps) {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-cloistr-text-muted hover:text-cloistr-text"
                   tabIndex={-1}
                 >
                   {showPassword ? (
@@ -127,7 +127,7 @@ export default function UnlockModal({ onUnlock }: UnlockModalProps) {
             <button
               type="button"
               onClick={handleLogout}
-              className="btn-ghost w-full text-muted-foreground"
+              className="btn-ghost w-full text-cloistr-text-muted"
             >
               <LogOut className="h-4 w-4 mr-2" />
               Sign out and use a different account
@@ -135,7 +135,7 @@ export default function UnlockModal({ onUnlock }: UnlockModalProps) {
           </div>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-4">
+        <p className="text-center text-xs text-cloistr-text-muted mt-4">
           Your vault is protected with zero-knowledge encryption.
           <br />
           We never see your master password or unencrypted data.

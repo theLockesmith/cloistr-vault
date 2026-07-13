@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { Header } from '@cloistr/ui';
 import { useAuth } from '../contexts/AuthContext';
 import { useCrypto } from '../contexts/CryptoContext';
 import { Mail, Lock, Key, Eye, EyeOff } from 'lucide-react';
@@ -83,7 +84,13 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cloistr-bg">
+    <div className="min-h-screen flex flex-col bg-cloistr-bg">
+      <Header
+        activeServiceId="vault"
+        auth={{ authenticated: false }}
+        signerUrl="https://signer.cloistr.xyz"
+      />
+      <div className="flex-1 flex items-center justify-center">
       <div className="max-w-md w-full space-y-8 p-8">
         <div className="card">
           <div className="card-header text-center">
@@ -283,6 +290,7 @@ export default function Register() {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

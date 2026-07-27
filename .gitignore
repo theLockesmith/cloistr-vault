@@ -43,3 +43,6 @@ data/
 *.aab
 *.ipa
 .expo/
+CLAUDE.md
+.claude
+.claude/

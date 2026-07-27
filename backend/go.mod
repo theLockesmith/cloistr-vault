@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	git.aegis-hq.xyz/coldforge/cloistr-common v0.2.1
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-webauthn/webauthn v0.15.0
 	github.com/golang-migrate/migrate/v4 v4.17.1

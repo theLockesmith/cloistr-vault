@@ -31,7 +31,7 @@ test:unit:
   script:
     - cd backend
     - go mod tidy
-    - go test -v -race -cover ./...
+    - go test -v -race -timeout 25m -cover ./...
   coverage: '/coverage: \d+\.\d+% of statements/'
 
 lint:

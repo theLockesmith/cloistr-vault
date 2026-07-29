@@ -19,7 +19,7 @@ COPY frontend/web/ ./
 RUN CI=false INLINE_RUNTIME_CHUNK=false npm run build
 
 # Build stage
-FROM golang:1.25-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 # Set working directory
 WORKDIR /app

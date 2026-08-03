@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { useCrypto } from './CryptoContext';
 import { useAuth } from './AuthContext';
 import axios from 'axios';
@@ -57,6 +57,10 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   const [vaultData, setVaultData] = useState<VaultData | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Optimistic-concurrency version from the server. A ref, not state: saves
+  // must read the current value synchronously, and a re-render must not be
+  // required for the next save to send the right one.
+  const vaultVersionRef = useRef<number>(0);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
 
   // Auto-lock after inactivity
@@ -103,7 +107,12 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   const loadVault = async (password: string): Promise<VaultData | null> => {
     try {
       const response = await axios.get('/vault');
-      const { encrypted_data } = response.data;
+      const { encrypted_data, version } = response.data;
+
+      // The server uses `version` for optimistic concurrency and REQUIRES it
+      // back on PUT. It was never read here, so every save omitted it and the
+      // API rejected the whole request with 400 — no item could ever be added.
+      vaultVersionRef.current = typeof version === 'number' ? version : 0;
 
       if (!encrypted_data) {
         // No vault exists yet, return empty vault
@@ -129,7 +138,15 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     setSaving(true);
     try {
       const encryptedData = encryptVault(data, masterPassword);
-      await axios.put('/vault', { encrypted_data: encryptedData });
+      const response = await axios.put('/vault', {
+        encrypted_data: encryptedData,
+        version: vaultVersionRef.current,
+      });
+      // Track the server's new version so consecutive saves in one session do
+      // not send a stale one. Without this only the first save would line up.
+      if (typeof response.data?.version === 'number') {
+        vaultVersionRef.current = response.data.version;
+      }
       setVaultData(data);
     } finally {
       setSaving(false);

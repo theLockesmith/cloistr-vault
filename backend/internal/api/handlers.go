@@ -265,11 +265,20 @@ func (h *Handlers) UpdateVault(c *gin.Context) {
 
 	var req struct {
 		EncryptedData []byte `json:"encrypted_data" binding:"required"`
-		Version       int    `json:"version" binding:"required"`
+		// NOT `binding:"required"`. Go's validator treats required on an int as
+		// "must not be the zero value", so it rejects version 0 — which is
+		// exactly what a vault that has never been saved has. Combined with the
+		// web client omitting the field entirely, every save returned 400
+		// "Invalid request format" and no item could be added.
+		// min=0 keeps the field validated (no negatives) while allowing 0.
+		Version int `json:"version" binding:"min=0"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
+		// Surface WHY the payload was rejected. The bare "Invalid request
+		// format" told the client nothing, which is why a missing `version`
+		// field looked like an encryption or auth problem for so long.
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format: "+err.Error()).Abort(c)
 		return
 	}
 

@@ -76,7 +76,7 @@
     "electron-webpack": "^2.8.2",
     "webpack": "^4.47.0",
     "concurrently": "^8.2.2",
-    "typescript": "^5.3.3",
+    "typescript": "^5.9.3",
     "@types/crypto-js": "^4.2.2"
   },
   "electronWebpack": {

@@ -1,5 +1,5 @@
 # Web build stage - build the React app (served as static files by the API)
-FROM node:22-alpine AS webbuilder
+FROM node:22.23.2-alpine AS webbuilder
 
 WORKDIR /web
 

@@ -26,7 +26,7 @@
     "react-native-biometrics": "^3.0.1",
     "react-native-crypto-js": "^1.0.0",
     "react-native-passkey": "^3.0.0",
-    "react-hook-form": "^7.48.2",
+    "react-hook-form": "^7.85.0",
     "axios": "^1.6.2",
     "react-native-toast-message": "^2.1.7",
     "react-native-paper": "^5.11.6"

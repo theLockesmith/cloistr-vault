@@ -80,7 +80,7 @@ services:
 
   # HashiCorp Vault for server-side key management
   vault:
-    image: hashicorp/vault:1.15
+    image: hashicorp/vault:1.21
     container_name: coldforge-vault-kms
     command: vault server -config=/vault/config/vault.hcl
     ports:

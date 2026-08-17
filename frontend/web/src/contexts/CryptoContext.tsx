@@ -1,5 +1,6 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import CryptoJS from 'crypto-js';
+import { generatePassword as generateSecurePassword } from '../crypto/random';
 
 interface VaultEntry {
   id: string;
@@ -93,39 +94,12 @@ export function CryptoProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const generatePassword = (length: number = 16, includeSpecial: boolean = true): string => {
-    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const numbers = '0123456789';
-    const special = '!@#$%^&*()_+-=[]{}|;:,.<>?';
-    
-    let charset = lowercase + uppercase + numbers;
-    if (includeSpecial) {
-      charset += special;
-    }
-    
-    let password = '';
-    
-    // Ensure at least one character from each set
-    if (length >= 4) {
-      password += lowercase[Math.floor(Math.random() * lowercase.length)];
-      password += uppercase[Math.floor(Math.random() * uppercase.length)];
-      password += numbers[Math.floor(Math.random() * numbers.length)];
-      
-      if (includeSpecial && length > 4) {
-        password += special[Math.floor(Math.random() * special.length)];
-      }
-    }
-    
-    // Fill the rest with random characters
-    const remainingLength = length - password.length;
-    for (let i = 0; i < remainingLength; i++) {
-      password += charset[Math.floor(Math.random() * charset.length)];
-    }
-    
-    // Shuffle the password to randomize position of guaranteed characters
-    return password.split('').sort(() => Math.random() - 0.5).join('');
-  };
+  // Delegates to the CSPRNG-backed generator in ../crypto/random. The previous
+  // implementation here drew every character from Math.random() and "shuffled"
+  // with sort(() => Math.random() - 0.5), so its output was neither uniform nor
+  // unpredictable — see the notes in that module.
+  const generatePassword = (length: number = 16, includeSpecial: boolean = true): string =>
+    generateSecurePassword(length, includeSpecial);
 
   const value = {
     encryptVault,

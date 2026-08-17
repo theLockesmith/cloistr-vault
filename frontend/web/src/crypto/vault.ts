@@ -126,6 +126,29 @@ export async function saveVault<T>(
   return { ...unlocked, data, envelope, migrated: false };
 }
 
+/**
+ * Reads the passkey enrolments out of a stored blob without unlocking it.
+ *
+ * Returns credential ID -> the PRF salt it was enrolled with, which is exactly
+ * what an unlock assertion needs. Empty for a v1 or unparseable blob, so the UI
+ * can simply check for keys before offering passkey unlock.
+ */
+export function passkeyUnlockSalts(blob: string | null | undefined): Record<string, Uint8Array> {
+  if (!blob || !isEnvelopeV2(blob)) {
+    return {};
+  }
+
+  const envelope = deserializeEnvelope(blob);
+  const salts: Record<string, Uint8Array> = {};
+  for (const credentialId of enrolledPrfCredentialIds(envelope)) {
+    const salt = prfSaltFor(envelope, credentialId);
+    if (salt) {
+      salts[credentialId] = salt;
+    }
+  }
+  return salts;
+}
+
 /** Enrols a passkey as an additional unlock factor. */
 export async function enrollPasskey<T>(
   unlocked: UnlockedVault<T>,

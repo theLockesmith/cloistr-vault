@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, Eye, EyeOff, LogOut } from 'lucide-react';
+import { Lock, Eye, EyeOff, LogOut, Fingerprint } from 'lucide-react';
 import { useVault } from '../contexts/VaultContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -8,7 +8,7 @@ interface UnlockModalProps {
 }
 
 export default function UnlockModal({ onUnlock }: UnlockModalProps) {
-  const { isLocked, unlock, loading } = useVault();
+  const { isLocked, unlock, unlockWithPasskey, passkeyUnlockAvailable, loading } = useVault();
   const { logout, user } = useAuth();
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -40,6 +40,18 @@ export default function UnlockModal({ onUnlock }: UnlockModalProps) {
       setError('Invalid master password');
       setPassword('');
     }
+  };
+
+  const handlePasskeyUnlock = async () => {
+    setError('');
+    const success = await unlockWithPasskey();
+    if (success) {
+      setPassword('');
+      onUnlock?.();
+    }
+    // A failure here is already surfaced as a toast by the provider, and a
+    // cancelled prompt is not an error at all — leave the form untouched so the
+    // master password remains available.
   };
 
   const handleLogout = () => {
@@ -122,6 +134,26 @@ export default function UnlockModal({ onUnlock }: UnlockModalProps) {
               )}
             </button>
           </form>
+
+          {passkeyUnlockAvailable && (
+            <div className="card-content pt-0 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-cloistr-border" />
+                <span className="text-xs uppercase tracking-wide text-cloistr-text-muted">or</span>
+                <div className="h-px flex-1 bg-cloistr-border" />
+              </div>
+
+              <button
+                type="button"
+                onClick={handlePasskeyUnlock}
+                className="btn-secondary w-full"
+                disabled={loading}
+              >
+                <Fingerprint className="h-4 w-4 mr-2" />
+                Unlock with passkey
+              </button>
+            </div>
+          )}
 
           <div className="card-footer">
             <button

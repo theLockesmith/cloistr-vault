@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useAuth } from './AuthContext';
 import * as vaultCrypto from '../crypto/vault';
 import type { UnlockedVault } from '../crypto/vault';
+import { PrfCancelledError, PrfUnsupportedError, evaluatePrf, evaluatePrfForCredential } from '../crypto/prf';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -34,6 +35,16 @@ interface VaultContextType {
   loading: boolean;
   saving: boolean;
   unlock: (masterPassword: string) => Promise<boolean>;
+  /** Unlocks using an enrolled passkey via the WebAuthn PRF extension. */
+  unlockWithPasskey: () => Promise<boolean>;
+  /** True when this vault has at least one passkey enrolled for unlock. */
+  passkeyUnlockAvailable: boolean;
+  /** Enrols a passkey as an additional unlock factor. Requires an open vault. */
+  enrollPasskeyUnlock: (credentialId: string, label?: string) => Promise<void>;
+  /** Removes a passkey unlock factor. The master password always remains. */
+  revokePasskeyUnlock: (credentialId: string) => Promise<void>;
+  /** Credential IDs currently enrolled for unlock. */
+  enrolledPasskeys: string[];
   lock: () => void;
   addEntry: (entry: Omit<VaultEntry, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateEntry: (entry: VaultEntry) => Promise<void>;
@@ -68,10 +79,22 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   // required for the next save to send the right one.
   const vaultVersionRef = useRef<number>(0);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
+  // Passkey enrolments, readable from the stored blob without unlocking it, so
+  // the lock screen can offer passkey unlock before any key material exists.
+  const [enrolledPasskeys, setEnrolledPasskeys] = useState<string[]>([]);
+  const lockedBlobRef = useRef<string | null>(null);
 
   // Defined before the effects below because the auto-lock effect lists it as a
   // dependency, and a dependency array is evaluated during render — a `const`
   // declared further down would still be in its temporal dead zone.
+  const openSession = (session: UnlockedVault<VaultData>) => {
+    sessionRef.current = session;
+    setVaultData(session.data);
+    setIsLocked(false);
+    setLastActivityTime(Date.now());
+    setEnrolledPasskeys(Object.keys(vaultCrypto.passkeyUnlockSalts(vaultCrypto.serialize(session))));
+  };
+
   const lock = useCallback(() => {
     if (sessionRef.current) {
       // Zero the DEK rather than just dropping the reference.
@@ -97,6 +120,35 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     const interval = setInterval(checkInactivity, 60000); // Check every minute
     return () => clearInterval(interval);
   }, [isLocked, lastActivityTime, lock]);
+
+  // While locked, peek at the stored blob to see whether any passkey is
+  // enrolled. This reads only the envelope's wrap metadata — no key material is
+  // involved and nothing can be decrypted from it.
+  useEffect(() => {
+    if (!isLocked || (!token && sessionMode !== 'signer')) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await axios.get('/vault');
+        if (cancelled) return;
+        const blob: string | null = response.data?.encrypted_data ?? null;
+        lockedBlobRef.current = blob;
+        setEnrolledPasskeys(Object.keys(vaultCrypto.passkeyUnlockSalts(blob)));
+      } catch {
+        // No vault yet, or the fetch failed. Passkey unlock stays hidden and
+        // the master password path is unaffected.
+        if (!cancelled) {
+          lockedBlobRef.current = null;
+          setEnrolledPasskeys([]);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLocked, token, sessionMode]);
 
   // Track user activity
   useEffect(() => {
@@ -208,10 +260,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      sessionRef.current = session;
-      setVaultData(session.data);
-      setIsLocked(false);
-      setLastActivityTime(Date.now());
+      openSession(session);
 
       if (session.migrated) {
         // The vault was still in the v1 format. It has been re-keyed in memory;
@@ -241,6 +290,90 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const unlockWithPasskey = async (): Promise<boolean> => {
+    if (!token && sessionMode !== 'signer') {
+      toast.error('Please log in first');
+      return false;
+    }
+
+    setLoading(true);
+    try {
+      // Prefer the blob the lock-screen effect already fetched; fall back to a
+      // fresh read if it is not there yet.
+      let blob = lockedBlobRef.current;
+      if (!blob) {
+        const response = await axios.get('/vault');
+        blob = response.data?.encrypted_data ?? null;
+        vaultVersionRef.current =
+          typeof response.data?.version === 'number' ? response.data.version : 0;
+        lockedBlobRef.current = blob;
+      }
+
+      const salts = vaultCrypto.passkeyUnlockSalts(blob);
+      if (!blob || Object.keys(salts).length === 0) {
+        toast.error('No passkey is enrolled for this vault');
+        return false;
+      }
+
+      // One assertion: the authenticator evaluates the PRF and we derive the
+      // key-encryption key from the result. The signature itself is discarded.
+      const { credentialId, prfOutput } = await evaluatePrf(salts);
+      const session = await vaultCrypto.unlockWithPrf<VaultData>(blob, credentialId, prfOutput);
+
+      // Re-read the version: the peek effect does not record it.
+      const current = await axios.get('/vault');
+      vaultVersionRef.current =
+        typeof current.data?.version === 'number' ? current.data.version : vaultVersionRef.current;
+
+      openSession(session);
+      toast.success('Vault unlocked with passkey');
+      return true;
+    } catch (error: any) {
+      if (error instanceof PrfCancelledError) {
+        // User dismissed the prompt — not an error worth shouting about.
+        return false;
+      }
+      console.error('Passkey unlock error:', error);
+      toast.error(
+        error instanceof PrfUnsupportedError || error instanceof vaultCrypto.VaultFormatError
+          ? error.message
+          : 'Passkey unlock failed — use your master password'
+      );
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const enrollPasskeyUnlock = async (credentialId: string, label?: string): Promise<void> => {
+    const session = sessionRef.current;
+    if (!session) {
+      throw new Error('Unlock the vault before enrolling a passkey');
+    }
+
+    const salt = vaultCrypto.newPrfSalt();
+    const prfOutput = await evaluatePrfForCredential(credentialId, salt);
+
+    // Wraps the existing DEK for this passkey. The vault body is not touched,
+    // and the master password wrap stays exactly as it was.
+    const updated = await vaultCrypto.enrollPasskey(session, credentialId, salt, prfOutput, label);
+    await persist(updated);
+    sessionRef.current = updated;
+    setEnrolledPasskeys(Object.keys(vaultCrypto.passkeyUnlockSalts(vaultCrypto.serialize(updated))));
+  };
+
+  const revokePasskeyUnlock = async (credentialId: string): Promise<void> => {
+    const session = sessionRef.current;
+    if (!session) {
+      throw new Error('Unlock the vault before changing passkey unlock');
+    }
+
+    const updated = vaultCrypto.revokePasskey(session, credentialId);
+    await persist(updated);
+    sessionRef.current = updated;
+    setEnrolledPasskeys(Object.keys(vaultCrypto.passkeyUnlockSalts(vaultCrypto.serialize(updated))));
   };
 
   const addEntry = async (entryData: Omit<VaultEntry, 'id' | 'created_at' | 'updated_at'>): Promise<void> => {
@@ -373,6 +506,11 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     loading,
     saving,
     unlock,
+    unlockWithPasskey,
+    passkeyUnlockAvailable: enrolledPasskeys.length > 0,
+    enrollPasskeyUnlock,
+    revokePasskeyUnlock,
+    enrolledPasskeys,
     lock,
     addEntry,
     updateEntry,

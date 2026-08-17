@@ -61,7 +61,7 @@
   "proxy": "http://localhost:7710",
   "jest": {
     "transformIgnorePatterns": [
-      "[/\\\\]node_modules[/\\\\](?!@noble[/\\\\])",
+      "[/\\\\]node_modules[/\\\\](?!(@noble[/\\\\]|axios[/\\\\]))",
       "^.+\\.module\\.(css|sass|scss)$"
     ]
   }

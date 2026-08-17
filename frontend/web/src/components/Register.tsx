@@ -3,8 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Header } from '@cloistr/ui';
 import { useAuth } from '../contexts/AuthContext';
-import { useCrypto } from '../contexts/CryptoContext';
-import { Mail, Lock, Key, Eye, EyeOff } from 'lucide-react';
+import { createInitialEnvelope } from '../crypto/vault';
+import { Mail, Key, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface RegisterForm {
@@ -15,7 +15,6 @@ interface RegisterForm {
 
 export default function Register() {
   const { register: registerUser, loading } = useAuth();
-  const { encryptVault } = useCrypto();
   const navigate = useNavigate();
   const [authMethod, setAuthMethod] = useState<'email' | 'nostr'>('email');
   const [nostrPublicKey, setNostrPublicKey] = useState('');
@@ -49,12 +48,10 @@ export default function Register() {
 
   const onEmailSubmit = async (data: RegisterForm) => {
     try {
-      // Create initial vault data
-      const initialVault = createInitialVault();
-      
-      // Encrypt the vault with the user's password
-      const encryptedVaultData = encryptVault(initialVault, data.password);
-      
+      // Seal the starter vault into a v2 envelope. Runs scrypt, so it takes
+      // about a second — the submit button is already disabled by `loading`.
+      const encryptedVaultData = await createInitialEnvelope(createInitialVault(), data.password);
+
       await registerUser(data.email, data.password, encryptedVaultData);
       navigate('/login');
     } catch (error) {
@@ -68,19 +65,10 @@ export default function Register() {
       return;
     }
 
-    try {
-      // For Nostr registration, we need to create a vault encrypted with the public key
-      // In a real implementation, this would be more sophisticated
-      const initialVault = createInitialVault();
-      const encryptedVaultData = encryptVault(initialVault, nostrPublicKey);
-      
-      toast.error('Nostr registration requires additional setup - feature coming soon');
-      
-      // await registerWithNostr(nostrPublicKey, encryptedVaultData);
-      // navigate('/login');
-    } catch (error) {
-      // Error handling is done in AuthContext
-    }
+    // Deliberately does not build a vault yet. The previous version encrypted
+    // one under the Nostr *public* key — which is public, so it protected
+    // nothing — and then discarded the result without registering anything.
+    toast.error('Nostr registration requires additional setup - feature coming soon');
   };
 
   return (

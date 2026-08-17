@@ -106,6 +106,17 @@ export async function unlockWithPrf<T>(
   return { data, envelope, dek, migrated: false };
 }
 
+/**
+ * Seals a starter vault at registration time, before any session exists.
+ *
+ * Returns the blob to hand to the register endpoint. The DEK is discarded —
+ * the user's first unlock re-derives it from the password.
+ */
+export async function createInitialEnvelope<T>(vault: T, password: string): Promise<string> {
+  const { envelope } = await createEnvelope(vault, password);
+  return serializeEnvelope(envelope);
+}
+
 /** Re-encrypts the body under the existing DEK. Does not re-run scrypt. */
 export async function saveVault<T>(
   unlocked: UnlockedVault<T>,

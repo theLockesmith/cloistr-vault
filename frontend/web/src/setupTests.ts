@@ -2,6 +2,15 @@
 
 import '@testing-library/jest-dom';
 import { webcrypto } from 'crypto';
+import { TextDecoder, TextEncoder } from 'util';
+
+// jsdom omits the Encoding API too. Node's implementations are spec-compatible.
+if (typeof globalThis.TextEncoder === 'undefined') {
+  globalThis.TextEncoder = TextEncoder as typeof globalThis.TextEncoder;
+}
+if (typeof globalThis.TextDecoder === 'undefined') {
+  globalThis.TextDecoder = TextDecoder as typeof globalThis.TextDecoder;
+}
 
 // jsdom does not install a WebCrypto implementation on its global object, so
 // `crypto.getRandomValues` and `crypto.subtle` are undefined under test even

@@ -17,6 +17,11 @@ export default function Dashboard() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [folders, setFolders] = useState<VaultFolder[]>([]);
   const [showSidebar, setShowSidebar] = useState(true);
+  // SEPARATE from showSidebar on purpose. showSidebar is the DESKTOP rail and
+  // correctly defaults to open; a phone drawer must default to CLOSED. Driving
+  // both from one boolean is what rendered the fixed 256px folder column over a
+  // 375px viewport — 68% of the screen — with the entry list crushed beside it.
+  const [mobileFoldersOpen, setMobileFoldersOpen] = useState(false);
 
   // Filter entries based on search query, type filter, and folder
   const filteredEntries = vaultData?.entries.filter(entry => {
@@ -145,14 +150,37 @@ export default function Dashboard() {
 
   return (
     <div className="flex gap-6">
-      {/* Folder Sidebar */}
-      {showSidebar && (
-        <div className="w-64 flex-shrink-0">
+      {/* Backdrop: mobile only, only while the folder drawer is open. Tap to close. */}
+      {mobileFoldersOpen && (
+        <div
+          className="fixed inset-0 z-[var(--cloistr-z-drawer-backdrop,60)] bg-black/50 md:hidden"
+          aria-hidden="true"
+          onClick={() => setMobileFoldersOpen(false)}
+        />
+      )}
+
+      {/* Folder Sidebar.
+          Below md: an off-canvas drawer. `fixed` takes it OUT of flow, which is
+          what stops it stealing 68% of a phone viewport, and it sits on the
+          shared drawer layer so the sticky header cannot paint over its top.
+          At md+: `md:static` puts it back as the in-flow rail that showSidebar
+          controls, unchanged. */}
+      <div
+        className={[
+          'w-64 flex-shrink-0',
+          'fixed inset-y-0 left-0 z-[var(--cloistr-z-drawer,70)] overflow-y-auto bg-cloistr-bg p-2',
+          'transition-transform duration-200 ease-out',
+          mobileFoldersOpen ? 'translate-x-0' : '-translate-x-full',
+          'md:static md:z-auto md:translate-x-0 md:overflow-visible md:bg-transparent md:p-0',
+          showSidebar ? 'md:block' : 'md:hidden',
+        ].join(' ')}
+      >
+        <div>
           <div className="card sticky top-4">
             <div className="card-header py-3 px-4 flex items-center justify-between">
               <h3 className="text-sm font-medium">Folders</h3>
               <button
-                onClick={() => setShowSidebar(false)}
+                onClick={() => { setShowSidebar(false); setMobileFoldersOpen(false); }}
                 className="p-1 hover:bg-cloistr-bg-hover rounded"
                 title="Hide sidebar"
               >
@@ -168,17 +196,26 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Main Content */}
       <div className="flex-1 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
+            {/* Mobile: the only way to reach the folder drawer, which is off-canvas. */}
+            <button
+              onClick={() => setMobileFoldersOpen(true)}
+              className="p-2 hover:bg-cloistr-bg-hover rounded md:hidden"
+              aria-label="Show folders"
+              aria-expanded={mobileFoldersOpen}
+            >
+              <PanelLeft className="h-4 w-4" />
+            </button>
             {!showSidebar && (
               <button
                 onClick={() => setShowSidebar(true)}
-                className="p-2 hover:bg-cloistr-bg-hover rounded"
+                className="hidden p-2 hover:bg-cloistr-bg-hover rounded md:block"
                 title="Show folders"
               >
                 <PanelLeft className="h-4 w-4" />

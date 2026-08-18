@@ -18,19 +18,22 @@ Coldforge Vault uses a **pluggable authentication architecture** that allows eas
 - **No MFA Needed:** Cryptographic signatures are inherently strong
 - **Recovery:** Private key backup + trusted device recovery
 
+### ✅ **WebAuthn/FIDO2 Passkeys** (Production Ready)
+- **Features:** Hardware keys (YubiKey), platform authenticators (TouchID, FaceID,
+  Windows Hello), discoverable/usernameless login, credential management
+- **Security:** Phishing-resistant, hardware-backed public-key assertions
+- **Implementation:** `backend/internal/auth/webauthn.go`,
+  `backend/internal/api/handlers_webauthn.go`; `.well-known` domain association
+  for Apple/Google passkey ecosystems
+- **Caveat:** Authenticates only — see PRF gap under Phase 2 below
+
 ## 🚀 **Planned Authentication Methods**
 
-### 🎯 **WebAuthn/FIDO2** (High Priority)
-```go
-type WebAuthnProvider struct {
-    // Hardware security keys (YubiKey, etc.)
-    // Biometric authentication (TouchID, FaceID, Windows Hello)
-    // Platform authenticators
-}
-
-// Required fields: ["credential_id", "authenticator_data", "signature"]
-// Features: Phishing-resistant, hardware-backed, passwordless
-```
+### 🎯 **Passkey Vault Unlock via WebAuthn PRF** (High Priority)
+Passkey login issues a session token but derives **no encryption key**, so the
+master password is still required to decrypt the vault. The PRF extension closes
+this gap by deriving the vault key client-side from the authenticator, making
+passkeys a genuine passwordless unlock without breaking zero-knowledge.
 
 ### 🎯 **OAuth2/OIDC Providers** (Medium Priority)
 ```go
@@ -125,7 +128,12 @@ graph TD
 - 🔄 Complete database integration
 
 ### **Phase 2: Modern Auth (Next 3 months)**
-- 🎯 **WebAuthn/FIDO2** - Hardware keys, biometrics
+- ✅ **WebAuthn/FIDO2** - Hardware keys, biometrics, discoverable login
+- 🎯 **Passkey PRF unlock** - Derive vault key from authenticator, drop the
+  master-password step on passkey login
+- 🎯 **Passkey surface parity** - Extension popup UI, Electron desktop,
+  conditional-UI autofill
+- 🎯 **WebAuthn test coverage** - No `webauthn_test.go` exists today
 - 🎯 **Complete Nostr flow** - Full challenge/response
 - 🎯 **MFA Integration** - TOTP, backup codes
 - 🎯 **Recovery system** - Multiple recovery options
@@ -168,7 +176,7 @@ Each authentication provider includes:
 ## 🚀 **Recommended Next Steps**
 
 1. **Complete Nostr integration** - Full production flow
-2. **Add WebAuthn support** - Modern passwordless auth
+2. **Add PRF-based passkey unlock** - Make passkey login truly passwordless
 3. **Implement MFA system** - TOTP + backup codes
 4. **Build recovery system** - Multiple recovery paths
 5. **Add provider testing** - Comprehensive test coverage

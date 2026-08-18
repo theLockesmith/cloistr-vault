@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useVault } from '../contexts/VaultContext';
+import { PrfCancelledError, PrfUnsupportedError } from '../crypto/prf';
 import { Shield, Key, Zap, CheckCircle, AlertCircle, Search, ArrowLeft, Fingerprint, Plus, Trash2, Edit2, X, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -29,8 +31,49 @@ export default function Settings() {
   const [showAddPasskey, setShowAddPasskey] = useState(false);
   const [editingCredential, setEditingCredential] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const { isLocked, enrolledPasskeys, enrollPasskeyUnlock, revokePasskeyUnlock } = useVault();
+  const [busyCredential, setBusyCredential] = useState<string | null>(null);
 
   const isNostrUser = user?.auth_method === 'nostr' || user?.nostr_pubkey;
+
+  /**
+   * Enrols a passkey as a vault unlock factor.
+   *
+   * Distinct from registering the passkey itself: that proves identity to the
+   * server, this wraps the vault's data key for the authenticator so the
+   * passkey can actually decrypt. It needs the vault open, because the key
+   * being wrapped only exists while unlocked.
+   */
+  const handleEnableVaultUnlock = async (credentialId: string, name: string) => {
+    setBusyCredential(credentialId);
+    try {
+      await enrollPasskeyUnlock(credentialId, name);
+      toast.success(`"${name}" can now unlock your vault`);
+    } catch (error: any) {
+      if (error instanceof PrfCancelledError) {
+        return; // User dismissed the prompt.
+      }
+      toast.error(
+        error instanceof PrfUnsupportedError
+          ? error.message
+          : error?.message || 'Could not enable vault unlock for this passkey'
+      );
+    } finally {
+      setBusyCredential(null);
+    }
+  };
+
+  const handleDisableVaultUnlock = async (credentialId: string) => {
+    setBusyCredential(credentialId);
+    try {
+      await revokePasskeyUnlock(credentialId);
+      toast.success('Passkey can no longer unlock your vault');
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not disable vault unlock');
+    } finally {
+      setBusyCredential(null);
+    }
+  };
 
   useEffect(() => {
     if (isWebAuthnAvailable) {
@@ -345,6 +388,37 @@ export default function Settings() {
                           <div className="text-xs text-cloistr-text-muted mt-1">
                             Added {formatDate(cred.created_at)}
                             {cred.last_used_at && ` • Last used ${formatDate(cred.last_used_at)}`}
+                          </div>
+                          <div className="mt-2">
+                            {enrolledPasskeys.includes(cred.credential_id) ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs bg-cloistr-success/10 text-cloistr-success px-1.5 py-0.5 rounded">
+                                  Unlocks vault
+                                </span>
+                                <button
+                                  onClick={() => handleDisableVaultUnlock(cred.credential_id)}
+                                  disabled={busyCredential === cred.credential_id || isLocked}
+                                  className="text-xs text-cloistr-text-muted hover:text-cloistr-error disabled:opacity-50"
+                                >
+                                  Disable
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleEnableVaultUnlock(cred.credential_id, cred.name)}
+                                disabled={busyCredential === cred.credential_id || isLocked}
+                                className="text-xs text-cloistr-primary hover:underline disabled:opacity-50"
+                                title={
+                                  isLocked
+                                    ? 'Unlock your vault first'
+                                    : 'Use this passkey to unlock the vault, not just to sign in'
+                                }
+                              >
+                                {busyCredential === cred.credential_id
+                                  ? 'Waiting for authenticator…'
+                                  : 'Use to unlock vault'}
+                              </button>
+                            )}
                           </div>
                         </>
                       )}

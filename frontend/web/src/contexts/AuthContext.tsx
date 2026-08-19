@@ -493,6 +493,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }));
       }
 
+      // Ask for the PRF extension so this credential can unlock the vault, not
+      // just prove identity. The server requests it too; setting it here as
+      // well means a client talking to an older replica mid-rollout still gets
+      // a PRF-capable passkey. PRF must be requested at creation — an
+      // authenticator will not retrofit hmac-secret onto an existing
+      // credential.
+      options.publicKey.extensions = {
+        ...(options.publicKey.extensions || {}),
+        prf: {},
+      };
+
       // Step 2: Create credential with authenticator
       const credential = await navigator.credentials.create({
         publicKey: options.publicKey,
@@ -503,6 +514,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const response = credential.response as AuthenticatorAttestationResponse;
+      // `enabled` reports whether the authenticator will evaluate the PRF for
+      // this credential. Absent or false means the passkey signs in fine but
+      // can never unlock the vault, which is worth saying at registration
+      // rather than letting the user discover it at the lock screen.
+      const prfEnabled =
+        (credential.getClientExtensionResults() as { prf?: { enabled?: boolean } }).prf?.enabled ===
+        true;
 
       // Step 3: Send credential to server
       const finishResponse = await axios.post(`/user/webauthn/register/finish?name=${encodeURIComponent(name)}`, {
@@ -515,7 +533,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       });
 
-      toast.success('Passkey registered successfully!');
+      if (prfEnabled) {
+        toast.success('Passkey registered — you can enable vault unlock for it in Settings');
+      } else {
+        toast.success('Passkey registered successfully!');
+        toast('This passkey can sign you in but cannot unlock your vault', { icon: 'ℹ️' });
+      }
       return finishResponse.data.credential;
     } catch (error: any) {
       const message = error.response?.data?.error || error.message || 'Failed to register passkey';

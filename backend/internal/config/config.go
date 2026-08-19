@@ -11,6 +11,7 @@ type Config struct {
 	Security SecurityConfig
 	KMS      KMSConfig
 	Auth     AuthConfig
+	WebAuthn WebAuthnConfig
 }
 
 // AuthConfig holds unified-auth settings.
@@ -43,6 +44,22 @@ type SecurityConfig struct {
 	ScryptR         int
 	ScryptP         int
 	SessionDuration int // hours
+}
+
+// WebAuthnConfig holds the relying-party identity for passkeys.
+//
+// RPID must be the site's registrable domain and Origin must match the exact
+// scheme+host+port the browser is on, or the authenticator refuses the
+// ceremony. For local development that means RPID "localhost" and an Origin of
+// the dev server, e.g. http://localhost:3000 — not the API's own port, since
+// the browser is talking to the frontend.
+//
+// Credentials are scoped to RPID: passkeys registered against localhost will
+// not work against vault.cloistr.xyz, and vice versa.
+type WebAuthnConfig struct {
+	RPID        string
+	Origin      string
+	DisplayName string
 }
 
 type KMSConfig struct {
@@ -89,6 +106,11 @@ func LoadConfig() *Config {
 		Auth: AuthConfig{
 			// Default: in-cluster signer address. Empty string disables unified-auth.
 			SignerURL: getEnv("VAULT_SIGNER_URL", "http://cloistr-signer.cloistr.svc.cluster.local:7777"),
+		},
+		WebAuthn: WebAuthnConfig{
+			RPID:        getEnv("WEBAUTHN_RP_ID", "vault.cloistr.xyz"),
+			Origin:      getEnv("WEBAUTHN_ORIGIN", "https://vault.cloistr.xyz"),
+			DisplayName: getEnv("WEBAUTHN_DISPLAY_NAME", "Cloistr Vault"),
 		},
 	}
 }

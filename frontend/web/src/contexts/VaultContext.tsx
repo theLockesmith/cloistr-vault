@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 
 export interface VaultEntry {
   id: string;
-  type: 'login' | 'note' | 'card' | 'identity';
+  type: 'login' | 'note' | 'card' | 'identity' | 'totp';
   name: string;
   fields: Record<string, string>;
   notes: string;

@@ -30,7 +30,12 @@ interface PrfExtensionResults {
   results?: { first?: ArrayBuffer; second?: ArrayBuffer };
 }
 
-interface ExtensionResultsWithPrf extends AuthenticationExtensionsClientOutputs {
+// Declared as a standalone type rather than extending
+// AuthenticationExtensionsClientOutputs because the TS 5 DOM types define
+// AuthenticationExtensionsPRFValues.first as required BufferSource, which
+// conflicts with our looser optional ArrayBuffer.  We only ever use this as
+// an `as` cast from getClientExtensionResults(), so no extends is needed.
+interface ExtensionResultsWithPrf {
   prf?: PrfExtensionResults;
 }
 

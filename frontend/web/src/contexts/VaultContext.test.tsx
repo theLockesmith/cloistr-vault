@@ -1,23 +1,24 @@
 import React, { ReactNode } from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { type Mocked } from 'vitest';
 import CryptoJS from 'crypto-js';
 import axios from 'axios';
 import { VaultProvider, useVault } from './VaultContext';
 import { isEnvelopeV2 } from '../crypto/envelope';
 import { isLegacyVault } from '../crypto/legacy';
 
-jest.mock('axios');
-jest.mock('react-hot-toast', () => {
-  const toast: any = jest.fn();
-  toast.success = jest.fn();
-  toast.error = jest.fn();
+vi.mock('axios');
+vi.mock('react-hot-toast', () => {
+  const toast: any = vi.fn();
+  toast.success = vi.fn();
+  toast.error = vi.fn();
   return { __esModule: true, default: toast };
 });
-jest.mock('./AuthContext', () => ({
+vi.mock('./AuthContext', () => ({
   useAuth: () => ({ token: 'test-token', sessionMode: 'password' }),
 }));
 
-const mockedAxios = axios as jest.Mocked<typeof axios>;
+const mockedAxios = axios as Mocked<typeof axios>;
 
 const PASSWORD = 'a-master-password';
 
@@ -51,10 +52,8 @@ function makeLegacyBlob(vault: unknown, password: string): string {
 
 const wrapper = ({ children }: { children: ReactNode }) => <VaultProvider>{children}</VaultProvider>;
 
-jest.setTimeout(120_000);
-
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('VaultContext v1 migration', () => {
@@ -118,7 +117,7 @@ describe('VaultContext v1 migration', () => {
     expect(isEnvelopeV2(v2Blob)).toBe(true);
 
     // Now unlock that blob fresh — no migration write should occur.
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedAxios.get.mockResolvedValue({ data: { encrypted_data: v2Blob, version: 1 } });
 
     const { result } = renderHook(() => useVault(), { wrapper });

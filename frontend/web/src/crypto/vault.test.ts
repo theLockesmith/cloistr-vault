@@ -52,7 +52,7 @@ function makeLegacyBlob(vault: unknown, password: string): string {
 }
 
 // scrypt at N=32768 is deliberately slow; these run it several times over.
-jest.setTimeout(120_000);
+// The 120s timeout is set globally in vite.config.ts (test.testTimeout).
 
 describe('v2 envelope round-trip', () => {
   it('creates a vault when there is no stored blob', async () => {

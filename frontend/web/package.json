@@ -4,7 +4,6 @@
   "description": "Cloistr Vault Web Application - Zero-knowledge password manager",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.29.3",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

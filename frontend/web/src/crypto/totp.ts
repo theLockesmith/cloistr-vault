@@ -52,9 +52,12 @@ export async function totp(
   view.setUint32(0, Math.floor(counter / 0x100000000), false);
   view.setUint32(4, counter >>> 0, false);
 
+  // TS 5 tightened Uint8Array to Uint8Array<ArrayBuffer>; slicing produces a
+  // fresh typed array with a plain ArrayBuffer, satisfying importKey's
+  // BufferSource parameter without a cast.
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    keyBytes,
+    keyBytes.slice() as Uint8Array<ArrayBuffer>,
     { name: 'HMAC', hash: 'SHA-1' },
     false,
     ['sign']

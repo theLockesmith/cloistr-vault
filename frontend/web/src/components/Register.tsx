@@ -72,7 +72,7 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-cloistr-bg">
+    <div className="min-h-dvh flex flex-col bg-cloistr-bg">
       <Header
         activeServiceId="vault"
         auth={{ authenticated: false }}

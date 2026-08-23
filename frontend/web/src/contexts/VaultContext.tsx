@@ -6,6 +6,15 @@ import { PrfCancelledError, PrfUnsupportedError, evaluatePrf, evaluatePrfForCred
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
+export interface VaultAttachment {
+  /** Original filename. */
+  name: string;
+  /** MIME type, e.g. "image/png". */
+  mime: string;
+  /** Base64-encoded file content. Stored encrypted inside the vault blob. */
+  data: string;
+}
+
 export interface VaultEntry {
   id: string;
   type: 'login' | 'note' | 'card' | 'identity' | 'totp';
@@ -16,6 +25,10 @@ export interface VaultEntry {
   updated_at: string;
   favorite: boolean;
   folder_id?: string;
+  /** Arbitrary user-defined fields (label → value). */
+  custom_fields?: Array<{ label: string; value: string }>;
+  /** Small attachments stored as base64 inside the encrypted blob. */
+  attachments?: VaultAttachment[];
 }
 
 export interface VaultFolder {

@@ -105,6 +105,7 @@ export default function UnlockModal({ onUnlock }: UnlockModalProps) {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 flex items-center pr-3 text-cloistr-text-muted hover:text-cloistr-text"
                   tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />

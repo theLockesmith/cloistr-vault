@@ -241,6 +241,7 @@ export default function VaultEntryModal({
                       type="button"
                       onClick={() => togglePasswordVisibility(fieldName)}
                       className="p-1 text-cloistr-text-muted hover:text-cloistr-text"
+                      aria-label={showPassword[fieldName] ? 'Hide password' : 'Show password'}
                     >
                       {showPassword[fieldName] ? (
                         <EyeOff className="h-4 w-4" />

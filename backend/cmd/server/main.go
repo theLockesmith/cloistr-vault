@@ -103,6 +103,32 @@ func main() {
 
 	// Initialize services
 	authService := auth.NewAuthService(db.DB, relayPrefsClient)
+
+	// Wire up WebAuthn. Without this every passkey endpoint returns
+	// ErrWebAuthnNotConfigured, because AuthService leaves its webauthn handle
+	// nil until InitWebAuthn runs. Registration and login both fail closed, so
+	// the failure is a hard 500 on use rather than anything visible at startup
+	// -- log the outcome either way.
+	if err := authService.InitWebAuthn(
+		cfg.WebAuthn.RPID,
+		cfg.WebAuthn.Origin,
+		cfg.WebAuthn.DisplayName,
+	); err != nil {
+		// Non-fatal: the rest of the service (password and Nostr auth, vault
+		// CRUD) is unaffected, so refuse to take the whole server down over a
+		// misconfigured relying party.
+		observability.Error("webauthn initialization failed — passkeys disabled",
+			"error", err,
+			"rp_id", cfg.WebAuthn.RPID,
+			"origin", cfg.WebAuthn.Origin,
+		)
+	} else {
+		observability.Info("webauthn initialized",
+			"rp_id", cfg.WebAuthn.RPID,
+			"origin", cfg.WebAuthn.Origin,
+		)
+	}
+
 	vaultService := vault.NewService(db)
 	folderService := vault.NewFolderService(db)
 	entryService := vault.NewEntryService(db)

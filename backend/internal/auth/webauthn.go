@@ -125,8 +125,28 @@ func (a *AuthService) BeginWebAuthnRegistration(userID uuid.UUID) (*protocol.Cre
 	}
 	user.Credentials = credentials
 
-	// Begin registration
-	options, session, err := a.webauthn.BeginRegistration(user)
+	// Begin registration, requesting the PRF extension.
+	//
+	// PRF is what lets a passkey unlock the vault rather than merely prove
+	// identity: the authenticator evaluates HMAC over a client-supplied salt
+	// using a secret that never leaves the device, giving us stable key
+	// material to derive a key-encryption key from.
+	//
+	// It must be requested at creation time. PRF is backed by CTAP2
+	// hmac-secret, which authenticators generally treat as a property fixed
+	// when the credential is minted -- a credential registered without it
+	// usually cannot evaluate the PRF later, no matter what the assertion
+	// asks for. Requesting an empty prf object here does not commit the
+	// client to anything; it only signals that the credential should be
+	// PRF-capable. Authenticators that do not support it still register
+	// normally and simply return no PRF results, which the web client
+	// reports as "this passkey cannot unlock the vault".
+	options, session, err := a.webauthn.BeginRegistration(
+		user,
+		webauthn.WithExtensions(protocol.AuthenticationExtensions{
+			"prf": map[string]any{},
+		}),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin registration: %w", err)
 	}

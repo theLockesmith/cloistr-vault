@@ -16,7 +16,7 @@ export default function Layout({ children }: LayoutProps) {
   const pubkey = user?.nostr_pubkey ?? user?.pubkey ?? undefined;
 
   return (
-    <div className="min-h-screen bg-cloistr-bg flex flex-col">
+    <div className="min-h-dvh bg-cloistr-bg flex flex-col">
       {/* Shared Cloistr Header: app-switcher, theme toggle, wordmark, user menu */}
       <Header
         activeServiceId="vault"

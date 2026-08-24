@@ -1,4 +1,4 @@
-// Jest setup, auto-loaded by react-scripts before each test file.
+// Vitest setup, loaded before each test file via vite.config.ts setupFiles.
 
 import '@testing-library/jest-dom';
 import { webcrypto } from 'crypto';

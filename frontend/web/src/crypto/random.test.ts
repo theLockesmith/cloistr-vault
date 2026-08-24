@@ -153,3 +153,67 @@ describe('generatePassword', () => {
     expect(generated.size).toBe(200);
   });
 });
+
+// ---------- generatePasswordFromOptions ----------
+import { generatePasswordFromOptions } from './random';
+
+describe('generatePasswordFromOptions', () => {
+  const hasLower  = (s: string) => /[a-z]/.test(s);
+  const hasUpper  = (s: string) => /[A-Z]/.test(s);
+  const hasDigit  = (s: string) => /[0-9]/.test(s);
+  const hasSpecial = (s: string) => /[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/.test(s);
+  const AMBIGUOUS = /[Il1O0]/;
+
+  it('uses all classes by default', () => {
+    for (let i = 0; i < 50; i++) {
+      const pw = generatePasswordFromOptions({ length: 16 });
+      expect(pw).toHaveLength(16);
+      expect(hasLower(pw)).toBe(true);
+      expect(hasUpper(pw)).toBe(true);
+      expect(hasDigit(pw)).toBe(true);
+      expect(hasSpecial(pw)).toBe(true);
+    }
+  });
+
+  it('honours includeLower=false', () => {
+    for (let i = 0; i < 50; i++) {
+      const pw = generatePasswordFromOptions({ length: 12, includeLower: false });
+      expect(hasLower(pw)).toBe(false);
+    }
+  });
+
+  it('honours includeSpecial=false', () => {
+    for (let i = 0; i < 50; i++) {
+      const pw = generatePasswordFromOptions({ length: 12, includeSpecial: false });
+      expect(hasSpecial(pw)).toBe(false);
+    }
+  });
+
+  it('excludes ambiguous characters when asked', () => {
+    for (let i = 0; i < 200; i++) {
+      const pw = generatePasswordFromOptions({ length: 24, excludeAmbiguous: true });
+      expect(AMBIGUOUS.test(pw)).toBe(false);
+    }
+  });
+
+  it('honours the requested length', () => {
+    expect(generatePasswordFromOptions({ length: 8 })).toHaveLength(8);
+    expect(generatePasswordFromOptions({ length: 64 })).toHaveLength(64);
+  });
+
+  it('throws when no class is enabled', () => {
+    expect(() =>
+      generatePasswordFromOptions({
+        includeLower: false,
+        includeUpper: false,
+        includeNumbers: false,
+        includeSpecial: false,
+      })
+    ).toThrow();
+  });
+
+  it('does not repeat across calls', () => {
+    const generated = new Set(Array.from({ length: 100 }, () => generatePasswordFromOptions({ length: 20 })));
+    expect(generated.size).toBe(100);
+  });
+});

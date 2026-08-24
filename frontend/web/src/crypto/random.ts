@@ -104,3 +104,68 @@ export function generatePassword(length: number = 16, includeSpecial: boolean = 
 
   return shuffle(chars).join('');
 }
+
+// Ambiguous characters that are hard to distinguish visually in some fonts.
+const AMBIGUOUS = new Set(['I', 'l', '1', 'O', '0']);
+
+/**
+ * Options for the configurable password generator.
+ *
+ * Every character class defaults to enabled; `excludeAmbiguous` defaults to
+ * false so the old behaviour is preserved when no options are supplied.
+ */
+export interface PasswordOptions {
+  length?: number;
+  includeLower?: boolean;
+  includeUpper?: boolean;
+  includeNumbers?: boolean;
+  includeSpecial?: boolean;
+  excludeAmbiguous?: boolean;
+}
+
+/**
+ * Generates a password from a full options object.
+ *
+ * At least one character class must be enabled. Guarantees at least one
+ * character from each enabled class, then fills the remainder from the union.
+ * The full password is shuffled so the guaranteed characters reveal nothing
+ * about where in the string they are.
+ */
+export function generatePasswordFromOptions(opts: PasswordOptions = {}): string {
+  const {
+    length = 16,
+    includeLower = true,
+    includeUpper = true,
+    includeNumbers = true,
+    includeSpecial = true,
+    excludeAmbiguous = false,
+  } = opts;
+
+  const filter = (s: string) =>
+    excludeAmbiguous ? [...s].filter((c) => !AMBIGUOUS.has(c)).join('') : s;
+
+  const classes = [
+    includeLower ? filter(LOWERCASE) : '',
+    includeUpper ? filter(UPPERCASE) : '',
+    includeNumbers ? filter(NUMBERS) : '',
+    includeSpecial ? SPECIAL : '',
+  ].filter(Boolean);
+
+  if (classes.length === 0) {
+    throw new Error('generatePasswordFromOptions: at least one character class must be enabled');
+  }
+
+  if (length < classes.length) {
+    throw new Error(
+      `generatePasswordFromOptions: length ${length} cannot cover ${classes.length} required character classes`,
+    );
+  }
+
+  const charset = classes.join('');
+  const chars = classes.map((cls) => randomChoice(cls));
+  while (chars.length < length) {
+    chars.push(randomChoice(charset));
+  }
+
+  return shuffle(chars).join('');
+}

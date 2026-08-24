@@ -13,10 +13,14 @@ COPY frontend/web/package.json frontend/web/package-lock.json frontend/web/.npmr
 # peer is optional, so ignore the conflict rather than break the CRA toolchain.
 RUN NPM_AEGIS_TOKEN=${NPM_AEGIS_TOKEN} npm ci --legacy-peer-deps
 
-# Build the production bundle. INLINE_RUNTIME_CHUNK=false keeps all JS in
-# external files so the strict default-src 'self' CSP is not violated.
+# Build the production bundle. Vite emits external JS files by default, which
+# is what the strict default-src 'self' CSP requires.
 COPY frontend/web/ ./
-RUN CI=false INLINE_RUNTIME_CHUNK=false npm run build
+# Vite build. CI=false and INLINE_RUNTIME_CHUNK were Create React App
+# settings (suppressing CRA's treat-warnings-as-errors and its runtime
+# chunk inlining). Neither means anything to Vite, so they are dropped
+# rather than left as cargo cult.
+RUN npm run build
 
 # Build stage
 FROM golang:1.27-alpine AS builder
@@ -56,7 +60,13 @@ COPY --from=builder /app/main .
 COPY --from=builder /app/migrations ./migrations
 
 # Copy the built web UI (served as static files by the API at /)
-COPY --from=webbuilder /web/build ./web
+# Vite outputs to dist/; Create React App output to build/.
+#
+# This still said /web/build after the migration, and /web/build does not exist
+# under Vite. The image would have shipped with NO FRONTEND. The Docker build is
+# the only place that surfaces it: tsc, vitest and `vite build` all pass
+# regardless, which is why the migration looked complete.
+COPY --from=webbuilder /web/dist ./web
 
 # Change ownership to app user
 RUN chown -R appuser:appgroup /app

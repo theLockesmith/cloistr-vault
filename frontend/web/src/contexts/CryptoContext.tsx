@@ -1,5 +1,6 @@
 import React, { createContext, useContext, ReactNode } from 'react';
-import { generatePassword as generateSecurePassword } from '../crypto/random';
+import { generatePassword as generateSecurePassword, generatePasswordFromOptions } from '../crypto/random';
+import type { PasswordOptions } from '../crypto/random';
 
 /**
  * Password generation for the UI.
@@ -13,6 +14,7 @@ import { generatePassword as generateSecurePassword } from '../crypto/random';
  */
 interface CryptoContextType {
   generatePassword: (length?: number, includeSpecial?: boolean) => string;
+  generatePasswordFromOptions: (opts?: PasswordOptions) => string;
 }
 
 const CryptoContext = createContext<CryptoContextType | undefined>(undefined);
@@ -20,6 +22,7 @@ const CryptoContext = createContext<CryptoContextType | undefined>(undefined);
 export function CryptoProvider({ children }: { children: ReactNode }) {
   const value: CryptoContextType = {
     generatePassword: generateSecurePassword,
+    generatePasswordFromOptions,
   };
 
   return <CryptoContext.Provider value={value}>{children}</CryptoContext.Provider>;

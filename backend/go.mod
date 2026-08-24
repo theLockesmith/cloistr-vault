@@ -3,7 +3,7 @@ module github.com/coldforge/vault
 go 1.26.6
 
 require (
-	git.aegis-hq.xyz/coldforge/cloistr-common v0.2.1
+	git.aegis-hq.xyz/coldforge/cloistr-common v0.3.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
 	github.com/gin-gonic/gin v1.12.0

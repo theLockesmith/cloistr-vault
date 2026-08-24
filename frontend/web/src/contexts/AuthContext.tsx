@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { withSignerRetry, isRetryableSignerError } from '@cloistr/ui';
 
 interface User {
   id?: string;
@@ -58,6 +59,14 @@ interface AuthContextType {
   logout: () => void;
   loading: boolean;
   sessionMode: 'vault' | 'signer' | null;
+  /**
+   * Set when the startup signer probe failed due to a transient network error.
+   * The session may still be valid — the signer was temporarily unreachable.
+   * Never set for a genuine absence of session (HTTP 4xx = no session = null).
+   */
+  signerProbeError: unknown | null;
+  /** Re-runs the signer probe. Call from a recovery screen, not silently. */
+  retrySignerProbe: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -68,12 +77,53 @@ axios.defaults.baseURL = '/api/v1';
 // reaches vault.cloistr.xyz automatically on every request.
 axios.defaults.withCredentials = true;
 
+/**
+ * Build a fetch error with a code that classifySignerError (from @cloistr/ui)
+ * recognises as retryable. The signer probe uses HTTP, not NIP-46, but the
+ * same retry classification applies: a network exception means "couldn't reach
+ * the signer", which is retryable and must not be treated as "no session".
+ */
+function makeRetryableError(cause: unknown): Error & { code: string } {
+  const err = new Error(
+    cause instanceof Error ? cause.message : 'Signer unreachable',
+  ) as Error & { code: string };
+  err.code = 'CONNECTION_FAILED';
+  err.cause = cause;
+  return err;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isWebAuthnAvailable, setIsWebAuthnAvailable] = useState(false);
   const [sessionMode, setSessionMode] = useState<'vault' | 'signer' | null>(null);
+  /**
+   * Tracks a transient signer-probe failure.
+   *
+   * WHY THIS EXISTS — and why it is NOT a logout signal:
+   *
+   * session            = who you are (backend JWT + SSO cookie)
+   * signer reachability = can we reach signer.cloistr.xyz right now
+   *
+   * Before this change, a network error during the startup probe cleared the
+   * session flag and let ProtectedRoute redirect to /login. That is wrong: the
+   * cookie is still valid; only the HTTP request timed out. Users on mobile
+   * see this every time they switch apps and back: one hiccup, and they are
+   * at a credential prompt for a session that was never actually invalid.
+   *
+   * signerProbeError is only set for NETWORK errors (fetch throws). An HTTP
+   * 401/403 is a genuine "no session" and leaves this null — login IS correct.
+   */
+  const [signerProbeError, setSignerProbeError] = useState<unknown | null>(null);
+
+  // Keep probe-error state in a ref so the visibilitychange handler always
+  // reads the current value without being torn down and re-registered on every
+  // state change (the same pattern useRelayReconnect uses for authState).
+  const signerProbeErrorRef = useRef<unknown | null>(null);
+  useEffect(() => {
+    signerProbeErrorRef.current = signerProbeError;
+  }, [signerProbeError]);
 
   useEffect(() => {
     // Check WebAuthn availability
@@ -106,37 +156,142 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 2. No vault token -- probe the signer for a shared session.
       //    The .cloistr.xyz auth_token cookie rides automatically because
       //    withCredentials = true is set globally above.
-      try {
-        const resp = await fetch('https://signer.cloistr.xyz/api/v1/users/me', {
-          credentials: 'include',
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data?.pubkey) {
-            const signerUser: User = {
-              pubkey: data.pubkey,
-              nostr_pubkey: data.pubkey,
-              display_name: data.display_name ?? data.name ?? undefined,
-              nip05_address: data.nip05 ?? undefined,
-            };
-            setUser(signerUser);
-            setSessionMode('signer');
-            // No Authorization header -- backend authenticates via the cookie.
-            localStorage.setItem('vault_session_mode', 'signer');
-            setLoading(false);
-            return;
-          }
-        }
-      } catch (err) {
-        // Signer unreachable or no active session -- fall through to login.
-        console.debug('No signer session available:', err);
-      }
-
-      // Clear stale signer flag if probe failed.
-      localStorage.removeItem('vault_session_mode');
+      //    Keep loading=true through all retry attempts. ProtectedRoute should
+      //    show the spinner, not the recovery screen, while retries are in
+      //    flight. Only after doSignerProbe() finishes (success, no-session,
+      //    or retries-exhausted) does the loading state resolve.
+      await doSignerProbe();
       setLoading(false);
     })();
   }, []);
+
+  /**
+   * Part 4 — reconnect on visibilitychange.
+   *
+   * When the OS backgrounds the page (app-switcher, file picker, screen lock)
+   * it can kill HTTP connections in flight. If that happened to the startup
+   * probe, signerProbeError is set and the recovery screen is showing. When the
+   * user flips back to the tab, re-run the probe silently so a mere background
+   * trip does not keep them on the recovery screen indefinitely.
+   *
+   * Registered once; the handler reads current state via refs so it never needs
+   * to be torn down and re-added on state changes (avoids the listen-gap during
+   * rapid transitions that useRelayReconnect also avoids with the same pattern).
+   */
+  useEffect(() => {
+    const DEBOUNCE_MS = 300;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleReprobe = () => {
+      if (timer !== null) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        // Only re-probe when a transient failure is on record. If the user is
+        // already signed in (sessionMode set) or at the deliberate login page
+        // (no error, no session), there is nothing to recover.
+        if (signerProbeErrorRef.current !== null) {
+          void doSignerProbe();
+        }
+      }, DEBOUNCE_MS);
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        scheduleReprobe();
+      }
+    };
+
+    const onOnline = () => {
+      scheduleReprobe();
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('online', onOnline);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('online', onOnline);
+      if (timer !== null) clearTimeout(timer);
+    };
+  }, []); // empty deps: handler reads current state via ref
+
+  /**
+   * Probe signer.cloistr.xyz for a shared session using withSignerRetry.
+   *
+   * THREE OUTCOMES:
+   *  - success:    session found, setUser + setSessionMode('signer')
+   *  - no-session: HTTP 4xx, fall through — user stays null, login is correct
+   *  - retryable exhausted: network error after 3 attempts, setSignerProbeError
+   *
+   * This function is exported as retrySignerProbe so the recovery screen can
+   * call it when the user clicks "Try again".
+   */
+  const doSignerProbe = async (): Promise<void> => {
+    setSignerProbeError(null);
+    try {
+      const signerUser = await withSignerRetry<User | null>(
+        async () => {
+          let resp: Response;
+          try {
+            resp = await fetch('https://signer.cloistr.xyz/api/v1/users/me', {
+              credentials: 'include',
+            });
+          } catch (fetchErr) {
+            // Network-level failure: socket closed, DNS failed, offline.
+            // Promote to a retryable error so withSignerRetry will back off
+            // and try again before giving up.
+            throw makeRetryableError(fetchErr);
+          }
+
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data?.pubkey) {
+              return {
+                pubkey: data.pubkey,
+                nostr_pubkey: data.pubkey,
+                display_name: data.display_name ?? data.name ?? undefined,
+                nip05_address: data.nip05 ?? undefined,
+              } as User;
+            }
+          }
+          // HTTP 4xx/5xx: probe reached the server but there is no valid
+          // session. This is NOT retryable — the server made a decision.
+          // Return null to signal "no session, fall through to login".
+          return null;
+        },
+        { attempts: 3, baseDelayMs: 300, maxDelayMs: 4000 },
+      );
+
+      if (signerUser !== null) {
+        setUser(signerUser);
+        setSessionMode('signer');
+        localStorage.setItem('vault_session_mode', 'signer');
+      } else {
+        // Genuine no-session from the server. Clearing this flag is correct:
+        // the user is not signed in via the signer.
+        localStorage.removeItem('vault_session_mode');
+        // signerProbeError stays null — the user should see the login page.
+      }
+    } catch (err) {
+      // withSignerRetry rethrows after all attempts are exhausted.
+      // The error carries code='CONNECTION_FAILED', so isRetryableSignerError
+      // is true — this was a transient failure, NOT a session invalidation.
+      if (isRetryableSignerError(err)) {
+        // Keep vault_session_mode if it was set: we believe the user still has
+        // a valid signer session, we just couldn't reach it. Clearing the flag
+        // here would send them to the login page — exactly the bug we are fixing.
+        setSignerProbeError(err);
+      } else {
+        // Unexpected terminal error during the probe. Treat as no-session.
+        localStorage.removeItem('vault_session_mode');
+      }
+      console.debug('Signer probe failed:', err);
+    }
+  };
+
+  const retrySignerProbe = async (): Promise<void> => {
+    await doSignerProbe();
+  };
 
   const login = async (email: string, password: string) => {
     try {
@@ -148,15 +303,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       const { token: newToken, user: newUser } = response.data;
-      
+
       setToken(newToken);
       setUser(newUser);
-      
+
       localStorage.setItem('vault_token', newToken);
       localStorage.setItem('vault_user', JSON.stringify(newUser));
-      
+
       axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-      
+
       toast.success('Successfully logged in!');
     } catch (error: any) {
       const message = error.response?.data?.error || 'Login failed';
@@ -257,7 +412,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         vault_data: vaultData,
       });
-      
+
       toast.success('Account created successfully! Please log in.');
     } catch (error: any) {
       const message = error.response?.data?.error || 'Registration failed';
@@ -588,6 +743,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // The .cloistr.xyz cookie remains valid -- vault just forgets the session.
       setUser(null);
       setSessionMode(null);
+      setSignerProbeError(null);
       localStorage.removeItem('vault_session_mode');
       toast.success('Logged out successfully');
       return;
@@ -603,6 +759,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(null);
       setUser(null);
       setSessionMode(null);
+      setSignerProbeError(null);
 
       localStorage.removeItem('vault_token');
       localStorage.removeItem('vault_user');
@@ -635,6 +792,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     loading,
     sessionMode,
+    signerProbeError,
+    retrySignerProbe,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

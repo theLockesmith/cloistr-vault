@@ -15,7 +15,7 @@
   "dependencies": {
     "@cloistr/auth": "^0.4.0",
     "@cloistr/tailwind-config": "^0.1.0",
-    "@cloistr/ui": "^0.26.0",
+    "@cloistr/ui": "^0.27.0",
     "@noble/hashes": "^2.3.0",
     "@tailwindcss/forms": "^0.5.7",
     "@types/crypto-js": "^4.2.2",

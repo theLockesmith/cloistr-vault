@@ -1,6 +1,6 @@
 module github.com/coldforge/vault
 
-go 1.26.6
+go 1.27.0
 
 require (
 	git.aegis-hq.xyz/coldforge/cloistr-common v0.3.0

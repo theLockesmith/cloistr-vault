@@ -9,12 +9,16 @@ stages:
       - .go/pkg/mod/
     policy: pull-push
 
+# PROBE: temporarily points at the ci-templates fix branch to prove the
+# .go-lint fix (forced Go 1.27 toolchain build of golangci-lint) actually
+# runs against this repo's real go.mod (go 1.27.0). DO NOT MERGE THIS.
+# See ci-templates MR for the real fix targeting main.
 include:
   - project: 'coldforge/ci-templates'
     ref: main
     file: '/templates/cloistr-rules.yml'
   - project: 'coldforge/ci-templates'
-    ref: main
+    ref: fix/go-lint-toolchain-1-27
     file: '/templates/go-test.yml'
   - project: 'coldforge/ci-templates'
     ref: main

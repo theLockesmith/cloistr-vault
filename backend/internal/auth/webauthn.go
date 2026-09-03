@@ -18,12 +18,12 @@ import (
 )
 
 var (
-	ErrWebAuthnNotConfigured  = errors.New("WebAuthn not configured")
-	ErrCredentialNotFound     = errors.New("credential not found")
-	ErrNoCredentialsForUser   = errors.New("user has no registered credentials")
-	ErrSessionExpired         = errors.New("WebAuthn session expired")
-	ErrSessionNotFound        = errors.New("WebAuthn session not found")
-	ErrCredentialIDMismatch   = errors.New("credential ID mismatch")
+	ErrWebAuthnNotConfigured = errors.New("WebAuthn not configured")
+	ErrCredentialNotFound    = errors.New("credential not found")
+	ErrNoCredentialsForUser  = errors.New("user has no registered credentials")
+	ErrSessionExpired        = errors.New("WebAuthn session expired")
+	ErrSessionNotFound       = errors.New("WebAuthn session not found")
+	ErrCredentialIDMismatch  = errors.New("credential ID mismatch")
 )
 
 // WebAuthnUser implements the webauthn.User interface
@@ -87,12 +87,12 @@ func (a *AuthService) InitWebAuthn(rpID, rpOrigin, rpDisplayName string) error {
 		},
 		Timeouts: webauthn.TimeoutsConfig{
 			Login: webauthn.TimeoutConfig{
-				Enforce:    true,
-				Timeout:    time.Minute * 5,
+				Enforce: true,
+				Timeout: time.Minute * 5,
 			},
 			Registration: webauthn.TimeoutConfig{
-				Enforce:    true,
-				Timeout:    time.Minute * 5,
+				Enforce: true,
+				Timeout: time.Minute * 5,
 			},
 		},
 	}
@@ -143,9 +143,7 @@ func (a *AuthService) BeginWebAuthnRegistration(userID uuid.UUID) (*protocol.Cre
 	// reports as "this passkey cannot unlock the vault".
 	options, session, err := a.webauthn.BeginRegistration(
 		user,
-		webauthn.WithExtensions(protocol.AuthenticationExtensions{
-			"prf": map[string]any{},
-		}),
+		webauthn.WithExtensions(webauthn.WithExtensionPRFSupport()),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin registration: %w", err)

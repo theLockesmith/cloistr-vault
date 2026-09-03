@@ -33,8 +33,17 @@ func main() {
 		"service", "coldforge-vault",
 	)
 
-	// Load configuration
-	cfg := config.LoadConfig()
+	// Load configuration.
+	//
+	// LoadConfig fails closed: it returns an error rather than inventing a
+	// secret. Exiting here is the point — a vault that starts with a signing
+	// key taken from a public source tree is worse than one that does not
+	// start at all.
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		observability.Error("invalid configuration", "error", err)
+		os.Exit(1)
+	}
 	observability.Info("configuration loaded",
 		"host", cfg.Server.Host,
 		"port", cfg.Server.Port,

@@ -31,6 +31,45 @@ test:unit:
   variables:
     GO_TEST_DIR: "backend"
 
+# Run the frontend/web unit tests. This repo has a `test` stage and a Go
+# `test:unit` job, but nothing in CI ever touched frontend/web: 6 vitest files,
+# 94 tests, including the crypto suite (crypto/vault.test.ts,
+# crypto/totp.test.ts, crypto/random.test.ts, crypto/password-strength.test.ts)
+# for a PASSWORD MANAGER. Those had never executed in CI once.
+#
+# `extends: .cloistr-rules` is REQUIRED, not decorative. A job with no
+# `rules:` falls back to the legacy `only: [branches, tags]`; a merge-request
+# pipeline is neither, so the job is silently NOT CREATED in MR pipelines. See
+# cloistr-rules.yml (already included above for the Go jobs).
+#
+# Image and install flags mirror frontend/Dockerfile's webbuilder stage
+# exactly (node:22.23.2-alpine, `npm ci --legacy-peer-deps`). Verified in that
+# image locally: npm 10.9.8, 6/6 files, 94/94 tests pass.
+#
+# NPM_AEGIS_TOKEN="" is REQUIRED here, not a no-op default. frontend/web/.npmrc
+# has an `_authToken=${NPM_AEGIS_TOKEN}` line (unlike frontend/.npmrc for the
+# Go-served UI, which has no auth line at all). Reads from the @cloistr
+# registry are anonymous — confirmed 200 via unauthenticated curl — but only
+# if npm resolves that placeholder to an EMPTY string. In a plain CI job, an
+# undeclared variable is simply ABSENT, and npm's own ${VAR} substitution in
+# .npmrc then leaves the literal unresolved "${NPM_AEGIS_TOKEN}" text as the
+# auth token, which the registry rejects with 401 Unauthorized rather than
+# treating as anonymous. This is not a problem for frontend/Dockerfile's
+# equivalent `npm ci`, because an unpassed Docker ARG resolves to "" by the
+# time the RUN line reaches the shell, which is the exact case reproduced here.
+# Verified BOTH ways in node:22.23.2-alpine: unset -> 401 on @cloistr/ui;
+# explicitly "" -> resolves and installs all three @cloistr packages.
+test:frontend-web:
+  extends: .cloistr-rules
+  stage: test
+  image: node:22.23.2-alpine
+  variables:
+    NPM_AEGIS_TOKEN: ""
+  script:
+    - cd frontend/web
+    - npm ci --legacy-peer-deps
+    - npm test
+
 lint:
   extends: [.go-lint, .cloistr-rules]
   variables:

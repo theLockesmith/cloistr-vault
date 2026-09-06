@@ -27,12 +27,14 @@ func NewKMS(cfg *Config) (KMS, error) {
 	}
 }
 
-// DefaultConfig returns a default configuration for development
+// DefaultConfig returns a default configuration for development.
+// Token is deliberately left empty — the caller (config.LoadConfig) is
+// responsible for populating it from the environment.
 func DefaultConfig() *Config {
 	return &Config{
 		Provider:  "vault",
 		Address:   "http://localhost:7712",
-		Token:     "coldforge-dev-token",
+		Token:     "",
 		MountPath: "secret",
 		AutoRotate: true,
 		RotationSchedule: map[KeyType]time.Duration{

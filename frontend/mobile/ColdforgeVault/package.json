@@ -28,7 +28,7 @@
     "react-native-passkey": "^3.6.2",
     "react-hook-form": "^7.87.0",
     "axios": "^1.20.0",
-    "react-native-toast-message": "^2.5.0",
+    "react-native-toast-message": "^2.5.2",
     "react-native-paper": "^5.15.3"
   },
   "devDependencies": {

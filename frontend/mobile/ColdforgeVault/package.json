@@ -25,7 +25,7 @@
     "react-native-keychain": "^8.2.0",
     "react-native-biometrics": "^3.0.1",
     "react-native-crypto-js": "^1.0.0",
-    "react-native-passkey": "^3.6.1",
+    "react-native-passkey": "^3.6.2",
     "react-hook-form": "^7.87.0",
     "axios": "^1.20.0",
     "react-native-toast-message": "^2.5.0",

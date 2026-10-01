@@ -44,7 +44,9 @@ func (a *AuthService) GenerateNostrChallengePublic(pubkey string) (*Challenge, e
 		},
 	}
 
+	challengeMu.Lock()
 	challengeStore[challenge.ID] = *challenge
+	challengeMu.Unlock()
 
 	log.Printf("Generated Nostr challenge for pubkey: %s", pubkey[:16]+"...")
 	return challenge, nil
@@ -75,6 +77,7 @@ func (a *AuthService) AuthenticateWithNostr(pubkey, signedEventJSON string) (*mo
 	}
 
 	// Look up challenge by value (client sends the value, store is keyed by ID)
+	challengeMu.RLock()
 	var storedChallenge Challenge
 	var challengeKey string
 	found := false
@@ -86,34 +89,39 @@ func (a *AuthService) AuthenticateWithNostr(pubkey, signedEventJSON string) (*mo
 			break
 		}
 	}
-	if found {
-		delete(challengeStore, challengeKey)
-	}
+	challengeMu.RUnlock()
 
 	if !found {
 		return nil, "", ErrInvalidChallenge
 	}
 
 	if time.Now().After(storedChallenge.ExpiresAt) {
+		challengeMu.Lock()
+		delete(challengeStore, challengeKey)
+		challengeMu.Unlock()
 		return nil, "", ErrChallengeExpired
 	}
 
-	// Verify the challenge was issued for this pubkey
-	if storedPubkey, ok := storedChallenge.Metadata["pubkey"].(string); ok && storedPubkey != pubkey {
+	storedPubkey, ok := storedChallenge.Metadata["pubkey"].(string)
+	if !ok || storedPubkey != pubkey {
 		return nil, "", ErrInvalidChallenge
 	}
 
-	// Verify created_at is within ±5 minutes
+	// NIP-42: created_at within ±5 minutes
 	eventTime := time.Unix(event.CreatedAt, 0)
 	diff := time.Since(eventTime)
 	if diff < -5*time.Minute || diff > 5*time.Minute {
-		return nil, "", fmt.Errorf("event timestamp outside acceptable window")
+		return nil, "", ErrInvalidCredentials
 	}
 
-	// Verify event ID and BIP-340 schnorr signature
 	if err := crypto.VerifyNostrEventSignature(&event); err != nil {
 		return nil, "", ErrInvalidCredentials
 	}
+
+	// All checks passed — consume the challenge (single-use)
+	challengeMu.Lock()
+	delete(challengeStore, challengeKey)
+	challengeMu.Unlock()
 
 	log.Printf("Nostr authentication verified for pubkey: %s", pubkey[:16]+"...")
 

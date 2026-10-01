@@ -65,7 +65,10 @@ func VerifyNostrEventSignature(event *NostrEvent) error {
 		return fmt.Errorf("invalid signature: %w", err)
 	}
 
-	idBytes, _ := hex.DecodeString(event.ID)
+	idBytes, err := hex.DecodeString(event.ID)
+	if err != nil {
+		return fmt.Errorf("invalid event id hex: %w", err)
+	}
 	if !sig.Verify(idBytes, pubKey) {
 		return fmt.Errorf("signature verification failed")
 	}

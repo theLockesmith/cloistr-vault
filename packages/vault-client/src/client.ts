@@ -69,7 +69,7 @@ export class VaultClient {
     const signedEvent = await this.signer.signEvent({
       kind: 22242,
       tags: [['challenge', challenge]],
-      content: challenge,
+      content: '',
       created_at: Math.floor(Date.now() / 1000),
     });
 

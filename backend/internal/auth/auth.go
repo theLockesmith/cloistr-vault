@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"git.aegis-hq.xyz/coldforge/cloistr-common/relayprefs"
@@ -40,7 +41,10 @@ type Challenge struct {
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
-var challengeStore = make(map[string]Challenge) // In production, use Redis or database
+var (
+	challengeStore = make(map[string]Challenge)
+	challengeMu    sync.RWMutex
+)
 
 func NewAuthService(db *sql.DB, relayPrefsClient *relayprefs.Client) *AuthService {
 	return &AuthService{
@@ -73,7 +77,7 @@ func (a *AuthService) LoginUser(req *models.LoginRequest) (*models.AuthResponse,
 	case "email":
 		return a.loginEmailUser(req)
 	case "nostr":
-		return a.loginNostrUser(req)
+		return nil, fmt.Errorf("nostr login uses AuthenticateWithNostr, not LoginUser")
 	default:
 		return nil, ErrInvalidAuthMethod
 	}
@@ -314,24 +318,22 @@ func (a *AuthService) loginNostrUser(req *models.LoginRequest) (*models.AuthResp
 		return nil, errors.New("nostr public key, signature, and challenge are required")
 	}
 	
-	// Verify challenge
+	challengeMu.Lock()
 	challenge, exists := challengeStore[*req.Challenge]
 	if !exists {
+		challengeMu.Unlock()
 		return nil, ErrInvalidChallenge
 	}
-	
+	delete(challengeStore, *req.Challenge)
+	challengeMu.Unlock()
+
 	if time.Now().After(challenge.ExpiresAt) {
-		delete(challengeStore, *req.Challenge)
 		return nil, ErrChallengeExpired
 	}
-	
-	// Verify signature
+
 	if !crypto.VerifyNostrSignature(*req.Challenge, *req.Signature, *req.NostrPubkey) {
 		return nil, ErrInvalidCredentials
 	}
-	
-	// Clean up challenge
-	delete(challengeStore, *req.Challenge)
 	
 	// Get user
 	var user models.User
@@ -397,8 +399,9 @@ func (a *AuthService) GenerateNostrChallenge(publicKeyHex string) (*Challenge, e
 		ExpiresAt: time.Now().Add(5 * time.Minute), // 5 minute expiry
 	}
 	
-	// Store challenge
+	challengeMu.Lock()
 	challengeStore[challengeValue] = challenge
+	challengeMu.Unlock()
 	
 	return &challenge, nil
 }

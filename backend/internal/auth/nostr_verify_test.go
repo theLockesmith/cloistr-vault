@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/hex"
 	"encoding/json"
+	"sync"
 	"testing"
 	"time"
 
@@ -43,6 +44,7 @@ func makeTestEvent(t *testing.T, privKey *btcec.PrivateKey, challengeValue strin
 }
 
 func seedChallenge(pubkey, value string, expiresIn time.Duration) {
+	challengeMu.Lock()
 	challengeStore["test-challenge-id"] = Challenge{
 		ID:        "test-challenge-id",
 		Value:     value,
@@ -52,6 +54,7 @@ func seedChallenge(pubkey, value string, expiresIn time.Duration) {
 			"auth_type": "nostr",
 		},
 	}
+	challengeMu.Unlock()
 }
 
 func TestAuthenticateWithNostr_RejectsEmptyInputs(t *testing.T) {
@@ -125,7 +128,7 @@ func TestAuthenticateWithNostr_RejectsExpiredChallenge(t *testing.T) {
 	challengeVal := "expired-challenge-value"
 
 	seedChallenge(pubKeyHex, challengeVal, -1*time.Minute) // already expired
-	defer delete(challengeStore, "test-challenge-id")
+	defer func() { challengeMu.Lock(); delete(challengeStore, "test-challenge-id"); challengeMu.Unlock() }()
 
 	eventJSON := makeTestEvent(t, privKey, challengeVal)
 
@@ -166,7 +169,7 @@ func TestAuthenticateWithNostr_RejectsForgedSignature(t *testing.T) {
 	challengeVal := "forged-sig-challenge"
 
 	seedChallenge(pubKeyHex, challengeVal, 10*time.Minute)
-	defer delete(challengeStore, "test-challenge-id")
+	defer func() { challengeMu.Lock(); delete(challengeStore, "test-challenge-id"); challengeMu.Unlock() }()
 
 	eventJSON := makeTestEvent(t, privKey, challengeVal)
 
@@ -194,7 +197,7 @@ func TestAuthenticateWithNostr_RejectsWrongPubkeyChallenge(t *testing.T) {
 
 	// Challenge was issued for otherKey, not privKey
 	seedChallenge(otherPubHex, challengeVal, 10*time.Minute)
-	defer delete(challengeStore, "test-challenge-id")
+	defer func() { challengeMu.Lock(); delete(challengeStore, "test-challenge-id"); challengeMu.Unlock() }()
 
 	eventJSON := makeTestEvent(t, privKey, challengeVal)
 
@@ -203,4 +206,54 @@ func TestAuthenticateWithNostr_RejectsWrongPubkeyChallenge(t *testing.T) {
 	if err != ErrInvalidChallenge {
 		t.Fatalf("challenge for wrong pubkey should return ErrInvalidChallenge, got %v", err)
 	}
+}
+
+func TestAuthenticateWithNostr_RejectsMissingPubkeyMetadata(t *testing.T) {
+	privKey, _ := btcec.NewPrivateKey()
+	pubKeyHex := hex.EncodeToString(btcschnorr.SerializePubKey(privKey.PubKey()))
+	challengeVal := "no-pubkey-metadata"
+
+	// Seed a challenge WITHOUT pubkey in metadata
+	challengeMu.Lock()
+	challengeStore["test-no-pubkey"] = Challenge{
+		ID:        "test-no-pubkey",
+		Value:     challengeVal,
+		ExpiresAt: time.Now().Add(10 * time.Minute),
+		Metadata:  map[string]interface{}{"auth_type": "nostr"},
+	}
+	challengeMu.Unlock()
+	defer func() { challengeMu.Lock(); delete(challengeStore, "test-no-pubkey"); challengeMu.Unlock() }()
+
+	eventJSON := makeTestEvent(t, privKey, challengeVal)
+
+	a := &AuthService{}
+	_, _, err := a.AuthenticateWithNostr(pubKeyHex, eventJSON)
+	if err != ErrInvalidChallenge {
+		t.Fatalf("challenge with missing pubkey metadata should return ErrInvalidChallenge, got %v", err)
+	}
+}
+
+func TestChallengeStore_ConcurrentAccess(t *testing.T) {
+	// Verify challengeStore can handle concurrent reads and writes without crashing.
+	// This test must pass under `go test -race`.
+	var wg sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		wg.Add(2)
+		go func(n int) {
+			defer wg.Done()
+			privKey, _ := btcec.NewPrivateKey()
+			pubKeyHex := hex.EncodeToString(btcschnorr.SerializePubKey(privKey.PubKey()))
+			a := &AuthService{}
+			_, _ = a.GenerateNostrChallengePublic(pubKeyHex)
+		}(i)
+		go func(n int) {
+			defer wg.Done()
+			privKey, _ := btcec.NewPrivateKey()
+			pubKeyHex := hex.EncodeToString(btcschnorr.SerializePubKey(privKey.PubKey()))
+			eventJSON := makeTestEvent(t, privKey, "nonexistent-challenge")
+			a := &AuthService{}
+			_, _, _ = a.AuthenticateWithNostr(pubKeyHex, eventJSON)
+		}(i)
+	}
+	wg.Wait()
 }

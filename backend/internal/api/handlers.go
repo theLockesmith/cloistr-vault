@@ -115,7 +115,7 @@ func (h *Handlers) Login(c *gin.Context) {
 
 		user, token, err := h.authService.AuthenticateWithNostr(*req.NostrPubkey, *req.SignedEvent)
 		if err != nil {
-			errors.Unauthorized(errors.CodeAuthInvalid, fmt.Sprintf("Nostr authentication failed: %v", err)).Abort(c)
+			errors.Unauthorized(errors.CodeAuthInvalid, "Nostr authentication failed").Abort(c)
 			return
 		}
 

@@ -78,6 +78,7 @@ type LoginRequest struct {
 	NostrPubkey      *string `json:"nostr_pubkey,omitempty"`
 	Signature        *string `json:"signature,omitempty"`
 	Challenge        *string `json:"challenge,omitempty"`
+	SignedEvent      *string `json:"signed_event,omitempty"`
 	// Lightning LNURL-auth fields
 	LightningAddress *string `json:"lightning_address,omitempty"`
 	LinkingKey       *string `json:"linking_key,omitempty"` // Public key for LNURL-auth verification

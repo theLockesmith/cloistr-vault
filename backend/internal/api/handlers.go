@@ -108,13 +108,12 @@ func (h *Handlers) Login(c *gin.Context) {
 		c.JSON(http.StatusOK, response)
 
 	case "nostr":
-		// Handle Nostr authentication
-		if req.NostrPubkey == nil || req.Signature == nil || req.Challenge == nil {
-			errors.BadRequest(errors.CodeValidationFailed, "Nostr authentication requires pubkey, signature, and challenge").Abort(c)
+		if req.NostrPubkey == nil || req.SignedEvent == nil {
+			errors.BadRequest(errors.CodeValidationFailed, "Nostr authentication requires nostr_pubkey and signed_event").Abort(c)
 			return
 		}
 
-		user, token, err := h.authService.AuthenticateWithNostr(*req.NostrPubkey, *req.Signature, *req.Challenge)
+		user, token, err := h.authService.AuthenticateWithNostr(*req.NostrPubkey, *req.SignedEvent)
 		if err != nil {
 			errors.Unauthorized(errors.CodeAuthInvalid, fmt.Sprintf("Nostr authentication failed: %v", err)).Abort(c)
 			return

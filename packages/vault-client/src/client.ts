@@ -67,6 +67,7 @@ export class VaultClient {
     const { challenge } = await challengeResp.json() as { challenge: string };
 
     const signedEvent = await this.signer.signEvent({
+      pubkey,
       kind: 22242,
       tags: [['challenge', challenge]],
       content: '',

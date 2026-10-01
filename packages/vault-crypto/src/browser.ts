@@ -5,4 +5,4 @@ export {
   evaluatePrf,
   evaluatePrfForCredential,
   probePrfSupport,
-} from '@cloistr/vault-crypto/browser';
+} from './prf';

@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@cloistr/auth": "^1.1.0",
+    "@cloistr/vault-crypto": "file:../../packages/vault-crypto",
     "@cloistr/tailwind-config": "^0.1.0",
     "@cloistr/ui": "^0.42.0",
     "@noble/hashes": "^2.4.0",

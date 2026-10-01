@@ -1,10 +1,18 @@
 # Web build stage - build the React app (served as static files by the API)
 FROM node:22.23.3-alpine AS webbuilder
 
-WORKDIR /web
+# Mirror the repo layout (frontend/web next to packages/) so the lockfile's
+# file:../../packages/vault-crypto link resolves to the same relative path.
+WORKDIR /src/frontend/web
 
 # Build arg for private @cloistr registry auth
 ARG NPM_AEGIS_TOKEN
+
+# The web app depends on @cloistr/vault-crypto via file:../../packages/vault-crypto.
+# Vite follows the symlink to its real path, so the package needs its own
+# node_modules for its imports.
+COPY packages/vault-crypto/ /src/packages/vault-crypto/
+RUN cd /src/packages/vault-crypto && npm ci --no-audit --no-fund
 
 # Install dependencies from lockfile first for layer caching
 COPY frontend/web/package.json frontend/web/package-lock.json frontend/web/.npmrc ./
@@ -66,7 +74,7 @@ COPY --from=builder /app/migrations ./migrations
 # under Vite. The image would have shipped with NO FRONTEND. The Docker build is
 # the only place that surfaces it: tsc, vitest and `vite build` all pass
 # regardless, which is why the migration looked complete.
-COPY --from=webbuilder /web/dist ./web
+COPY --from=webbuilder /src/frontend/web/dist ./web
 
 # Change ownership to app user
 RUN chown -R appuser:appgroup /app

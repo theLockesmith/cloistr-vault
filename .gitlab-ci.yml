@@ -66,9 +66,24 @@ test:frontend-web:
   variables:
     NPM_AEGIS_TOKEN: ""
   script:
+    # frontend/web links packages/vault-crypto; that package needs its own deps.
+    - (cd packages/vault-crypto && npm ci --no-audit --no-fund)
     - cd frontend/web
     - npm ci --legacy-peer-deps
     - npm test
+
+# The extracted client-side crypto and the headless client (same code the web
+# UI and fleet scripts both call). NPM_AEGIS_TOKEN="" for the same reason as
+# above: vault-client resolves @cloistr/auth from the private registry.
+test:packages:
+  extends: .cloistr-rules
+  stage: test
+  image: node:22.23.3-alpine
+  variables:
+    NPM_AEGIS_TOKEN: ""
+  script:
+    - cd packages/vault-crypto && npm ci --no-audit --no-fund && npm run typecheck && npm test
+    - cd ../vault-client && npm ci --no-audit --no-fund && npm run typecheck && npm test
 
 lint:
   extends: [.go-lint, .cloistr-rules]

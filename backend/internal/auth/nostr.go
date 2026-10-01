@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -44,9 +45,9 @@ func (a *AuthService) GenerateNostrChallengePublic(pubkey string) (*Challenge, e
 		},
 	}
 
-	challengeMu.Lock()
-	challengeStore[challenge.ID] = *challenge
-	challengeMu.Unlock()
+	if err := a.challenges.Put(context.Background(), *challenge); err != nil {
+		return nil, err
+	}
 
 	log.Printf("Generated Nostr challenge for pubkey: %s", pubkey[:16]+"...")
 	return challenge, nil
@@ -76,29 +77,19 @@ func (a *AuthService) AuthenticateWithNostr(pubkey, signedEventJSON string) (*mo
 		return nil, "", ErrInvalidChallenge
 	}
 
-	// Look up challenge by value (client sends the value, store is keyed by ID)
-	challengeMu.RLock()
-	var storedChallenge Challenge
-	var challengeKey string
-	found := false
-	for id, ch := range challengeStore {
-		if ch.Value == challengeValue {
-			storedChallenge = ch
-			challengeKey = id
-			found = true
-			break
-		}
+	ctx := context.Background()
+	storedChallenge, err := a.challenges.Lookup(ctx, challengeValue)
+	if err != nil {
+		return nil, "", err
 	}
-	challengeMu.RUnlock()
-
-	if !found {
+	if storedChallenge == nil {
 		return nil, "", ErrInvalidChallenge
 	}
 
 	if time.Now().After(storedChallenge.ExpiresAt) {
-		challengeMu.Lock()
-		delete(challengeStore, challengeKey)
-		challengeMu.Unlock()
+		if _, err := a.challenges.Consume(ctx, storedChallenge.ID); err != nil {
+			log.Printf("failed to drop expired challenge: %v", err)
+		}
 		return nil, "", ErrChallengeExpired
 	}
 
@@ -118,16 +109,21 @@ func (a *AuthService) AuthenticateWithNostr(pubkey, signedEventJSON string) (*mo
 		return nil, "", ErrInvalidCredentials
 	}
 
-	// All checks passed — consume the challenge (single-use)
-	challengeMu.Lock()
-	delete(challengeStore, challengeKey)
-	challengeMu.Unlock()
+	// All checks passed — consume the challenge. Only the request whose
+	// delete actually removes the row is admitted (single-use across replicas).
+	consumed, err := a.challenges.Consume(ctx, storedChallenge.ID)
+	if err != nil {
+		return nil, "", err
+	}
+	if !consumed {
+		return nil, "", ErrInvalidChallenge
+	}
 
 	log.Printf("Nostr authentication verified for pubkey: %s", pubkey[:16]+"...")
 
 	// Check if user exists with this pubkey
 	var user models.User
-	err := a.db.QueryRow(`
+	err = a.db.QueryRow(`
 		SELECT u.id, u.email, u.created_at, u.updated_at
 		FROM users u
 		JOIN auth_methods am ON u.id = am.user_id

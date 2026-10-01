@@ -3,11 +3,9 @@ package auth
 import (
 	"database/sql"
 	"testing"
-	"time"
 	
 	"github.com/coldforge/vault/internal/crypto"
 	"github.com/coldforge/vault/internal/models"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	_ "github.com/lib/pq"
@@ -295,26 +293,6 @@ func TestAuthService_ValidateSession(t *testing.T) {
 			t.Skip("Requires database setup")
 		})
 	}
-}
-
-func TestChallenge_Expiry(t *testing.T) {
-	// Test challenge expiry logic without database
-	challenge := Challenge{
-		Value:     "test-challenge",
-		UserID:    uuid.New(),
-		ExpiresAt: time.Now().Add(-1 * time.Minute), // Expired 1 minute ago
-	}
-	
-	// Store in mock store
-	challengeStore["test-challenge"] = challenge
-	
-	// Check if expired
-	stored, exists := challengeStore["test-challenge"]
-	assert.True(t, exists)
-	assert.True(t, time.Now().After(stored.ExpiresAt))
-	
-	// Clean up
-	delete(challengeStore, "test-challenge")
 }
 
 func TestAuthService_NostrAuthFlow(t *testing.T) {

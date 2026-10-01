@@ -1,6 +1,7 @@
 package api
 
 import (
+	stderrors "errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -202,6 +203,10 @@ func (h *Handlers) LightningChallenge(c *gin.Context) {
 
 	// Generate LNURL-auth k1 challenge
 	challenge, err := h.authService.GenerateLightningChallenge(req.LightningAddress)
+	if stderrors.Is(err, auth.ErrLightningDisabled) {
+		errors.ServiceUnavailable(errors.CodeServiceUnavailable, "Lightning login is disabled", 0).Abort(c)
+		return
+	}
 	if err != nil {
 		errors.InternalError(errors.CodeInternalError, fmt.Sprintf("Challenge generation failed: %v", err)).Abort(c)
 		return
@@ -484,8 +489,12 @@ func (h *Handlers) handleLightningLogin(c *gin.Context, req *models.LoginRequest
 	}
 
 	user, token, err := h.authService.AuthenticateWithLightning(lightningAddress, signature, k1, linkingKey)
+	if stderrors.Is(err, auth.ErrLightningDisabled) {
+		errors.ServiceUnavailable(errors.CodeServiceUnavailable, "Lightning login is disabled", 0).Abort(c)
+		return
+	}
 	if err != nil {
-		errors.Unauthorized(errors.CodeAuthInvalid, fmt.Sprintf("Lightning authentication failed: %v", err)).Abort(c)
+		errors.Unauthorized(errors.CodeAuthInvalid, "Lightning authentication failed").Abort(c)
 		return
 	}
 

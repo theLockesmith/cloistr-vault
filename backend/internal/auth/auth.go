@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"git.aegis-hq.xyz/coldforge/cloistr-common/relayprefs"
@@ -24,6 +23,7 @@ var (
 	ErrInvalidAuthMethod = errors.New("invalid authentication method")
 	ErrChallengeExpired  = errors.New("challenge expired")
 	ErrInvalidChallenge  = errors.New("invalid challenge")
+	ErrLightningDisabled = errors.New("lightning login is disabled")
 )
 
 type AuthService struct {
@@ -31,6 +31,7 @@ type AuthService struct {
 	recoveryService *recovery.Service
 	webauthn        *webauthn.WebAuthn
 	relayPrefs      *relayprefs.Client
+	challenges      ChallengeStore
 }
 
 type Challenge struct {
@@ -41,16 +42,12 @@ type Challenge struct {
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
-var (
-	challengeStore = make(map[string]Challenge)
-	challengeMu    sync.RWMutex
-)
-
 func NewAuthService(db *sql.DB, relayPrefsClient *relayprefs.Client) *AuthService {
 	return &AuthService{
 		db:              db,
 		recoveryService: recovery.NewService(db),
 		relayPrefs:      relayPrefsClient,
+		challenges:      newPGChallengeStore(db),
 	}
 }
 
@@ -310,100 +307,6 @@ func (a *AuthService) loginEmailUser(req *models.LoginRequest) (*models.AuthResp
 	
 	// Create session
 	return a.createSession(user)
-}
-
-// loginNostrUser handles Nostr keypair login
-func (a *AuthService) loginNostrUser(req *models.LoginRequest) (*models.AuthResponse, error) {
-	if req.NostrPubkey == nil || req.Signature == nil || req.Challenge == nil {
-		return nil, errors.New("nostr public key, signature, and challenge are required")
-	}
-	
-	challengeMu.Lock()
-	challenge, exists := challengeStore[*req.Challenge]
-	if !exists {
-		challengeMu.Unlock()
-		return nil, ErrInvalidChallenge
-	}
-	delete(challengeStore, *req.Challenge)
-	challengeMu.Unlock()
-
-	if time.Now().After(challenge.ExpiresAt) {
-		return nil, ErrChallengeExpired
-	}
-
-	if !crypto.VerifyNostrSignature(*req.Challenge, *req.Signature, *req.NostrPubkey) {
-		return nil, ErrInvalidCredentials
-	}
-	
-	// Get user
-	var user models.User
-	query := `
-		SELECT u.id, u.email, u.created_at, u.updated_at
-		FROM users u 
-		JOIN auth_methods am ON u.id = am.user_id 
-		WHERE am.nostr_pubkey = $1 AND am.type = 'nostr'
-	`
-	
-	err := a.db.QueryRow(query, *req.NostrPubkey).Scan(
-		&user.ID, &user.Email, &user.CreatedAt, &user.UpdatedAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ErrUserNotFound
-		}
-		return nil, fmt.Errorf("database error: %w", err)
-	}
-	
-	// Verify challenge belongs to this user
-	if challenge.UserID != user.ID {
-		return nil, ErrInvalidChallenge
-	}
-	
-	// Create session
-	return a.createSession(user)
-}
-
-// GenerateNostrChallenge creates a challenge for Nostr authentication
-func (a *AuthService) GenerateNostrChallenge(publicKeyHex string) (*Challenge, error) {
-	// Verify public key format
-	_, err := crypto.NostrPublicKeyFromHex(publicKeyHex)
-	if err != nil {
-		return nil, fmt.Errorf("invalid public key: %w", err)
-	}
-	
-	// Get user by public key
-	var userID uuid.UUID
-	query := `
-		SELECT u.id
-		FROM users u 
-		JOIN auth_methods am ON u.id = am.user_id 
-		WHERE am.nostr_pubkey = $1 AND am.type = 'nostr'
-	`
-	
-	err = a.db.QueryRow(query, publicKeyHex).Scan(&userID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ErrUserNotFound
-		}
-		return nil, fmt.Errorf("database error: %w", err)
-	}
-	
-	// Generate challenge
-	challengeValue, err := crypto.GenerateChallenge()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate challenge: %w", err)
-	}
-	
-	challenge := Challenge{
-		Value:     challengeValue,
-		UserID:    userID,
-		ExpiresAt: time.Now().Add(5 * time.Minute), // 5 minute expiry
-	}
-	
-	challengeMu.Lock()
-	challengeStore[challengeValue] = challenge
-	challengeMu.Unlock()
-	
-	return &challenge, nil
 }
 
 // createSession creates a new session for the user

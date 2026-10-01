@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Header } from '@cloistr/ui';
 import { useAuth } from '../contexts/AuthContext';
-import { Mail, Key, Zap, Fingerprint } from 'lucide-react';
+import { Mail, Key, Fingerprint } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface LoginForm {
@@ -176,18 +176,7 @@ export default function Login() {
                 <Key className="w-4 h-4 mr-1" />
                 Nostr
               </button>
-              <button
-                type="button"
-                className={`py-2 px-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
-                  authMethod === 'lightning'
-                    ? 'bg-cloistr-bg-elevated text-cloistr-primary shadow-sm'
-                    : 'text-cloistr-text-muted hover:text-cloistr-text'
-                }`}
-                onClick={() => setAuthMethod('lightning')}
-              >
-                <Zap className="w-4 h-4 mr-1" />
-                Lightning
-              </button>
+              {/* Lightning login is disabled server-side until it is rebuilt on LUD-04. */}
             </div>
 
             {authMethod === 'email' && (

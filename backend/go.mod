@@ -3,8 +3,9 @@ module github.com/coldforge/vault
 go 1.26.6
 
 require (
-	git.aegis-hq.xyz/coldforge/cloistr-common v0.3.0
+	git.aegis-hq.xyz/coldforge/cloistr-common v0.3.1
 	github.com/DATA-DOG/go-sqlmock v1.5.2
+	github.com/btcsuite/btcd/btcec/v2 v2.3.6
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-webauthn/webauthn v0.18.2
@@ -21,7 +22,6 @@ require (
 	github.com/ImVexed/fasturl v0.0.0-20230304231329-4e41488060f3 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/btcsuite/btcd/btcec/v2 v2.3.6 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.15.0 // indirect

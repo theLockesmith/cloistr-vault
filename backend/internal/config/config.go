@@ -16,6 +16,33 @@ type Config struct {
 	KMS      KMSConfig
 	Auth     AuthConfig
 	WebAuthn WebAuthnConfig
+	Client   ClientConfig
+}
+
+// ClientConfig is the service addresses the web UI reads at page load from
+// /config.js. Each defaults to production, so an image run with no
+// environment behaves exactly as production; staging sets CLOISTR_* to its
+// own hosts. Same contract as the nginx-served Cloistr apps
+// (cloistr-collab-common docs/runtime-config-adoption.md).
+type ClientConfig struct {
+	RelayURL     string
+	SignerURL    string
+	BlossomURL   string
+	DiscoveryURL string
+	AppURL       string
+	Environment  string
+}
+
+// LoadClientConfig reads ClientConfig from CLOISTR_* environment variables.
+func LoadClientConfig() ClientConfig {
+	return ClientConfig{
+		RelayURL:     getEnv("CLOISTR_RELAY_URL", "wss://relay.cloistr.xyz"),
+		SignerURL:    getEnv("CLOISTR_SIGNER_URL", "https://signer.cloistr.xyz"),
+		BlossomURL:   getEnv("CLOISTR_BLOSSOM_URL", "https://files.cloistr.xyz"),
+		DiscoveryURL: getEnv("CLOISTR_DISCOVERY_URL", "https://discover.cloistr.xyz"),
+		AppURL:       getEnv("CLOISTR_APP_URL", "https://vault.cloistr.xyz"),
+		Environment:  getEnv("CLOISTR_ENVIRONMENT", "production"),
+	}
 }
 
 // AuthConfig holds unified-auth settings.
@@ -155,6 +182,7 @@ func LoadConfig() (*Config, error) {
 			Origin:      getEnv("WEBAUTHN_ORIGIN", "https://vault.cloistr.xyz"),
 			DisplayName: getEnv("WEBAUTHN_DISPLAY_NAME", "Cloistr Vault"),
 		},
+		Client: LoadClientConfig(),
 	}
 
 	// KMS_TOKEN is only a credential when we actually talk to a KMS server.

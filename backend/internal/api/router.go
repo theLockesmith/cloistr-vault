@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/coldforge/vault/internal/config"
 	"net/http"
 	"os"
 	"path"
@@ -43,7 +44,7 @@ func spaHandler(webDir string) gin.HandlerFunc {
 	}
 }
 
-func SetupRouter(authService *auth.AuthService, vaultService VaultService, folderService *vault.FolderService, entryService *vault.EntryService, secretService *vault.SecretService, passwordService *vault.PasswordService, tagService *vault.TagService, searchService *vault.SearchService, securityService *security.SecurityService, attachmentService *vault.AttachmentService, sharingService *vault.SharingService, webDir string, signerURL string) *gin.Engine {
+func SetupRouter(authService *auth.AuthService, vaultService VaultService, folderService *vault.FolderService, entryService *vault.EntryService, secretService *vault.SecretService, passwordService *vault.PasswordService, tagService *vault.TagService, searchService *vault.SearchService, securityService *security.SecurityService, attachmentService *vault.AttachmentService, sharingService *vault.SharingService, webDir string, signerURL string, client config.ClientConfig) *gin.Engine {
 	// Set Gin mode
 	gin.SetMode(gin.ReleaseMode) // Change to gin.DebugMode for development
 
@@ -55,7 +56,7 @@ func SetupRouter(authService *auth.AuthService, vaultService VaultService, folde
 	router.Use(observability.MetricsMiddleware())
 	router.Use(ErrorHandlingMiddleware())
 	router.Use(CORSMiddleware())
-	router.Use(SecurityHeadersMiddleware())
+	router.Use(SecurityHeadersMiddleware(client.SignerURL))
 	router.Use(RateLimitingMiddleware())
 	router.Use(RequestTimeoutMiddleware(30 * time.Second))
 
@@ -268,6 +269,10 @@ func SetupRouter(authService *auth.AuthService, vaultService VaultService, folde
 		}
 	}
 	
+	// Runtime service config for the web UI, written per environment at
+	// container start. Exact path, registered before the SPA catch-all.
+	router.GET("/config.js", RuntimeConfigHandler(client))
+
 	// Catch-all: serve the web UI (SPA) when a build dir is configured,
 	// otherwise return a JSON 404 (API-only mode).
 	if webDir != "" {

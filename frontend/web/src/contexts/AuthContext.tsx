@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { withSignerRetry, isRetryableSignerError } from '@cloistr/ui';
+import { getServiceConfig } from '@cloistr/collab-common/config';
 
 interface User {
   id?: string;
@@ -233,7 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         async () => {
           let resp: Response;
           try {
-            resp = await fetch('https://signer.cloistr.xyz/api/v1/users/me', {
+            resp = await fetch(`${getServiceConfig().signerUrl}/api/v1/users/me`, {
               credentials: 'include',
             });
           } catch (fetchErr) {

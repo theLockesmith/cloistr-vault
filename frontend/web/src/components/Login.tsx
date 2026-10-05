@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getServiceConfig } from '@cloistr/collab-common/config';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Header } from '@cloistr/ui';
@@ -118,7 +119,7 @@ export default function Login() {
       <Header
         activeServiceId="vault"
         auth={{ authenticated: false }}
-        signerUrl="https://signer.cloistr.xyz"
+        signerUrl={getServiceConfig().signerUrl}
       />
       <div className="flex-1 flex items-center justify-center">
       <div className="max-w-md w-full space-y-8 p-8">

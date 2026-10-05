@@ -37,6 +37,12 @@ func spaHandler(webDir string) gin.HandlerFunc {
 		}
 		full := filepath.Join(webDir, filepath.FromSlash(path.Clean("/"+p)))
 		if info, err := os.Stat(full); err == nil && !info.IsDir() {
+			// Vite content-hashes everything under /assets, so a changed file
+			// gets a new name; cache those for a year. index.html is not
+			// hashed and must stay revalidated.
+			if strings.HasPrefix(p, "/assets/") {
+				c.Header("Cache-Control", "public, max-age=31536000, immutable")
+			}
 			fileServer.ServeHTTP(c.Writer, c.Request)
 			return
 		}

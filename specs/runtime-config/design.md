@@ -14,6 +14,9 @@ in one way: its UI is served by the Go API, not nginx.
   `application/javascript`, body `window.__CLOISTR_CONFIG__=<json>;`, JSON
   encoded so no value can break out of the script. Body computed once.
 - `SecurityHeadersMiddleware(signerURL)`: CSP `connect-src 'self' <signer>`.
+- SPA handler gives hashed `/assets/*` `public, max-age=31536000, immutable`
+  (they had no cache header at all). This is also the control for the
+  no-store proof: assets cache for a year, `/config.js` never.
 
 ## Client
 

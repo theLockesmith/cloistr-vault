@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -124,5 +126,52 @@ func TestRuntimeConfig_ExactPathOnly(t *testing.T) {
 		if w.Code == http.StatusOK {
 			t.Fatalf("%s served the runtime config", p)
 		}
+	}
+}
+
+// With a web build present, /config.js must come from the handler (no-store),
+// never from a static file of the same name, while hashed build assets keep a
+// long immutable cache. The second half is the control: it shows the no-store
+// above is the handler's doing, not an absence of caching everywhere.
+func TestRuntimeConfig_BeatsStaticFilesAndAssetsStayCached(t *testing.T) {
+	webDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(webDir, "assets"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string]string{
+		"index.html":            "<html></html>",
+		"config.js":             "window.__CLOISTR_CONFIG__={\"environment\":\"stale-file\"};",
+		"assets/index-abc12.js": "console.log(1)",
+	} {
+		if err := os.WriteFile(filepath.Join(webDir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	clearClientEnv(t)
+	r := runtimeConfigRouter(config.LoadClientConfig())
+	r.NoRoute(spaHandler(webDir))
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/config.js", nil))
+	if cfg := parseConfigJS(t, w.Body.String()); cfg["environment"] != "production" {
+		t.Fatalf("/config.js served the static file, not the handler: %v", cfg)
+	}
+	if got := w.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("/config.js Cache-Control = %q", got)
+	}
+
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/assets/index-abc12.js", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("asset status = %d", w.Code)
+	}
+	if got := w.Header().Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
+		t.Fatalf("asset Cache-Control = %q, want the long immutable cache", got)
+	}
+
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	if got := w.Header().Get("Cache-Control"); got == "public, max-age=31536000, immutable" {
+		t.Fatal("index.html must not get the immutable cache (it names the current bundle)")
 	}
 }

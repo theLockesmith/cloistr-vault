@@ -30,8 +30,14 @@ func CORSMiddleware() gin.HandlerFunc {
 	})
 }
 
-// SecurityHeadersMiddleware adds security headers
-func SecurityHeadersMiddleware() gin.HandlerFunc {
+// SecurityHeadersMiddleware adds security headers. signerURL is the public
+// signer the browser checks for an SSO session; it comes from runtime config so
+// a staging deployment allows its own signer and not production's.
+func SecurityHeadersMiddleware(signerURL string) gin.HandlerFunc {
+	csp := "default-src 'self'; " +
+		"connect-src 'self' " + signerURL + "; " +
+		"style-src 'self' 'unsafe-inline'; " +
+		"img-src 'self' data: blob:"
 	return gin.HandlerFunc(func(c *gin.Context) {
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Header("X-Frame-Options", "DENY")
@@ -39,11 +45,7 @@ func SecurityHeadersMiddleware() gin.HandlerFunc {
 		c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		// Allow the cross-origin SSO session check to the signer (unified auth)
 		// and inline styles used by the UI's Tailwind/Radix components.
-		c.Header("Content-Security-Policy",
-			"default-src 'self'; "+
-				"connect-src 'self' https://signer.cloistr.xyz; "+
-				"style-src 'self' 'unsafe-inline'; "+
-				"img-src 'self' data: blob:")
+		c.Header("Content-Security-Policy", csp)
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		
 		c.Next()

@@ -132,6 +132,28 @@ describe('AuthContext signer probe resilience (Parts 1-2)', () => {
     expect(localStorage.getItem('vault_session_mode')).toBeNull();
   });
 
+  it('probes the signer named by runtime config, not the production literal', async () => {
+    // What the container serves at /config.js in staging.
+    (window as any).__CLOISTR_CONFIG__ = {
+      signerUrl: 'https://signer.staging.cloistr.xyz',
+      environment: 'staging',
+    };
+    try {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(buildUnauthorizedResponse());
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <AuthProvider>{children}</AuthProvider>
+      );
+      const { result } = renderHook(() => useAuth(), { wrapper });
+      await waitFor(() => expect(result.current.loading).toBe(false), { timeout: 5_000 });
+
+      const urls = fetchSpy.mock.calls.map((c) => String(c[0]));
+      expect(urls).toContain('https://signer.staging.cloistr.xyz/api/v1/users/me');
+      expect(urls.some((u) => u.includes('signer.cloistr.xyz'))).toBe(false);
+    } finally {
+      delete (window as any).__CLOISTR_CONFIG__;
+    }
+  });
+
   it('sets user and sessionMode on a successful probe', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(buildSignerResponse(TEST_PUBKEY));
 

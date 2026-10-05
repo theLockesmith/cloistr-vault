@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header, Footer } from '@cloistr/ui';
+import { getServiceConfig } from '@cloistr/collab-common/config';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
@@ -21,6 +22,7 @@ export default function Layout({ children }: LayoutProps) {
       <Header
         activeServiceId="vault"
         settingsUrl="/settings"
+        signerUrl={getServiceConfig().signerUrl}
         auth={{
           authenticated: isAuthenticated,
           pubkey,

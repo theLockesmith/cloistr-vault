@@ -162,7 +162,7 @@ func main() {
 	}
 
 	// Setup router
-	router := api.SetupRouter(authService, vaultService, folderService, entryService, secretService, passwordService, tagService, searchService, securityService, attachmentService, sharingService, webDir, cfg.Auth.SignerURL)
+	router := api.SetupRouter(authService, vaultService, folderService, entryService, secretService, passwordService, tagService, searchService, securityService, attachmentService, sharingService, webDir, cfg.Auth.SignerURL, cfg.Client)
 
 	// Create HTTP server
 	server := &http.Server{

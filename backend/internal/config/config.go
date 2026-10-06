@@ -34,14 +34,16 @@ type ClientConfig struct {
 }
 
 // LoadClientConfig reads ClientConfig from CLOISTR_* environment variables.
+// There are no defaults: production sets them in its deployment config, and
+// LoadConfig refuses to start outside development when any is missing.
 func LoadClientConfig() ClientConfig {
 	return ClientConfig{
-		RelayURL:     getEnv("CLOISTR_RELAY_URL", "wss://relay.cloistr.xyz"),
-		SignerURL:    getEnv("CLOISTR_SIGNER_URL", "https://signer.cloistr.xyz"),
-		BlossomURL:   getEnv("CLOISTR_BLOSSOM_URL", "https://files.cloistr.xyz"),
-		DiscoveryURL: getEnv("CLOISTR_DISCOVERY_URL", "https://discover.cloistr.xyz"),
-		AppURL:       getEnv("CLOISTR_APP_URL", "https://vault.cloistr.xyz"),
-		Environment:  getEnv("CLOISTR_ENVIRONMENT", "production"),
+		RelayURL:     os.Getenv("CLOISTR_RELAY_URL"),
+		SignerURL:    os.Getenv("CLOISTR_SIGNER_URL"),
+		BlossomURL:   os.Getenv("CLOISTR_BLOSSOM_URL"),
+		DiscoveryURL: os.Getenv("CLOISTR_DISCOVERY_URL"),
+		AppURL:       os.Getenv("CLOISTR_APP_URL"),
+		Environment:  os.Getenv("CLOISTR_ENVIRONMENT"),
 	}
 }
 
@@ -174,12 +176,11 @@ func LoadConfig() (*Config, error) {
 			SkipVerify: getEnvBool("KMS_SKIP_VERIFY", false),
 		},
 		Auth: AuthConfig{
-			// Default: in-cluster signer address. Empty string disables unified-auth.
-			SignerURL: getEnv("VAULT_SIGNER_URL", "http://cloistr-signer.cloistr.svc.cluster.local:7777"),
+			SignerURL: os.Getenv("VAULT_SIGNER_URL"),
 		},
 		WebAuthn: WebAuthnConfig{
-			RPID:        getEnv("WEBAUTHN_RP_ID", "vault.cloistr.xyz"),
-			Origin:      getEnv("WEBAUTHN_ORIGIN", "https://vault.cloistr.xyz"),
+			RPID:        os.Getenv("WEBAUTHN_RP_ID"),
+			Origin:      os.Getenv("WEBAUTHN_ORIGIN"),
 			DisplayName: getEnv("WEBAUTHN_DISPLAY_NAME", "Cloistr Vault"),
 		},
 		Client: LoadClientConfig(),
@@ -203,9 +204,16 @@ func LoadConfig() (*Config, error) {
 	if tokenRequired && cfg.KMS.Token == "" {
 		missing = append(missing, fmt.Sprintf("KMS_TOKEN (required by KMS_PROVIDER=%q)", cfg.KMS.Provider))
 	}
+	// Service addresses. These used to default to production hosts, so a
+	// staging pod missing one quietly talked to production. Now unset refuses.
+	for _, s := range cfg.serviceSettings() {
+		if *s.value == "" {
+			missing = append(missing, s.name)
+		}
+	}
 	if len(missing) > 0 {
 		return nil, fmt.Errorf(
-			"config: refusing to start with ENVIRONMENT=%q: missing required secret(s): %s",
+			"config: refusing to start with ENVIRONMENT=%q: missing required setting(s): %s",
 			env, strings.Join(missing, ", "))
 	}
 
@@ -219,7 +227,34 @@ func LoadConfig() (*Config, error) {
 // NOT: a fixed signing key is the one value that stays dangerous even in
 // development, since a dev token minted from a published constant is a real
 // token. It is generated per process instead, so no shared key exists to leak.
+type serviceSetting struct {
+	name     string
+	value    *string
+	devValue string
+}
+
+// serviceSettings lists the settings with no default outside development.
+// devValue is what used to be compiled in, kept for local runs only.
+func (cfg *Config) serviceSettings() []serviceSetting {
+	return []serviceSetting{
+		{"WEBAUTHN_RP_ID", &cfg.WebAuthn.RPID, "vault.cloistr.xyz"},
+		{"WEBAUTHN_ORIGIN", &cfg.WebAuthn.Origin, "https://vault.cloistr.xyz"},
+		{"VAULT_SIGNER_URL", &cfg.Auth.SignerURL, "http://cloistr-signer.cloistr.svc.cluster.local:7777"},
+		{"CLOISTR_RELAY_URL", &cfg.Client.RelayURL, "wss://relay.cloistr.xyz"},
+		{"CLOISTR_SIGNER_URL", &cfg.Client.SignerURL, "https://signer.cloistr.xyz"},
+		{"CLOISTR_BLOSSOM_URL", &cfg.Client.BlossomURL, "https://files.cloistr.xyz"},
+		{"CLOISTR_DISCOVERY_URL", &cfg.Client.DiscoveryURL, "https://discover.cloistr.xyz"},
+		{"CLOISTR_APP_URL", &cfg.Client.AppURL, "https://vault.cloistr.xyz"},
+		{"CLOISTR_ENVIRONMENT", &cfg.Client.Environment, "production"},
+	}
+}
+
 func devFallback(cfg *Config, tokenRequired bool) error {
+	for _, s := range cfg.serviceSettings() {
+		if *s.value == "" {
+			*s.value = s.devValue
+		}
+	}
 	if cfg.Database.Password == "" {
 		cfg.Database.Password = "vault_password"
 	}

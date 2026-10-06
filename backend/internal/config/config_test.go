@@ -17,6 +17,88 @@ func production(t *testing.T) {
 	t.Setenv("DB_PASSWORD", "a-real-database-password")
 	t.Setenv("JWT_SECRET", "a-real-signing-key")
 	t.Setenv("KMS_TOKEN", "a-real-kms-token")
+	for k, v := range productionSettings {
+		t.Setenv(k, v)
+	}
+}
+
+// productionSettings are the service addresses production now sets explicitly
+// (cloistr-config base/vault). They used to be compiled-in defaults, which is
+// how a staging pod with one missing variable silently talked to production.
+var productionSettings = map[string]string{
+	"WEBAUTHN_RP_ID":        "vault.cloistr.xyz",
+	"WEBAUTHN_ORIGIN":       "https://vault.cloistr.xyz",
+	"VAULT_SIGNER_URL":      "http://cloistr-signer.cloistr.svc.cluster.local:7777",
+	"CLOISTR_RELAY_URL":     "wss://relay.cloistr.xyz",
+	"CLOISTR_SIGNER_URL":    "https://signer.cloistr.xyz",
+	"CLOISTR_BLOSSOM_URL":   "https://files.cloistr.xyz",
+	"CLOISTR_DISCOVERY_URL": "https://discover.cloistr.xyz",
+	"CLOISTR_APP_URL":       "https://vault.cloistr.xyz",
+	"CLOISTR_ENVIRONMENT":   "production",
+}
+
+// Every service setting must refuse to start when unset outside development,
+// naming the variable, instead of falling back to a production host.
+func TestNoProductionDefaultsForServiceSettings(t *testing.T) {
+	for name := range productionSettings {
+		t.Run(name, func(t *testing.T) {
+			production(t)
+			t.Setenv(name, "")
+			cfg, err := LoadConfig()
+			if err == nil {
+				t.Fatalf("LoadConfig succeeded with %s unset (got %+v); it must refuse to start", name, cfg)
+			}
+			if !strings.Contains(err.Error(), name) {
+				t.Errorf("error does not name %s: %v", name, err)
+			}
+		})
+	}
+}
+
+func TestAllMissingServiceSettingsReportedAtOnce(t *testing.T) {
+	production(t)
+	for name := range productionSettings {
+		t.Setenv(name, "")
+	}
+	_, err := LoadConfig()
+	if err == nil {
+		t.Fatal("LoadConfig succeeded with no service settings")
+	}
+	for name := range productionSettings {
+		if !strings.Contains(err.Error(), name) {
+			t.Errorf("error omits %s: %v", name, err)
+		}
+	}
+}
+
+func TestProductionReadsServiceSettingsFromEnvironment(t *testing.T) {
+	production(t)
+	t.Setenv("WEBAUTHN_RP_ID", "vault.staging.cloistr.xyz")
+	t.Setenv("CLOISTR_SIGNER_URL", "https://signer.staging.cloistr.xyz")
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.WebAuthn.RPID != "vault.staging.cloistr.xyz" || cfg.Client.SignerURL != "https://signer.staging.cloistr.xyz" {
+		t.Fatalf("settings not read from environment: rp=%q signer=%q", cfg.WebAuthn.RPID, cfg.Client.SignerURL)
+	}
+}
+
+// A developer's local run keeps working with nothing set.
+func TestDevelopmentFillsServiceSettings(t *testing.T) {
+	t.Setenv("ENVIRONMENT", "development")
+	t.Setenv("KUBERNETES_SERVICE_HOST", "")
+	for name := range productionSettings {
+		t.Setenv(name, "")
+	}
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("development with no settings: %v", err)
+	}
+	if cfg.WebAuthn.RPID == "" || cfg.WebAuthn.Origin == "" || cfg.Auth.SignerURL == "" ||
+		cfg.Client.SignerURL == "" || cfg.Client.RelayURL == "" || cfg.Client.Environment == "" {
+		t.Fatalf("development left a setting empty: %+v %+v", cfg.WebAuthn, cfg.Client)
+	}
 }
 
 // This is the regression guard for the whole change: the three strings that

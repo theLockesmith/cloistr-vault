@@ -17,10 +17,10 @@
     "@cloistr/vault-crypto": "file:../vault-crypto"
   },
   "peerDependencies": {
-    "@cloistr/auth": "^1.1.0"
+    "@cloistr/auth": "^1.4.1"
   },
   "devDependencies": {
-    "@cloistr/auth": "^1.1.0",
+    "@cloistr/auth": "^1.4.1",
     "typescript": "^5.9.3",
     "vitest": "^2.1.9"
   },

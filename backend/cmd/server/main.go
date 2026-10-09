@@ -14,7 +14,6 @@ import (
 	"github.com/coldforge/vault/internal/auth"
 	"github.com/coldforge/vault/internal/config"
 	"github.com/coldforge/vault/internal/database"
-	"github.com/coldforge/vault/internal/kms"
 	"github.com/coldforge/vault/internal/observability"
 	"github.com/coldforge/vault/internal/security"
 	"github.com/coldforge/vault/internal/vault"
@@ -65,41 +64,6 @@ func main() {
 		os.Exit(1)
 	}
 	observability.Info("database migrations completed")
-
-	// Initialize KMS
-	kmsConfig := &kms.Config{
-		Provider:  cfg.KMS.Provider,
-		Address:   cfg.KMS.Address,
-		Token:     cfg.KMS.Token,
-		MountPath: cfg.KMS.MountPath,
-		Options: map[string]string{
-			"key_dir":         cfg.KMS.KeyDir,
-			"tls_skip_verify": fmt.Sprintf("%t", cfg.KMS.SkipVerify),
-		},
-		AutoRotate: cfg.KMS.AutoRotate,
-	}
-
-	kmsInstance, err := kms.NewKMS(kmsConfig)
-	if err != nil {
-		observability.Warn("kms initialization failed, using fallback",
-			"error", err,
-			"fallback", "file",
-		)
-		// Fall back to file-based KMS
-		kmsConfig.Provider = "file"
-		kmsInstance, err = kms.NewKMS(kmsConfig)
-		if err != nil {
-			observability.Error("failed to initialize fallback kms", "error", err)
-			os.Exit(1)
-		}
-	}
-
-	// Initialize default keys
-	if err := kms.InitializeDefaultKeys(kmsInstance); err != nil {
-		observability.Warn("failed to initialize default keys", "error", err)
-	}
-
-	observability.Info("kms initialized", "provider", kmsConfig.Provider)
 
 	// Initialize relay preferences client (for user relay preferences in NIP-05)
 	relayPrefsClient, err := newRelayPrefsClient()

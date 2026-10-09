@@ -45,12 +45,6 @@ services:
       SCRYPT_P: 1
       SESSION_DURATION_HOURS: 24
 
-      # KMS
-      KMS_PROVIDER: file
-      KMS_ADDRESS: http://vault:8200
-      KMS_TOKEN: coldforge-dev-token
-      KMS_MOUNT_PATH: secret
-      KMS_KEY_DIR: /app/keys
     ports:
       - "7710:7700"
     depends_on:
@@ -78,32 +72,10 @@ services:
       - vault-network
     restart: unless-stopped
 
-  # HashiCorp Vault for server-side key management
-  vault:
-    image: hashicorp/vault:1.21
-    container_name: coldforge-vault-kms
-    command: vault server -config=/vault/config/vault.hcl
-    ports:
-      - "7712:8200"
-    environment:
-      VAULT_ADDR: "http://0.0.0.0:8200"
-      VAULT_DEV_ROOT_TOKEN_ID: "coldforge-dev-token"
-      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
-    volumes:
-      - vault_data:/vault/data
-      - ./scripts/vault-config.hcl:/vault/config/vault.hcl
-    networks:
-      - vault-network
-    restart: unless-stopped
-    cap_add:
-      - IPC_LOCK
-
 volumes:
   postgres_data:
     driver: local
   redis_data:
-    driver: local
-  vault_data:
     driver: local
 
 networks:

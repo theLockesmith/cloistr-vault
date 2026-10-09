@@ -6,17 +6,14 @@ import (
 )
 
 // production is the shape the live deployment actually has, verified in the
-// running pod on 2026-09-02: ENVIRONMENT=production, KMS_PROVIDER=vault, all
-// three secrets present. Every test that wants a healthy production config
+// running pod on 2026-09-02: ENVIRONMENT=production, secrets present. Every test that wants a healthy production config
 // starts from this and removes one thing.
 func production(t *testing.T) {
 	t.Helper()
 	t.Setenv("ENVIRONMENT", "production")
 	t.Setenv("KUBERNETES_SERVICE_HOST", "10.96.0.1")
-	t.Setenv("KMS_PROVIDER", "vault")
 	t.Setenv("DB_PASSWORD", "a-real-database-password")
 	t.Setenv("JWT_SECRET", "a-real-signing-key")
-	t.Setenv("KMS_TOKEN", "a-real-kms-token")
 	for k, v := range productionSettings {
 		t.Setenv(k, v)
 	}
@@ -111,7 +108,6 @@ func TestNoCompiledInSecretFallbacks(t *testing.T) {
 	}{
 		{"DB_PASSWORD", "DB_PASSWORD"},
 		{"JWT_SECRET", "JWT_SECRET"},
-		{"KMS_TOKEN", "KMS_TOKEN"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.unset, func(t *testing.T) {
@@ -145,38 +141,35 @@ func TestProductionWithAllSecretsLoads(t *testing.T) {
 	if cfg.Database.Password != "a-real-database-password" {
 		t.Error("DB_PASSWORD was not read from the environment")
 	}
-	if cfg.KMS.Token != "a-real-kms-token" {
-		t.Error("KMS_TOKEN was not read from the environment")
-	}
 }
 
-// All three missing should be reported together, not one per restart.
+// All missing secrets should be reported together, not one per restart.
 func TestAllMissingSecretsReportedAtOnce(t *testing.T) {
 	production(t)
 	t.Setenv("DB_PASSWORD", "")
 	t.Setenv("JWT_SECRET", "")
-	t.Setenv("KMS_TOKEN", "")
 
 	_, err := LoadConfig()
 	if err == nil {
 		t.Fatal("LoadConfig succeeded with no secrets set")
 	}
-	for _, name := range []string{"DB_PASSWORD", "JWT_SECRET", "KMS_TOKEN"} {
+	for _, name := range []string{"DB_PASSWORD", "JWT_SECRET"} {
 		if !strings.Contains(err.Error(), name) {
 			t.Errorf("error omits %s, so an operator fixes one variable per restart: %v", name, err)
 		}
 	}
 }
 
-// The file KMS provider does not use a token, so requiring one there would be
-// a false alarm that teaches people to set a dummy value.
-func TestFileKMSProviderDoesNotRequireToken(t *testing.T) {
+// The KMS was removed (nothing used its keys). Production still sets
+// KMS_PROVIDER=vault until cloistr-config drops it; with the token gone the
+// server must start either way, so the config change can land after this one.
+func TestKMSSettingsAreIgnored(t *testing.T) {
 	production(t)
-	t.Setenv("KMS_PROVIDER", "file")
+	t.Setenv("KMS_PROVIDER", "vault")
 	t.Setenv("KMS_TOKEN", "")
 
 	if _, err := LoadConfig(); err != nil {
-		t.Fatalf("file provider should not require KMS_TOKEN: %v", err)
+		t.Fatalf("leftover KMS settings must not affect startup: %v", err)
 	}
 }
 
@@ -201,7 +194,6 @@ func TestDevelopmentOutsideKubernetesLoads(t *testing.T) {
 	t.Setenv("KUBERNETES_SERVICE_HOST", "")
 	t.Setenv("DB_PASSWORD", "")
 	t.Setenv("JWT_SECRET", "")
-	t.Setenv("KMS_TOKEN", "")
 
 	cfg, err := LoadConfig()
 	if err != nil {

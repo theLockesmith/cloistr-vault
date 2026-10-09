@@ -18,6 +18,7 @@ func runtimeConfigRouter(cc config.ClientConfig) *gin.Engine {
 	r := gin.New()
 	r.Use(SecurityHeadersMiddleware(cc.SignerURL))
 	r.GET("/config.js", RuntimeConfigHandler(cc))
+	r.HEAD("/config.js", RuntimeConfigHandler(cc))
 	return r
 }
 
@@ -36,32 +37,33 @@ func parseConfigJS(t *testing.T, body string) map[string]string {
 	return out
 }
 
-func clearClientEnv(t *testing.T) {
+// prodClient is what production's deployment config sets (cloistr-config
+// base/vault); the binary no longer defaults any of it.
+var prodClient = config.ClientConfig{
+	RelayURL:     "wss://relay.cloistr.xyz",
+	SignerURL:    "https://signer.cloistr.xyz",
+	BlossomURL:   "https://files.cloistr.xyz",
+	DiscoveryURL: "https://discover.cloistr.xyz",
+	AppURL:       "https://vault.cloistr.xyz",
+	Environment:  "production",
+}
+
+func TestLoadClientConfig_ReadsEnvironmentWithoutDefaults(t *testing.T) {
 	for _, k := range []string{"CLOISTR_RELAY_URL", "CLOISTR_SIGNER_URL", "CLOISTR_BLOSSOM_URL",
 		"CLOISTR_DISCOVERY_URL", "CLOISTR_APP_URL", "CLOISTR_ENVIRONMENT"} {
 		t.Setenv(k, "")
 	}
-}
-
-func TestLoadClientConfig_DefaultsAreProduction(t *testing.T) {
-	clearClientEnv(t)
-	cc := config.LoadClientConfig()
-	want := config.ClientConfig{
-		RelayURL:     "wss://relay.cloistr.xyz",
-		SignerURL:    "https://signer.cloistr.xyz",
-		BlossomURL:   "https://files.cloistr.xyz",
-		DiscoveryURL: "https://discover.cloistr.xyz",
-		AppURL:       "https://vault.cloistr.xyz",
-		Environment:  "production",
+	if cc := config.LoadClientConfig(); cc != (config.ClientConfig{}) {
+		t.Fatalf("LoadClientConfig() with nothing set = %+v; production values must come from deployment config, not code", cc)
 	}
-	if cc != want {
-		t.Fatalf("LoadClientConfig() = %+v, want %+v", cc, want)
+	t.Setenv("CLOISTR_SIGNER_URL", "https://signer.staging.cloistr.xyz")
+	if cc := config.LoadClientConfig(); cc.SignerURL != "https://signer.staging.cloistr.xyz" {
+		t.Fatalf("SignerURL = %q", cc.SignerURL)
 	}
 }
 
-func TestRuntimeConfig_ServesProductionWithNoEnvironment(t *testing.T) {
-	clearClientEnv(t)
-	r := runtimeConfigRouter(config.LoadClientConfig())
+func TestRuntimeConfig_ServesProductionConfig(t *testing.T) {
+	r := runtimeConfigRouter(prodClient)
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/config.js", nil))
@@ -86,12 +88,12 @@ func TestRuntimeConfig_ServesProductionWithNoEnvironment(t *testing.T) {
 }
 
 func TestRuntimeConfig_StagingEnvironmentReplacesProductionHosts(t *testing.T) {
-	clearClientEnv(t)
-	t.Setenv("CLOISTR_SIGNER_URL", "https://signer.staging.cloistr.xyz")
-	t.Setenv("CLOISTR_RELAY_URL", "wss://relay.staging.cloistr.xyz")
-	t.Setenv("CLOISTR_APP_URL", "https://vault.staging.cloistr.xyz")
-	t.Setenv("CLOISTR_ENVIRONMENT", "staging")
-	r := runtimeConfigRouter(config.LoadClientConfig())
+	r := runtimeConfigRouter(config.ClientConfig{
+		SignerURL:   "https://signer.staging.cloistr.xyz",
+		RelayURL:    "wss://relay.staging.cloistr.xyz",
+		AppURL:      "https://vault.staging.cloistr.xyz",
+		Environment: "staging",
+	})
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/config.js", nil))
@@ -119,7 +121,7 @@ func TestRuntimeConfig_ValuesAreJSONEncoded(t *testing.T) {
 }
 
 func TestRuntimeConfig_ExactPathOnly(t *testing.T) {
-	r := runtimeConfigRouter(config.LoadClientConfig())
+	r := runtimeConfigRouter(prodClient)
 	for _, p := range []string{"/config.json", "/config.js/x", "/assets/config.js"} {
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, p, nil))
@@ -147,8 +149,7 @@ func TestRuntimeConfig_BeatsStaticFilesAndAssetsStayCached(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	clearClientEnv(t)
-	r := runtimeConfigRouter(config.LoadClientConfig())
+	r := runtimeConfigRouter(prodClient)
 	r.NoRoute(spaHandler(webDir))
 
 	w := httptest.NewRecorder()
@@ -173,5 +174,22 @@ func TestRuntimeConfig_BeatsStaticFilesAndAssetsStayCached(t *testing.T) {
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
 	if got := w.Header().Get("Cache-Control"); got == "public, max-age=31536000, immutable" {
 		t.Fatal("index.html must not get the immutable cache (it names the current bundle)")
+	}
+}
+
+// HEAD must get the same headers as GET; it used to fall through to the
+// static handler and come back "private".
+func TestRuntimeConfig_HeadMatchesGet(t *testing.T) {
+	r := runtimeConfigRouter(prodClient)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodHead, "/config.js", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("HEAD status = %d", w.Code)
+	}
+	if got := w.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("HEAD Cache-Control = %q, want no-store", got)
+	}
+	if ct := w.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/javascript") {
+		t.Fatalf("HEAD Content-Type = %q", ct)
 	}
 }

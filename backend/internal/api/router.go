@@ -278,6 +278,7 @@ func SetupRouter(authService *auth.AuthService, vaultService VaultService, folde
 	// Runtime service config for the web UI, written per environment at
 	// container start. Exact path, registered before the SPA catch-all.
 	router.GET("/config.js", RuntimeConfigHandler(client))
+	router.HEAD("/config.js", RuntimeConfigHandler(client))
 
 	// Catch-all: serve the web UI (SPA) when a build dir is configured,
 	// otherwise return a JSON 404 (API-only mode).

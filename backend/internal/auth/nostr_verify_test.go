@@ -150,7 +150,7 @@ func TestAuthenticateWithNostr_RejectsReplayedChallenge(t *testing.T) {
 	// First attempt passes all crypto checks, consumes the challenge, then panics on nil db.
 	// The challenge is already deleted from the store at that point.
 	func() {
-		defer func() { recover() }()
+		defer func() { _ = recover() }()
 		_, _, _ = a.AuthenticateWithNostr(pubKeyHex, eventJSON)
 	}()
 
@@ -173,7 +173,9 @@ func TestAuthenticateWithNostr_RejectsForgedSignature(t *testing.T) {
 
 	// Tamper with the signature in the JSON
 	var event crypto.NostrEvent
-	json.Unmarshal([]byte(eventJSON), &event)
+	if err := json.Unmarshal([]byte(eventJSON), &event); err != nil {
+		t.Fatal(err)
+	}
 	sigBytes, _ := hex.DecodeString(event.Sig)
 	sigBytes[0] ^= 0xff
 	event.Sig = hex.EncodeToString(sigBytes)

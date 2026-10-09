@@ -113,7 +113,7 @@ func (p *LightningAddressProvider) GenerateChallenge(ctx context.Context, identi
 		
 		if err != nil {
 			if err == sql.ErrNoRows {
-				return nil, fmt.Errorf("Lightning Address not registered: %s", identifier)
+				return nil, fmt.Errorf("lightning address not registered: %s", identifier)
 			}
 			return nil, fmt.Errorf("database error: %w", err)
 		}
@@ -324,14 +324,14 @@ func (p *LightningAddressProvider) PrepareRegistration(ctx context.Context, data
 		}
 		
 		if exists {
-			return nil, fmt.Errorf("Lightning Address already registered: %s", lightningAddress)
+			return nil, fmt.Errorf("lightning address already registered: %s", lightningAddress)
 		}
 	}
 	
 	// For external domains, verify Lightning Address exists
 	if lnAddr.Domain != p.domain {
 		if err := p.verifyExternalLightningAddress(ctx, lnAddr); err != nil {
-			return nil, fmt.Errorf("Lightning Address verification failed: %w", err)
+			return nil, fmt.Errorf("lightning address verification failed: %w", err)
 		}
 	}
 	
@@ -445,12 +445,12 @@ func (p *LightningAddressProvider) verifyExternalLightningAddress(ctx context.Co
 	
 	resp, err := client.Get(url)
 	if err != nil {
-		return fmt.Errorf("Lightning Address not reachable: %w", err)
+		return fmt.Errorf("lightning address not reachable: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Lightning Address not found (HTTP %d)", resp.StatusCode)
+		return fmt.Errorf("lightning address not found (HTTP %d)", resp.StatusCode)
 	}
 	
 	return nil
@@ -567,7 +567,7 @@ func (p *LightningAddressProvider) GetLightningAddressInfo(ctx context.Context, 
 	}
 	
 	if !exists {
-		return nil, fmt.Errorf("Lightning Address not found")
+		return nil, fmt.Errorf("lightning address not found")
 	}
 	
 	// Return LNURL-pay compatible response

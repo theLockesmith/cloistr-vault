@@ -84,7 +84,7 @@ func (f *FileKMS) GenerateKey(ctx context.Context, keyType KeyType, keySize int)
 
 	// Update latest key symlink
 	latestPath := filepath.Join(f.keyDir, fmt.Sprintf("%s-latest.json", keyType))
-	os.Remove(latestPath) // Remove existing symlink
+	_ = os.Remove(latestPath) // Remove existing symlink; absent is fine
 	if err := os.Symlink(filepath.Base(keyPath), latestPath); err != nil {
 		// If symlink fails, just copy the file
 		if err := os.WriteFile(latestPath, data, 0600); err != nil {

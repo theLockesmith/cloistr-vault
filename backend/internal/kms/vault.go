@@ -102,7 +102,7 @@ func (v *VaultKMS) vaultDo(ctx context.Context, method, path string, body interf
 	if err != nil {
 		return nil, 0, fmt.Errorf("vault request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	raw, _ := io.ReadAll(resp.Body)
 	if len(raw) == 0 {

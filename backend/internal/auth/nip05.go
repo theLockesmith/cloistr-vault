@@ -227,12 +227,14 @@ func (a *AuthService) GetDisplayNameForUser(userID uuid.UUID) string {
 		return ""
 	}
 
-	// Check for Lightning address
-	a.db.QueryRow(`
+	// Check for Lightning address (no row is the normal case)
+	if err := a.db.QueryRow(`
 		SELECT am.identifier
 		FROM auth_methods am
 		WHERE am.user_id = $1 AND am.type = 'lightning_address'`,
-		userID).Scan(&lightningAddress)
+		userID).Scan(&lightningAddress); err != nil && err != sql.ErrNoRows {
+		log.Printf("display name: lightning address lookup failed: %v", err)
+	}
 
 	// Priority: NIP-05 > Lightning > npub
 	if nip05Address.Valid && nip05Address.String != "" {
@@ -286,11 +288,13 @@ func (a *AuthService) PopulateUserDisplayInfo(user *models.User) error {
 
 	// Check for Lightning address
 	var lightningAddr sql.NullString
-	a.db.QueryRow(`
+	if err := a.db.QueryRow(`
 		SELECT am.identifier
 		FROM auth_methods am
 		WHERE am.user_id = $1 AND am.type = 'lightning_address'`,
-		user.ID).Scan(&lightningAddr)
+		user.ID).Scan(&lightningAddr); err != nil && err != sql.ErrNoRows {
+		log.Printf("user profile: lightning address lookup failed: %v", err)
+	}
 
 	if lightningAddr.Valid && lightningAddr.String != "" {
 		user.LightningAddress = lightningAddr.String

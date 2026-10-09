@@ -157,13 +157,7 @@ const (
 )
 
 // StorageManager coordinates multiple storage backends
-type StorageManager struct {
-	primary   VaultStorage
-	backups   []VaultStorage
-	recovery  RecoveryStorage
-	sync      SyncManager
-	config    *StorageConfig
-}
+type StorageManager struct{}
 
 type StorageConfig struct {
 	Mode            StorageMode           `json:"mode"`

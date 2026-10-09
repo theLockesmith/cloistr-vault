@@ -348,7 +348,7 @@ func (p *NIP05Provider) verifyNIP05Identity(ctx context.Context, nip05 *NIP05Ide
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch NIP-05 data: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("NIP-05 verification failed: HTTP %d", resp.StatusCode)

@@ -114,7 +114,7 @@ func (s *LightningIdentityService) ResolveLightningAddress(username string) (*LN
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("Lightning Address not found: %s@%s", username, s.domain)
+			return nil, fmt.Errorf("lightning address not found: %s@%s", username, s.domain)
 		}
 		return nil, fmt.Errorf("database error: %w", err)
 	}
@@ -290,7 +290,9 @@ func (s *LightningIdentityService) HandleLNURLPay(w http.ResponseWriter, r *http
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("failed to write response: %v", err)
+	}
 }
 
 func (s *LightningIdentityService) HandleNIP05(w http.ResponseWriter, r *http.Request) {
@@ -303,7 +305,9 @@ func (s *LightningIdentityService) HandleNIP05(w http.ResponseWriter, r *http.Re
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("failed to write response: %v", err)
+	}
 }
 
 // Database migration for Lightning identities

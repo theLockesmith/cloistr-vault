@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/coldforge/vault/internal/observability"
 	"net/http"
 
 	"git.aegis-hq.xyz/coldforge/cloistr-common/errors"
@@ -172,7 +173,7 @@ func (h *SecretHandlers) ReorderSecrets(c *gin.Context) {
 	for idStr, pos := range req.Positions {
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			errors.BadRequest(errors.CodeInvalidInput, "Invalid secret ID: " + idStr).Abort(c)
+			errors.BadRequest(errors.CodeInvalidInput, "Invalid secret ID: "+idStr).Abort(c)
 			return
 		}
 		positions[id] = pos
@@ -218,7 +219,11 @@ func (h *SecretHandlers) GeneratePassword(c *gin.Context) {
 	}
 
 	// Optionally record generation history (fire and forget)
-	go h.passwordService.RecordPasswordGeneration(userID, &req, result, nil)
+	go func() {
+		if err := h.passwordService.RecordPasswordGeneration(userID, &req, result, nil); err != nil {
+			observability.Warn("failed to record password generation", "error", err)
+		}
+	}()
 
 	c.JSON(http.StatusOK, result)
 }

@@ -37,7 +37,7 @@ func NewLocalStorage(basePath string) (*LocalStorage, error) {
 	
 	// Initialize schema
 	if err := initializeLocalSchema(db); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to initialize schema: %w", err)
 	}
 	
@@ -171,7 +171,7 @@ func (s *LocalStorage) ListVersions(ctx context.Context, userID uuid.UUID) ([]Va
 	if err != nil {
 		return nil, fmt.Errorf("failed to list versions: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	
 	var versions []VaultVersion
 	for rows.Next() {
@@ -304,7 +304,7 @@ func (s *LocalStorage) HealthCheck(ctx context.Context) error {
 	if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
 		return fmt.Errorf("write permission test failed: %w", err)
 	}
-	os.Remove(testFile)
+	_ = os.Remove(testFile)
 	
 	return nil
 }
@@ -341,7 +341,7 @@ func (s *LocalStorage) Export(ctx context.Context, userID uuid.UUID, format stri
 // Import imports vault data from an export
 func (s *LocalStorage) Import(ctx context.Context, userID uuid.UUID, data []byte, format string) error {
 	var encryptedData []byte
-	var version int = 1
+	version := 1
 	
 	switch format {
 	case "raw":

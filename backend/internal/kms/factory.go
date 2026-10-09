@@ -18,10 +18,10 @@ func NewKMS(cfg *Config) (KMS, error) {
 		return nil, fmt.Errorf("AWS KMS not yet implemented")
 	case "azure":
 		// TODO: Implement Azure Key Vault
-		return nil, fmt.Errorf("Azure Key Vault not yet implemented")
+		return nil, fmt.Errorf("azure key vault provider not yet implemented")
 	case "gcp":
 		// TODO: Implement Google Cloud KMS
-		return nil, fmt.Errorf("Google Cloud KMS not yet implemented")
+		return nil, fmt.Errorf("google cloud kms provider not yet implemented")
 	default:
 		return nil, fmt.Errorf("unsupported KMS provider: %s", cfg.Provider)
 	}

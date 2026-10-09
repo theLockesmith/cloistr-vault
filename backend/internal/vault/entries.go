@@ -44,7 +44,7 @@ func (s *EntryService) CreateEntry(userID uuid.UUID, req *models.CreateEntryRequ
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	entry := &models.EnhancedVaultEntry{
 		ID:         uuid.New(),
@@ -281,7 +281,7 @@ func (s *EntryService) ListEntries(userID uuid.UUID, req *models.SearchRequest) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to query entries: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var entries []models.EnhancedVaultEntry
 	for rows.Next() {
@@ -400,7 +400,7 @@ func (s *EntryService) UpdateEntry(entryID, userID uuid.UUID, req *models.Update
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if len(updates) > 0 {
 		updates = append(updates, fmt.Sprintf("updated_at = $%d", argNum))
@@ -547,7 +547,7 @@ func (s *EntryService) getEntrySecrets(entryID uuid.UUID) ([]models.VaultSecret,
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var secrets []models.VaultSecret
 	for rows.Next() {
@@ -587,7 +587,7 @@ func (s *EntryService) getEntryTags(entryID uuid.UUID) ([]models.VaultTag, error
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var tags []models.VaultTag
 	for rows.Next() {
@@ -622,7 +622,7 @@ func (s *EntryService) getEntryAttachments(entryID uuid.UUID) ([]models.VaultAtt
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var attachments []models.VaultAttachment
 	for rows.Next() {

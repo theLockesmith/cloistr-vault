@@ -26,10 +26,21 @@ build:
   extends: .kaniko-build
   stage: build
 
+# The Postgres service turns on the database integration tests, which skip
+# without VAULT_TEST_PG_DSN: the passkey register+login end-to-end test
+# (internal/api/passkey_e2e_test.go) and the shared login-challenge store.
+# Passkey login was broken in production for eight months while every unit
+# test passed; the end-to-end test is what stops that recurring. Each test
+# creates and drops its own database (internal/testutil/pgtest).
 test:unit:
   extends: [.go-test, .cloistr-rules]
+  services:
+    - name: postgres:16-bookworm
+      alias: postgres
   variables:
     GO_TEST_DIR: "backend"
+    POSTGRES_PASSWORD: vault-ci
+    VAULT_TEST_PG_DSN: "host=postgres port=5432 user=postgres password=vault-ci dbname=postgres sslmode=disable"
 
 # Run the frontend/web unit tests. This repo has a `test` stage and a Go
 # `test:unit` job, but nothing in CI ever touched frontend/web: 6 vitest files,

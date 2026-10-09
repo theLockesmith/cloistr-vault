@@ -2,32 +2,21 @@ package auth
 
 import (
 	"context"
-	"database/sql"
-	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
+
+	"github.com/coldforge/vault/internal/testutil/pgtest"
 )
 
-// Runs against a real Postgres with migrations applied. Skipped unless
-// VAULT_TEST_PG_DSN is set, e.g.
-// VAULT_TEST_PG_DSN="host=localhost port=55432 user=postgres password=x dbname=postgres sslmode=disable"
+// Runs against a fresh, migrated Postgres; skipped unless VAULT_TEST_PG_DSN
+// is set. See internal/testutil/pgtest.
 func pgStoreForTest(t *testing.T) *pgChallengeStore {
 	t.Helper()
-	dsn := os.Getenv("VAULT_TEST_PG_DSN")
-	if dsn == "" {
-		t.Skip("VAULT_TEST_PG_DSN not set")
-	}
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { db.Close() })
-	return newPGChallengeStore(db)
+	return newPGChallengeStore(pgtest.FreshDB(t).DB)
 }
 
 func TestPGChallengeStore_Integration_SingleWinnerAcrossConnections(t *testing.T) {

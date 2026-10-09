@@ -77,10 +77,11 @@ func (h *Handlers) WebAuthnFinishRegistration(c *gin.Context) {
 	// Finish registration
 	credInfo, err := h.authService.FinishWebAuthnRegistration(userID, credName, response)
 	if err != nil {
-		switch err {
-		case auth.ErrSessionNotFound:
+		// Errors arrive wrapped (by the service or go-webauthn); == missed them.
+		switch {
+		case stderrors.Is(err, auth.ErrSessionNotFound):
 			errors.BadRequest(errors.CodeValidationFailed, "Registration session not found - please start again").Abort(c)
-		case auth.ErrSessionExpired:
+		case stderrors.Is(err, auth.ErrSessionExpired):
 			errors.BadRequest(errors.CodeValidationFailed, "Registration session expired - please start again").Abort(c)
 		default:
 			observability.Warn("webauthn registration failed", "error", err)
@@ -214,14 +215,15 @@ func (h *Handlers) WebAuthnFinishLogin(c *gin.Context) {
 }
 
 func handleWebAuthnLoginError(c *gin.Context, err error) {
-	switch err {
-	case auth.ErrSessionNotFound:
+	// Errors arrive wrapped (by the service or go-webauthn); == missed them.
+	switch {
+	case stderrors.Is(err, auth.ErrSessionNotFound):
 		errors.BadRequest(errors.CodeValidationFailed, "Login session not found - please start again").Abort(c)
-	case auth.ErrSessionExpired:
+	case stderrors.Is(err, auth.ErrSessionExpired):
 		errors.BadRequest(errors.CodeValidationFailed, "Login session expired - please start again").Abort(c)
-	case auth.ErrCredentialNotFound:
+	case stderrors.Is(err, auth.ErrCredentialNotFound):
 		errors.Unauthorized(errors.CodeAuthInvalid, "Credential not recognized").Abort(c)
-	case auth.ErrUserNotFound:
+	case stderrors.Is(err, auth.ErrUserNotFound):
 		errors.NotFound(errors.CodeResourceNotFound, "User not found").Abort(c)
 	default:
 		observability.Warn("webauthn login failed", "error", err)

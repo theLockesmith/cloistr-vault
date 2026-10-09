@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/coldforge/vault/internal/observability"
 	"log"
 	"net/http"
 	"strings"
@@ -180,7 +181,7 @@ func fetchNIP05(nip05Address string) (string, []string, error) {
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to fetch NIP-05 data: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", nil, fmt.Errorf("NIP-05 verification failed: HTTP %d", resp.StatusCode)
@@ -233,7 +234,7 @@ func (a *AuthService) GetDisplayNameForUser(userID uuid.UUID) string {
 		FROM auth_methods am
 		WHERE am.user_id = $1 AND am.type = 'lightning_address'`,
 		userID).Scan(&lightningAddress); err != nil && err != sql.ErrNoRows {
-		log.Printf("display name: lightning address lookup failed: %v", err)
+		observability.Warn("display name: lightning address lookup failed", "error", err)
 	}
 
 	// Priority: NIP-05 > Lightning > npub
@@ -293,7 +294,7 @@ func (a *AuthService) PopulateUserDisplayInfo(user *models.User) error {
 		FROM auth_methods am
 		WHERE am.user_id = $1 AND am.type = 'lightning_address'`,
 		user.ID).Scan(&lightningAddr); err != nil && err != sql.ErrNoRows {
-		log.Printf("user profile: lightning address lookup failed: %v", err)
+		observability.Warn("user profile: lightning address lookup failed", "error", err)
 	}
 
 	if lightningAddr.Valid && lightningAddr.String != "" {

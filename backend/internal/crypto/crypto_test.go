@@ -28,8 +28,9 @@ func TestGenerateRandomBytes(t *testing.T) {
 				t.Errorf("GenerateRandomBytes() length = %v, want %v", len(got), tt.size)
 			}
 			
-			// Test that two calls produce different results (with high probability)
-			if tt.size > 0 {
+			// Two calls should differ. Only meaningful from 16 bytes up: two
+			// 1-byte draws collide 1 time in 256, which made this flaky in CI.
+			if tt.size >= 16 {
 				got2, _ := GenerateRandomBytes(tt.size)
 				if bytes.Equal(got, got2) {
 					t.Error("GenerateRandomBytes() produced identical results, expected different")

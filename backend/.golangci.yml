@@ -11,5 +11,3 @@ linters:
         - (*database/sql.Tx).Rollback
         - (*database/sql.DB).Close
         - (*github.com/coldforge/vault/internal/database.DB).Close
-        - (io.Closer).Close
-        - (io.ReadCloser).Close

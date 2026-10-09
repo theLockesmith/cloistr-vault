@@ -102,7 +102,11 @@ func main() {
 	observability.Info("kms initialized", "provider", kmsConfig.Provider)
 
 	// Initialize relay preferences client (for user relay preferences in NIP-05)
-	relayPrefsClient := relayprefs.NewClientFromEnv()
+	relayPrefsClient, err := newRelayPrefsClient()
+	if err != nil {
+		observability.Error("invalid relay preferences configuration", "error", err)
+		os.Exit(1)
+	}
 	if err := relayPrefsClient.Validate(); err != nil {
 		observability.Warn("relay prefs client validation warning", "error", err)
 	}
@@ -220,4 +224,13 @@ func main() {
 	} else {
 		observability.Info("server gracefully stopped")
 	}
+}
+
+// newRelayPrefsClient builds the relay preferences client from the
+// environment. cloistr-common v0.4.0 has no built-in Cloistr URLs, so a missing
+// USE_CLOISTR_FALLBACK, or a missing RELAYPREFS_CLOISTR_DISCOVERY /
+// RELAYPREFS_CLOISTR_RELAY with the fallback on, is an error naming the
+// variable, and the server refuses to start.
+func newRelayPrefsClient() (*relayprefs.Client, error) {
+	return relayprefs.NewClientFromEnv()
 }

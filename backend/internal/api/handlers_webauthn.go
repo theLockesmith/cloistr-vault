@@ -1,8 +1,12 @@
 package api
 
 import (
-	"git.aegis-hq.xyz/coldforge/cloistr-common/errors"
 	"encoding/base64"
+	"encoding/json"
+	stderrors "errors"
+	"git.aegis-hq.xyz/coldforge/cloistr-common/errors"
+	"github.com/coldforge/vault/internal/observability"
+	"io"
 	"net/http"
 	"time"
 
@@ -65,7 +69,8 @@ func (h *Handlers) WebAuthnFinishRegistration(c *gin.Context) {
 	// Parse the credential creation response
 	response, err := protocol.ParseCredentialCreationResponseBody(c.Request.Body)
 	if err != nil {
-		errors.BadRequest(errors.CodeInvalidInput, "Invalid credential response: " + err.Error()).Abort(c)
+		observability.Warn("webauthn registration: unparseable attestation", "error", err)
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid credential response").Abort(c)
 		return
 	}
 
@@ -78,7 +83,8 @@ func (h *Handlers) WebAuthnFinishRegistration(c *gin.Context) {
 		case auth.ErrSessionExpired:
 			errors.BadRequest(errors.CodeValidationFailed, "Registration session expired - please start again").Abort(c)
 		default:
-			errors.BadRequest(errors.CodeInvalidInput, "Registration failed: " + err.Error()).Abort(c)
+			observability.Warn("webauthn registration failed", "error", err)
+			errors.BadRequest(errors.CodeInvalidInput, "Registration failed").Abort(c)
 		}
 		return
 	}
@@ -137,6 +143,9 @@ func (h *Handlers) WebAuthnBeginDiscoverableLogin(c *gin.Context) {
 	})
 }
 
+// maxAssertionBody caps the unauthenticated finish-login request.
+const maxAssertionBody = 64 << 10
+
 // WebAuthnFinishLogin completes the WebAuthn authentication ceremony
 func (h *Handlers) WebAuthnFinishLogin(c *gin.Context) {
 	var req struct {
@@ -144,13 +153,30 @@ func (h *Handlers) WebAuthnFinishLogin(c *gin.Context) {
 		SessionID string `json:"session_id"`
 	}
 
-	// Try to bind JSON for email/session_id
-	c.ShouldBindJSON(&req)
+	// The routing field (email or session_id) and the assertion arrive in one
+	// JSON body. Read it once: binding first and then parsing c.Request.Body
+	// handed the parser an already-drained body, so every login failed.
+	// Unauthenticated endpoint; a real assertion is ~2 KB.
+	body, err := io.ReadAll(http.MaxBytesReader(c.Writer, c.Request.Body, maxAssertionBody))
+	if err != nil {
+		var tooLarge *http.MaxBytesError
+		if stderrors.As(err, &tooLarge) {
+			errors.New(errors.CodeRequestTooLarge, "Request body too large", http.StatusRequestEntityTooLarge).Abort(c)
+			return
+		}
+		errors.BadRequest(errors.CodeInvalidInput, "Could not read request body").Abort(c)
+		return
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid request format").Abort(c)
+		return
+	}
 
 	// Parse the credential assertion response
-	response, err := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
+	response, err := protocol.ParseCredentialRequestResponseBytes(body)
 	if err != nil {
-		errors.BadRequest(errors.CodeInvalidInput, "Invalid credential response: " + err.Error()).Abort(c)
+		observability.Warn("webauthn login: unparseable assertion", "error", err)
+		errors.BadRequest(errors.CodeInvalidInput, "Invalid credential response").Abort(c)
 		return
 	}
 
@@ -198,7 +224,8 @@ func handleWebAuthnLoginError(c *gin.Context, err error) {
 	case auth.ErrUserNotFound:
 		errors.NotFound(errors.CodeResourceNotFound, "User not found").Abort(c)
 	default:
-		errors.BadRequest(errors.CodeInvalidInput, "Authentication failed: " + err.Error()).Abort(c)
+		observability.Warn("webauthn login failed", "error", err)
+		errors.BadRequest(errors.CodeInvalidInput, "Authentication failed").Abort(c)
 	}
 }
 

@@ -115,9 +115,8 @@ type RecoveryProvider interface {
 
 // AuthProviderManager manages all authentication providers
 type AuthProviderManager struct {
-	providers     map[string]AuthProvider
-	mfaProviders  map[string]MFAProvider
-	recoveryProvider RecoveryProvider
+	providers    map[string]AuthProvider
+	mfaProviders map[string]MFAProvider
 }
 
 // NewAuthProviderManager creates a new provider manager

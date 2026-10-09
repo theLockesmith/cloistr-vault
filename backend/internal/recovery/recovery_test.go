@@ -2,7 +2,6 @@ package recovery
 
 import (
 	"database/sql"
-	"database/sql/driver"
 	"errors"
 	"os"
 	"regexp"
@@ -788,17 +787,3 @@ func BenchmarkNormalizeCode(b *testing.B) {
 	}
 }
 
-// Custom matcher for UUID arguments
-type anyUUID struct{}
-
-func (a anyUUID) Match(v driver.Value) bool {
-	_, ok := v.(uuid.UUID)
-	if !ok {
-		// Try parsing as string
-		if str, ok := v.(string); ok {
-			_, err := uuid.Parse(str)
-			return err == nil
-		}
-	}
-	return ok
-}

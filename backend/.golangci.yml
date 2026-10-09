@@ -1,0 +1,13 @@
+version: "2"
+
+linters:
+  settings:
+    errcheck:
+      # Deferred cleanup on a path that already returned its real result: a
+      # failed Close or Rollback here has nothing useful to report and nowhere
+      # to report it. Every other unchecked error still fails lint.
+      exclude-functions:
+        - (*database/sql.Rows).Close
+        - (*database/sql.Tx).Rollback
+        - (*database/sql.DB).Close
+        - (*github.com/coldforge/vault/internal/database.DB).Close

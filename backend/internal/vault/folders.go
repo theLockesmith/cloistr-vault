@@ -359,7 +359,7 @@ func (s *FolderService) ReorderFolders(userID uuid.UUID, folderPositions map[uui
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	for folderID, position := range folderPositions {
 		// Verify ownership in the same transaction

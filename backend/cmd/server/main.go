@@ -195,14 +195,11 @@ func main() {
 		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
 
-		for {
-			select {
-			case <-ticker.C:
-				if err := db.CleanupExpiredSessions(); err != nil {
-					observability.Error("failed to cleanup expired sessions", "error", err)
-				} else {
-					observability.Debug("expired sessions cleaned up")
-				}
+		for range ticker.C {
+			if err := db.CleanupExpiredSessions(); err != nil {
+				observability.Error("failed to cleanup expired sessions", "error", err)
+			} else {
+				observability.Debug("expired sessions cleaned up")
 			}
 		}
 	}()

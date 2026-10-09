@@ -125,14 +125,14 @@ func (h *FolderHandlers) UpdateFolder(c *gin.Context) {
 	folder, err := h.folderService.UpdateFolder(folderID, userID, &req)
 	if err != nil {
 		errMsg := err.Error()
-		switch {
-		case errMsg == "folder not found or access denied":
+		switch errMsg {
+		case "folder not found or access denied":
 			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
-		case errMsg == "folder cannot be its own parent":
+		case "folder cannot be its own parent":
 			errors.BadRequest(errors.CodeValidationFailed, errMsg).Abort(c)
-		case errMsg == "cannot move folder: would create circular reference":
+		case "cannot move folder: would create circular reference":
 			errors.BadRequest(errors.CodeValidationFailed, errMsg).Abort(c)
-		case errMsg == "parent folder not found or access denied":
+		case "parent folder not found or access denied":
 			errors.NotFound(errors.CodeResourceNotFound, errMsg).Abort(c)
 		default:
 			errors.InternalError(errors.CodeInternalError, "Failed to update folder").Abort(c)

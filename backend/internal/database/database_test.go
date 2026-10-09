@@ -26,7 +26,7 @@ func TestNewDatabase(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, db)
 	
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	
 	// Test connection
 	err = db.HealthCheck()
@@ -232,27 +232,6 @@ func setupTestDatabase(t *testing.T) *DB {
 	require.NoError(t, err)
 	
 	return db
-}
-
-func cleanupTestDatabase(t *testing.T, db *DB) {
-	t.Helper()
-	
-	// Clean up test data
-	tables := []string{
-		"audit_logs",
-		"sessions", 
-		"recovery_codes",
-		"vaults",
-		"auth_methods",
-		"users",
-	}
-	
-	for _, table := range tables {
-		_, err := db.Exec("DELETE FROM " + table)
-		require.NoError(t, err)
-	}
-	
-	db.Close()
 }
 
 // Benchmark tests

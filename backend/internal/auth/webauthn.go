@@ -539,12 +539,14 @@ func (a *AuthService) getUserForWebAuthn(userID uuid.UUID) (*WebAuthnUser, error
 	}
 
 	// Get display name from NIP-05, Lightning, or use email
-	a.db.QueryRow(`
+	if err := a.db.QueryRow(`
 		SELECT COALESCE(nip05_address, identifier, $2)
 		FROM auth_methods
 		WHERE user_id = $1
 		LIMIT 1`,
-		userID, user.Email).Scan(&user.DisplayName)
+		userID, user.Email).Scan(&user.DisplayName); err != nil && err != sql.ErrNoRows {
+		observability.Warn("failed to look up display name", "error", err)
+	}
 
 	return &user, nil
 }
@@ -593,7 +595,9 @@ func (a *AuthService) getWebAuthnCredentials(userID uuid.UUID) ([]webauthn.Crede
 		// Parse transports
 		if transportsJSON.Valid && transportsJSON.String != "" {
 			var transports []string
-			json.Unmarshal([]byte(transportsJSON.String), &transports)
+			if err := json.Unmarshal([]byte(transportsJSON.String), &transports); err != nil {
+				observability.Warn("ignoring unreadable credential transports", "error", err)
+			}
 			for _, t := range transports {
 				cred.Transport = append(cred.Transport, protocol.AuthenticatorTransport(t))
 			}
@@ -674,8 +678,10 @@ func (a *AuthService) storeWebAuthnSession(userID uuid.UUID, session *webauthn.S
 	}
 
 	// Delete any existing session for this user and ceremony type
-	a.db.Exec(`DELETE FROM webauthn_sessions WHERE user_id = $1 AND ceremony_type = $2`,
-		userID, ceremonyType)
+	if _, err := a.db.Exec(`DELETE FROM webauthn_sessions WHERE user_id = $1 AND ceremony_type = $2`,
+		userID, ceremonyType); err != nil {
+		return fmt.Errorf("failed to clear previous session: %w", err)
+	}
 
 	// Store new session
 	_, err := a.db.Exec(`
@@ -718,8 +724,10 @@ func (a *AuthService) getWebAuthnSession(userID uuid.UUID, ceremonyType string) 
 }
 
 func (a *AuthService) deleteWebAuthnSession(userID uuid.UUID, ceremonyType string) {
-	a.db.Exec(`DELETE FROM webauthn_sessions WHERE user_id = $1 AND ceremony_type = $2`,
-		userID, ceremonyType)
+	if _, err := a.db.Exec(`DELETE FROM webauthn_sessions WHERE user_id = $1 AND ceremony_type = $2`,
+		userID, ceremonyType); err != nil {
+		observability.Warn("failed to delete webauthn session", "error", err)
+	}
 }
 
 func (a *AuthService) storeDiscoverableSession(sessionID string, session *webauthn.SessionData) error {
@@ -768,5 +776,7 @@ func (a *AuthService) getDiscoverableSession(sessionID string) (*webauthn.Sessio
 }
 
 func (a *AuthService) deleteDiscoverableSession(sessionID string) {
-	a.db.Exec(`DELETE FROM webauthn_sessions WHERE id::text = $1`, sessionID)
+	if _, err := a.db.Exec(`DELETE FROM webauthn_sessions WHERE id::text = $1`, sessionID); err != nil {
+		observability.Warn("failed to delete discoverable webauthn session", "error", err)
+	}
 }

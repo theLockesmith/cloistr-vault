@@ -359,7 +359,9 @@ func (a *AuthService) ValidateSession(token string) (*models.User, error) {
 	// Check if session is expired
 	if time.Now().After(expiresAt) {
 		// Clean up expired session
-		a.db.Exec("DELETE FROM sessions WHERE token = $1", token)
+		if _, err := a.db.Exec("DELETE FROM sessions WHERE token = $1", token); err != nil {
+			observability.Warn("failed to delete expired session", "error", err)
+		}
 		return nil, ErrInvalidCredentials
 	}
 

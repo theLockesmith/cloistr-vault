@@ -13,7 +13,6 @@ type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
 	Security SecurityConfig
-	KMS      KMSConfig
 	Auth     AuthConfig
 	WebAuthn WebAuthnConfig
 	Client   ClientConfig
@@ -95,26 +94,17 @@ type WebAuthnConfig struct {
 	DisplayName string
 }
 
-type KMSConfig struct {
-	Provider   string
-	Address    string
-	Token      string
-	MountPath  string
-	KeyDir     string
-	AutoRotate bool
-	SkipVerify bool
-}
-
 // Secrets have NO compiled-in fallback.
 //
 // Until 2026-09-02 this file shipped three of them: DB_PASSWORD defaulted to
 // "vault_password", JWT_SECRET to "your-secret-key-change-in-production" and
-// KMS_TOKEN to "coldforge-dev-token". A compiled-in default for a secret is
+// KMS_TOKEN to "coldforge-dev-token" (the KMS itself was removed 2026-10-09:
+// nothing ever used its keys). A compiled-in default for a secret is
 // worse than a missing one, because a misconfigured deployment starts happily
 // and signs real sessions with a value that is published in a public AGPL
 // repository. Anyone could mint a valid vault JWT from the source tree.
 //
-// So the three are now read with no fallback and the process refuses to start
+// So the secrets are now read with no fallback and the process refuses to start
 // without them. See LoadConfig for the two rules, and devFallback for the only
 // place a value is ever invented (local development, never in a pod, and never
 // a fixed string).
@@ -123,16 +113,14 @@ type KMSConfig struct {
 //
 // It returns an error rather than a half-configured process. Two rules:
 //
-//  1. Outside development, DB_PASSWORD and JWT_SECRET must be set, and
-//     KMS_TOKEN must be set whenever KMS_PROVIDER is "vault" (the file
-//     provider does not use a token).
+//  1. Outside development, DB_PASSWORD and JWT_SECRET must be set.
 //  2. ENVIRONMENT=development is refused inside Kubernetes. Dev mode invents
 //     local credentials; a pod must never take that path, whatever its
 //     ConfigMap says.
 //
 // Verified against the live deployment before this landed: ENVIRONMENT is
-// "production", KMS_PROVIDER is "vault", and all three secrets are present in
-// the pod with non-fallback values. Neither rule fires on it.
+// "production" and the secrets are present in the pod with non-fallback
+// values. Neither rule fires on it.
 func LoadConfig() (*Config, error) {
 	env := getEnv("ENVIRONMENT", "development")
 	inKubernetes := os.Getenv("KUBERNETES_SERVICE_HOST") != ""
@@ -166,15 +154,6 @@ func LoadConfig() (*Config, error) {
 			ScryptP:         getEnvInt("SCRYPT_P", 1),
 			SessionDuration: getEnvInt("SESSION_DURATION_HOURS", 24),
 		},
-		KMS: KMSConfig{
-			Provider:   getEnv("KMS_PROVIDER", "file"),
-			Address:    getEnv("KMS_ADDRESS", "http://localhost:7712"),
-			Token:      os.Getenv("KMS_TOKEN"),
-			MountPath:  getEnv("KMS_MOUNT_PATH", "secret"),
-			KeyDir:     getEnv("KMS_KEY_DIR", "./keys"),
-			AutoRotate: getEnvBool("KMS_AUTO_ROTATE", true),
-			SkipVerify: getEnvBool("KMS_SKIP_VERIFY", false),
-		},
 		Auth: AuthConfig{
 			SignerURL: os.Getenv("VAULT_SIGNER_URL"),
 		},
@@ -186,12 +165,8 @@ func LoadConfig() (*Config, error) {
 		Client: LoadClientConfig(),
 	}
 
-	// KMS_TOKEN is only a credential when we actually talk to a KMS server.
-	// The "file" provider keys off KMS_KEY_DIR and ignores the token.
-	tokenRequired := !strings.EqualFold(cfg.KMS.Provider, "file")
-
 	if development {
-		return cfg, devFallback(cfg, tokenRequired)
+		return cfg, devFallback(cfg)
 	}
 
 	var missing []string
@@ -200,9 +175,6 @@ func LoadConfig() (*Config, error) {
 	}
 	if cfg.Security.JWTSecret == "" {
 		missing = append(missing, "JWT_SECRET")
-	}
-	if tokenRequired && cfg.KMS.Token == "" {
-		missing = append(missing, fmt.Sprintf("KMS_TOKEN (required by KMS_PROVIDER=%q)", cfg.KMS.Provider))
 	}
 	// Service addresses. These used to default to production hosts, so a
 	// staging pod missing one quietly talked to production. Now unset refuses.
@@ -222,8 +194,8 @@ func LoadConfig() (*Config, error) {
 
 // devFallback fills local-development values for anything unset.
 //
-// DB_PASSWORD and KMS_TOKEN get the old local-only strings back, because they
-// only ever address a developer's own postgres and dev KMS. JWT_SECRET does
+// DB_PASSWORD gets the old local-only string back, because it only ever
+// addresses a developer's own postgres. JWT_SECRET does
 // NOT: a fixed signing key is the one value that stays dangerous even in
 // development, since a dev token minted from a published constant is a real
 // token. It is generated per process instead, so no shared key exists to leak.
@@ -249,7 +221,7 @@ func (cfg *Config) serviceSettings() []serviceSetting {
 	}
 }
 
-func devFallback(cfg *Config, tokenRequired bool) error {
+func devFallback(cfg *Config) error {
 	for _, s := range cfg.serviceSettings() {
 		if *s.value == "" {
 			*s.value = s.devValue
@@ -257,9 +229,6 @@ func devFallback(cfg *Config, tokenRequired bool) error {
 	}
 	if cfg.Database.Password == "" {
 		cfg.Database.Password = "vault_password"
-	}
-	if tokenRequired && cfg.KMS.Token == "" {
-		cfg.KMS.Token = "coldforge-dev-token"
 	}
 	if cfg.Security.JWTSecret == "" {
 		buf := make([]byte, 32)
@@ -285,15 +254,6 @@ func getEnvInt(key string, fallback int) int {
 	if value := os.Getenv(key); value != "" {
 		if intValue, err := strconv.Atoi(value); err == nil {
 			return intValue
-		}
-	}
-	return fallback
-}
-
-func getEnvBool(key string, fallback bool) bool {
-	if value := os.Getenv(key); value != "" {
-		if boolValue, err := strconv.ParseBool(value); err == nil {
-			return boolValue
 		}
 	}
 	return fallback

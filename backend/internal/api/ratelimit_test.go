@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"github.com/coldforge/vault/internal/config"
+	"github.com/coldforge/vault/internal/observability"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
 // memLimitStore is a fixed-window counter in memory, for exercising the
@@ -232,5 +234,43 @@ func TestSetupRouterInstallsTheRateLimiter(t *testing.T) {
 	}
 	if w := doFrom(r, http.MethodGet, "/api/v1/info", "198.51.100.9"); w.Code != http.StatusTooManyRequests {
 		t.Fatalf("request 6: status %d, want 429", w.Code)
+	}
+}
+
+func rateLimitCount(bucket, outcome string) float64 {
+	return testutil.ToFloat64(observability.RateLimitTotal.WithLabelValues(bucket, outcome))
+}
+
+// A store failure lets the request through, so the metric is the only trace
+// it leaves. Dropping the increment must fail a test.
+func TestRateLimitStoreErrorIsCounted(t *testing.T) {
+	store := newMemLimitStore()
+	store.err = errors.New("connection refused")
+	r := rateLimitedRouter(store, testLimits)
+
+	apiBefore, authBefore := rateLimitCount("api", "store_error"), rateLimitCount("auth", "store_error")
+	for i := 0; i < 3; i++ {
+		doFrom(r, http.MethodGet, "/api/v1/vault", "198.51.100.9")
+	}
+	doFrom(r, http.MethodPost, "/api/v1/auth/login", "198.51.100.9")
+
+	if got := rateLimitCount("api", "store_error") - apiBefore; got != 3 {
+		t.Fatalf("api store_error rose by %v, want 3", got)
+	}
+	if got := rateLimitCount("auth", "store_error") - authBefore; got != 1 {
+		t.Fatalf("auth store_error rose by %v, want 1", got)
+	}
+}
+
+func TestRateLimitRefusalIsCounted(t *testing.T) {
+	store := newMemLimitStore()
+	r := rateLimitedRouter(store, testLimits)
+
+	before := rateLimitCount("api", "limited")
+	for i := 0; i < 7; i++ { // limit 5: requests 6 and 7 are refused
+		doFrom(r, http.MethodGet, "/api/v1/vault", "198.51.100.9")
+	}
+	if got := rateLimitCount("api", "limited") - before; got != 2 {
+		t.Fatalf("api limited rose by %v, want 2", got)
 	}
 }

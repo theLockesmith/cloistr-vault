@@ -15,6 +15,7 @@ import (
 	"github.com/coldforge/vault/internal/config"
 	"github.com/coldforge/vault/internal/database"
 	"github.com/coldforge/vault/internal/observability"
+	"github.com/coldforge/vault/internal/ratelimit"
 	"github.com/coldforge/vault/internal/security"
 	"github.com/coldforge/vault/internal/vault"
 )
@@ -129,8 +130,21 @@ func main() {
 		observability.Info("serving web ui", "dir", webDir)
 	}
 
+	// Per-address rate limiting. Counters live in Postgres so both replicas
+	// share them.
+	rateLimitStore := ratelimit.NewStore(db.DB)
+	rateLimit := api.RateLimitingMiddleware(rateLimitStore, api.RateLimitConfig{
+		Window:    time.Minute,
+		APILimit:  cfg.RateLimit.APIPerMinute,
+		AuthLimit: cfg.RateLimit.AuthPerMinute,
+	})
+	observability.Info("rate limiting",
+		"api_per_minute", cfg.RateLimit.APIPerMinute,
+		"auth_per_minute", cfg.RateLimit.AuthPerMinute,
+	)
+
 	// Setup router
-	router := api.SetupRouter(authService, vaultService, folderService, entryService, secretService, passwordService, tagService, searchService, securityService, attachmentService, sharingService, webDir, cfg.Auth.SignerURL, cfg.Client)
+	router := api.SetupRouter(authService, vaultService, folderService, entryService, secretService, passwordService, tagService, searchService, securityService, attachmentService, sharingService, webDir, cfg.Auth.SignerURL, cfg.Client, rateLimit)
 
 	// Create HTTP server
 	server := &http.Server{
@@ -164,6 +178,11 @@ func main() {
 				observability.Error("failed to cleanup expired sessions", "error", err)
 			} else {
 				observability.Debug("expired sessions cleaned up")
+			}
+			if n, err := rateLimitStore.Prune(context.Background()); err != nil {
+				observability.Error("failed to prune rate limit counters", "error", err)
+			} else {
+				observability.Debug("rate limit counters pruned", "rows", n)
 			}
 		}
 	}()

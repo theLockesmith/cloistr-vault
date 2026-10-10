@@ -67,7 +67,7 @@ func newEngine() *gin.Engine {
 	return router
 }
 
-func SetupRouter(authService *auth.AuthService, vaultService VaultService, folderService *vault.FolderService, entryService *vault.EntryService, secretService *vault.SecretService, passwordService *vault.PasswordService, tagService *vault.TagService, searchService *vault.SearchService, securityService *security.SecurityService, attachmentService *vault.AttachmentService, sharingService *vault.SharingService, webDir string, signerURL string, client config.ClientConfig) *gin.Engine {
+func SetupRouter(authService *auth.AuthService, vaultService VaultService, folderService *vault.FolderService, entryService *vault.EntryService, secretService *vault.SecretService, passwordService *vault.PasswordService, tagService *vault.TagService, searchService *vault.SearchService, securityService *security.SecurityService, attachmentService *vault.AttachmentService, sharingService *vault.SharingService, webDir string, signerURL string, client config.ClientConfig, rateLimit gin.HandlerFunc) *gin.Engine {
 	// Set Gin mode
 	gin.SetMode(gin.ReleaseMode) // Change to gin.DebugMode for development
 
@@ -80,7 +80,10 @@ func SetupRouter(authService *auth.AuthService, vaultService VaultService, folde
 	router.Use(ErrorHandlingMiddleware())
 	router.Use(CORSMiddleware())
 	router.Use(SecurityHeadersMiddleware(client.SignerURL))
-	router.Use(RateLimitingMiddleware())
+	// After CORS, so preflights (answered there) are not counted.
+	if rateLimit != nil {
+		router.Use(rateLimit)
+	}
 	router.Use(RequestTimeoutMiddleware(30 * time.Second))
 
 	// Initialize handlers

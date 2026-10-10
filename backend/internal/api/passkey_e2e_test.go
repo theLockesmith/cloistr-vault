@@ -69,7 +69,7 @@ func newE2EServer(t *testing.T) *httptest.Server {
 		security.NewSecurityService(db),
 		vault.NewAttachmentService(db),
 		vault.NewSharingService(db),
-		"", "", config.ClientConfig{},
+		"", "", config.ClientConfig{}, nil,
 	)
 	srv := httptest.NewServer(router)
 	t.Cleanup(srv.Close)

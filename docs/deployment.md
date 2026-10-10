@@ -17,7 +17,6 @@ Coldforge Vault can be deployed in multiple ways to suit different needs:
 - **Node.js 18+** - Frontend build tools
 
 ### Optional:
-- **Redis** - Session storage and rate limiting
 - **Nginx** - Reverse proxy and SSL termination
 - **Docker** - Containerization
 - **Kubernetes** - Container orchestration

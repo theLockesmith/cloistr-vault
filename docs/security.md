@@ -166,10 +166,18 @@ CTAP2 `hmac-secret` cannot unlock the vault and are reported as such.
 - Single sign-on across applications
 
 ### Rate Limiting
-- Login attempt rate limiting
-- API endpoint rate limiting  
-- Progressive delays for failed attempts
-- IP-based and user-based limits
+- Per client address, in one-minute fixed windows. The address is the
+  edge-set `X-Real-IP`, never a client-supplied `X-Forwarded-For`.
+- Two buckets: `/api/v1/auth/*` (login, registration, recovery, login
+  challenges) at 30 a minute, and the rest of `/api/` at 600 a minute.
+  `RATE_LIMIT_AUTH_PER_MINUTE` / `RATE_LIMIT_API_PER_MINUTE` override; 0 turns
+  a bucket off. The health check and the web UI's static files are not limited.
+- Over the limit: `429` with `Retry-After` and code `RATE_LIMIT_EXCEEDED`.
+- Counters are in Postgres (`rate_limits`), shared by every replica. A window's
+  end is set when it opens and never moved by later requests.
+- If the counter store fails, requests are let through and the failure is
+  logged and counted (`coldforge_vault_rate_limit_total{outcome="store_error"}`).
+- Not implemented: per-account limits, progressive delays after failed logins.
 
 ### Audit Logging
 - All authentication events logged

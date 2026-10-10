@@ -141,3 +141,18 @@ func RecordVaultOperation(operation string, success bool) {
 func RecordDBQuery(queryType string, duration time.Duration) {
 	DatabaseQueryDuration.WithLabelValues(queryType).Observe(duration.Seconds())
 }
+
+// RateLimitTotal counts rate-limit decisions other than "allowed":
+// "limited" (answered 429) and "store_error" (counter unavailable, let through).
+var RateLimitTotal = promauto.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "coldforge_vault_rate_limit_total",
+		Help: "Rate limit outcomes by bucket: limited, store_error",
+	},
+	[]string{"bucket", "outcome"},
+)
+
+// RecordRateLimit records a rate-limit outcome for a bucket.
+func RecordRateLimit(bucket, outcome string) {
+	RateLimitTotal.WithLabelValues(bucket, outcome).Inc()
+}

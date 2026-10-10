@@ -13,7 +13,7 @@ import (
 // edge overwrites with the real peer, never from X-Forwarded-For, which the
 // edge only appends to. Gin's defaults returned the client's forged XFF.
 func TestClientIPIgnoresForgedForwardedFor(t *testing.T) {
-	r := SetupRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, "", "", config.ClientConfig{})
+	r := SetupRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, "", "", config.ClientConfig{}, nil)
 	r.GET("/__client_ip", func(c *gin.Context) { c.String(http.StatusOK, c.ClientIP()) })
 
 	cases := []struct {

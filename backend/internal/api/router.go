@@ -50,28 +50,11 @@ func spaHandler(webDir string) gin.HandlerFunc {
 	}
 }
 
-// newEngine is gin.New with the client address taken from X-Real-IP.
-//
-// Gin's default trusts every proxy, so ClientIP() returned the leftmost
-// X-Forwarded-For entry, which is whatever the client sent: the public edge
-// nginx only appends to XFF. It does SET X-Real-IP to the real peer,
-// overwriting any client value, so that header is the client address. With no
-// trusted proxies, a request without X-Real-IP (in-cluster) falls back to the
-// TCP peer and XFF is never consulted.
-func newEngine() *gin.Engine {
-	router := gin.New()
-	router.TrustedPlatform = "X-Real-IP"
-	if err := router.SetTrustedProxies(nil); err != nil {
-		panic(err) // nil is always valid
-	}
-	return router
-}
-
 func SetupRouter(authService *auth.AuthService, vaultService VaultService, folderService *vault.FolderService, entryService *vault.EntryService, secretService *vault.SecretService, passwordService *vault.PasswordService, tagService *vault.TagService, searchService *vault.SearchService, securityService *security.SecurityService, attachmentService *vault.AttachmentService, sharingService *vault.SharingService, webDir string, signerURL string, client config.ClientConfig) *gin.Engine {
 	// Set Gin mode
 	gin.SetMode(gin.ReleaseMode) // Change to gin.DebugMode for development
 
-	router := newEngine()
+	router := gin.New()
 
 	// Global middleware - use observability for logging and metrics
 	router.Use(gin.Recovery())
@@ -313,7 +296,7 @@ func SetupRouter(authService *auth.AuthService, vaultService VaultService, folde
 func SetupTestRouter(authService *auth.AuthService, vaultService VaultService, folderService *vault.FolderService, entryService *vault.EntryService, secretService *vault.SecretService, passwordService *vault.PasswordService, tagService *vault.TagService, searchService *vault.SearchService, securityService *security.SecurityService, attachmentService *vault.AttachmentService, sharingService *vault.SharingService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	
-	router := newEngine()
+	router := gin.New()
 	router.Use(ErrorHandlingMiddleware())
 	router.Use(CORSMiddleware())
 	

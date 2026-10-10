@@ -57,15 +57,6 @@ func LoggingMiddleware() gin.HandlerFunc {
 	return gin.Logger()
 }
 
-// RateLimitingMiddleware basic rate limiting (in production, use Redis-based solution)
-func RateLimitingMiddleware() gin.HandlerFunc {
-	// Simple in-memory rate limiting - replace with proper solution in production
-	return gin.HandlerFunc(func(c *gin.Context) {
-		// TODO: Implement proper rate limiting with Redis
-		c.Next()
-	})
-}
-
 // signerSessionCache caches signer token → pubkey resolutions for ~2 min to
 // avoid round-tripping the signer on every request in the hot path.
 // It is process-scoped and lives as long as the middleware closure.

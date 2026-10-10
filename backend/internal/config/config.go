@@ -10,12 +10,26 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	Security SecurityConfig
-	Auth     AuthConfig
-	WebAuthn WebAuthnConfig
-	Client   ClientConfig
+	Server    ServerConfig
+	Database  DatabaseConfig
+	Security  SecurityConfig
+	Auth      AuthConfig
+	WebAuthn  WebAuthnConfig
+	Client    ClientConfig
+	RateLimit RateLimitConfig
+}
+
+// RateLimitConfig is requests per minute per client address. 0 turns a bucket
+// off. Env: RATE_LIMIT_API_PER_MINUTE, RATE_LIMIT_AUTH_PER_MINUTE.
+//
+// The web client has no background polling: it calls the API on load, on
+// unlock and on user actions, a few dozen requests at most in a burst. 600 a
+// minute leaves room for many people behind one NAT address. The auth bucket
+// covers login, registration, recovery and the login challenges; one login is
+// two requests (challenge, then verify), so 30 allows 15 logins a minute.
+type RateLimitConfig struct {
+	APIPerMinute  int
+	AuthPerMinute int
 }
 
 // ClientConfig is the service addresses the web UI reads at page load from
@@ -163,6 +177,10 @@ func LoadConfig() (*Config, error) {
 			DisplayName: getEnv("WEBAUTHN_DISPLAY_NAME", "Cloistr Vault"),
 		},
 		Client: LoadClientConfig(),
+		RateLimit: RateLimitConfig{
+			APIPerMinute:  getEnvInt("RATE_LIMIT_API_PER_MINUTE", 600),
+			AuthPerMinute: getEnvInt("RATE_LIMIT_AUTH_PER_MINUTE", 30),
+		},
 	}
 
 	if development {

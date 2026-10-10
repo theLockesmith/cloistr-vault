@@ -152,6 +152,16 @@ var RateLimitTotal = promauto.NewCounterVec(
 	[]string{"bucket", "outcome"},
 )
 
+// Export every series at 0 from startup: a series that only appears on its
+// first increment is indistinguishable from a broken emitter.
+func init() {
+	for _, bucket := range []string{"api", "auth"} {
+		for _, outcome := range []string{"limited", "store_error"} {
+			RateLimitTotal.WithLabelValues(bucket, outcome).Add(0)
+		}
+	}
+}
+
 // RecordRateLimit records a rate-limit outcome for a bucket.
 func RecordRateLimit(bucket, outcome string) {
 	RateLimitTotal.WithLabelValues(bucket, outcome).Inc()

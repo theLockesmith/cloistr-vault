@@ -29,10 +29,10 @@
     "crypto-js": "^4.2.0",
     "lucide-react": "^0.577.0",
     "nostr-tools": "^2.25.2",
-    "postcss": "^8.5.29",
+    "postcss": "^8.5.30",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-hook-form": "^7.89.0",
+    "react-hook-form": "^7.90.0",
     "react-hot-toast": "^2.6.1",
     "react-router-dom": "^6.30.6",
     "tailwindcss": "^3.4.19"
@@ -40,7 +40,7 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^14.3.1",
-    "@testing-library/user-event": "^14.6.7",
+    "@testing-library/user-event": "^14.6.8",
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/coverage-v8": "^1.6.1",
     "jsdom": "^23.2.0",

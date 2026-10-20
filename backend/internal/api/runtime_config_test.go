@@ -82,8 +82,37 @@ func TestRuntimeConfig_ServesProductionConfig(t *testing.T) {
 		cfg["relayUrl"] != "wss://relay.cloistr.xyz" || cfg["appUrl"] != "https://vault.cloistr.xyz" {
 		t.Fatalf("config = %v", cfg)
 	}
-	if csp := w.Header().Get("Content-Security-Policy"); !strings.Contains(csp, "connect-src 'self' https://signer.cloistr.xyz;") {
+	if csp := w.Header().Get("Content-Security-Policy"); !strings.Contains(csp, "connect-src 'self' https://signer.cloistr.xyz ") {
 		t.Fatalf("CSP = %q", csp)
+	}
+}
+
+// The shared @cloistr/ui header shows a signed-in user's name by looking them
+// up in the Cloistr NIP-05 directory at https://cloistr.xyz. Without it in
+// connect-src the browser refuses the request and logs two CSP errors on
+// every signed-in page (found by the WV4 live sweep, 2026-10-20).
+func TestCSP_AllowsSharedHeaderNIP05Directory(t *testing.T) {
+	r := runtimeConfigRouter(prodClient)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/config.js", nil))
+
+	var connect []string
+	for _, d := range strings.Split(w.Header().Get("Content-Security-Policy"), ";") {
+		if f := strings.Fields(d); len(f) > 0 && f[0] == "connect-src" {
+			connect = f[1:]
+		}
+	}
+	want := map[string]bool{"'self'": false, "https://signer.cloistr.xyz": false, "https://cloistr.xyz": false}
+	for _, s := range connect {
+		if _, ok := want[s]; !ok {
+			t.Fatalf("connect-src allows %q, which nothing needs: %v", s, connect)
+		}
+		want[s] = true
+	}
+	for s, seen := range want {
+		if !seen {
+			t.Fatalf("connect-src is missing %q: %v", s, connect)
+		}
 	}
 }
 

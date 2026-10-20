@@ -30,12 +30,17 @@ func CORSMiddleware() gin.HandlerFunc {
 	})
 }
 
+// nip05Directory is where the shared @cloistr/ui header looks up a signed-in
+// user's NIP-05 name. The library fixes it to cloistr.xyz in every
+// environment, so it is not a runtime setting.
+const nip05Directory = "https://cloistr.xyz"
+
 // SecurityHeadersMiddleware adds security headers. signerURL is the public
 // signer the browser checks for an SSO session; it comes from runtime config so
 // a staging deployment allows its own signer and not production's.
 func SecurityHeadersMiddleware(signerURL string) gin.HandlerFunc {
 	csp := "default-src 'self'; " +
-		"connect-src 'self' " + signerURL + "; " +
+		"connect-src 'self' " + signerURL + " " + nip05Directory + "; " +
 		"style-src 'self' 'unsafe-inline'; " +
 		"img-src 'self' data: blob:"
 	return gin.HandlerFunc(func(c *gin.Context) {

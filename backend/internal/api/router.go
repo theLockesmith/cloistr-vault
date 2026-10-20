@@ -46,6 +46,7 @@ func spaHandler(webDir string) gin.HandlerFunc {
 			fileServer.ServeHTTP(c.Writer, c.Request)
 			return
 		}
+		c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
 		c.File(filepath.Join(webDir, "index.html"))
 	}
 }

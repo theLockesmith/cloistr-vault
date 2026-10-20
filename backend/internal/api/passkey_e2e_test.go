@@ -21,6 +21,7 @@ import (
 	"github.com/coldforge/vault/internal/api"
 	"github.com/coldforge/vault/internal/auth"
 	"github.com/coldforge/vault/internal/config"
+	"github.com/coldforge/vault/internal/database"
 	"github.com/coldforge/vault/internal/security"
 	"github.com/coldforge/vault/internal/testutil/pgtest"
 	"github.com/coldforge/vault/internal/vault"
@@ -48,6 +49,12 @@ var b64 = base64.RawURLEncoding
 
 func newE2EServer(t *testing.T) *httptest.Server {
 	t.Helper()
+	srv, _ := newE2EServerWithDB(t)
+	return srv
+}
+
+func newE2EServerWithDB(t *testing.T) (*httptest.Server, *database.DB) {
+	t.Helper()
 	db := pgtest.FreshDB(t)
 
 	authService := auth.NewAuthService(db.DB, nil)
@@ -73,7 +80,7 @@ func newE2EServer(t *testing.T) *httptest.Server {
 	)
 	srv := httptest.NewServer(router)
 	t.Cleanup(srv.Close)
-	return srv
+	return srv, db
 }
 
 // authenticator is a software passkey: one P-256 key, one credential ID.
@@ -266,7 +273,7 @@ func TestPasskeyE2E_RegisterThenLogin(t *testing.T) {
 	call(t, srv, http.MethodPost, "/api/v1/auth/register", "", mustJSON(t, map[string]interface{}{
 		"method":     "email",
 		"email":      email,
-		"password":   "correct horse battery staple",
+		"auth_key":   zkAuthKey,
 		"vault_data": []byte(`{"v":2}`),
 	}), http.StatusCreated, &reg)
 	if reg.Token == "" || reg.User.ID == "" {

@@ -70,6 +70,8 @@ func TestRecoverAccount_InvalidRequestFormat(t *testing.T) {
 	assert.Equal(t, "Invalid request format", response["message"])
 }
 
+// An unknown email gets the same answer as a bad code, so recovery does not
+// reveal which emails have accounts.
 func TestRecoverAccount_UserNotFound(t *testing.T) {
 	db, mock := setupMockDB(t)
 	defer db.Close()
@@ -90,7 +92,7 @@ func TestRecoverAccount_UserNotFound(t *testing.T) {
 	reqBody := models.RecoveryRequest{
 		Email:        email,
 		RecoveryCode: "ABCD-EFGH-IJKL",
-		NewPassword:  "new-password",
+		NewAuthKey:  "abababababababababababababababababababababababababababababababab",
 		VaultData:    []byte("vault-data"),
 	}
 
@@ -101,13 +103,13 @@ func TestRecoverAccount_UserNotFound(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
 
 	var response map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, "User not found", response["message"])
+	assert.Equal(t, "Invalid email or recovery code", response["message"])
 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -143,7 +145,7 @@ func TestRecoverAccount_InvalidRecoveryCode(t *testing.T) {
 	reqBody := models.RecoveryRequest{
 		Email:        email,
 		RecoveryCode: "WRONG-CODE-HERE",
-		NewPassword:  "new-password",
+		NewAuthKey:  "abababababababababababababababababababababababababababababababab",
 		VaultData:    []byte("vault-data"),
 	}
 
@@ -160,7 +162,7 @@ func TestRecoverAccount_InvalidRecoveryCode(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	assert.Equal(t, "Invalid or expired recovery code", response["message"])
+	assert.Equal(t, "Invalid email or recovery code", response["message"])
 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -488,7 +490,7 @@ func TestRecoverAccount_MissingFields(t *testing.T) {
 			name: "missing email",
 			request: models.RecoveryRequest{
 				RecoveryCode: "ABCD-EFGH-IJKL",
-				NewPassword:  "password",
+				NewAuthKey:  "abababababababababababababababababababababababababababababababab",
 				VaultData:    []byte("data"),
 			},
 		},
@@ -496,12 +498,12 @@ func TestRecoverAccount_MissingFields(t *testing.T) {
 			name: "missing recovery code",
 			request: models.RecoveryRequest{
 				Email:       "test@example.com",
-				NewPassword: "password",
+				NewAuthKey: "abababababababababababababababababababababababababababababababab",
 				VaultData:   []byte("data"),
 			},
 		},
 		{
-			name: "missing password",
+			name: "missing auth key",
 			request: models.RecoveryRequest{
 				Email:        "test@example.com",
 				RecoveryCode: "ABCD-EFGH-IJKL",
@@ -513,7 +515,7 @@ func TestRecoverAccount_MissingFields(t *testing.T) {
 			request: models.RecoveryRequest{
 				Email:        "test@example.com",
 				RecoveryCode: "ABCD-EFGH-IJKL",
-				NewPassword:  "password",
+				NewAuthKey:  "abababababababababababababababababababababababababababababababab",
 			},
 		},
 	}

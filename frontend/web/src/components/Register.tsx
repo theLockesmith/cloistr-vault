@@ -219,6 +219,7 @@ export default function Register() {
                   <h4 className="text-sm font-medium text-cloistr-text mb-2">🔒 Zero-Knowledge Security</h4>
                   <ul className="text-xs text-cloistr-text-muted space-y-1">
                     <li>• Your master password encrypts all vault data locally</li>
+                    <li>• It never leaves this device: you sign in with a key derived from it</li>
                     <li>• We never store or have access to your unencrypted data</li>
                     <li>• If you lose your password, your data cannot be recovered</li>
                   </ul>

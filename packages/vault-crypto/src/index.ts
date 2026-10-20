@@ -67,3 +67,5 @@ export {
   findDuplicatePasswords,
 } from './password-strength';
 export type { StrengthResult } from './password-strength';
+
+export { deriveAuthKey, normalizeEmail } from './auth-key';

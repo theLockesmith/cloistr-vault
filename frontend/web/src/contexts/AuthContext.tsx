@@ -3,6 +3,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { withSignerRetry, isRetryableSignerError } from '@cloistr/ui';
 import { getServiceConfig } from '@cloistr/collab-common/config';
+import { deriveAuthKey } from '../crypto/vault';
 
 interface User {
   id?: string;
@@ -297,11 +298,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
-      const response = await axios.post('/auth/login', {
-        method: 'email',
-        email,
-        password,
-      });
+      // The master password decrypts the vault, so it never goes to the
+      // server. Sign in with a key derived from it instead.
+      const authKey = await deriveAuthKey(email, password);
+      let response;
+      try {
+        response = await axios.post('/auth/login', { method: 'email', email, auth_key: authKey });
+      } catch (error: any) {
+        if (error.response?.status !== 409 || error.response?.data?.code !== 'AUTH_UPGRADE_REQUIRED') {
+          throw error;
+        }
+        // An account created before auth keys existed: the server can only
+        // check the password. Send it this once, with the auth key to store
+        // in its place; the server will not accept the password again.
+        response = await axios.post('/auth/login', { method: 'email', email, password, auth_key: authKey });
+      }
 
       const { token: newToken, user: newUser } = response.data;
 
@@ -315,7 +326,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       toast.success('Successfully logged in!');
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Login failed';
+      const message = error.response?.data?.message || error.response?.data?.error || 'Login failed';
       toast.error(message);
       throw error;
     } finally {
@@ -410,13 +421,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await axios.post('/auth/register', {
         method: 'email',
         email,
-        password,
+        auth_key: await deriveAuthKey(email, password),
         vault_data: vaultData,
       });
 
       toast.success('Account created successfully! Please log in.');
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Registration failed';
+      const message = error.response?.data?.message || error.response?.data?.error || 'Registration failed';
       toast.error(message);
       throw error;
     } finally {

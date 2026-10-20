@@ -68,6 +68,8 @@ func (h *Handlers) Register(c *gin.Context) {
 			errors.Conflict(errors.CodeResourceExists, "User already exists").Abort(c)
 		case auth.ErrInvalidAuthMethod:
 			errors.BadRequest(errors.CodeValidationFailed, "Invalid authentication method").Abort(c)
+		case auth.ErrPasswordNotAccepted, auth.ErrInvalidAuthKey:
+			errors.BadRequest(errors.CodeValidationFailed, err.Error()).Abort(c)
 		default:
 			errors.InternalError(errors.CodeInternalError, "Registration failed").Abort(c)
 		}
@@ -76,6 +78,10 @@ func (h *Handlers) Register(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, response)
 }
+
+// codeAuthUpgradeRequired tells the web client to repeat an email sign-in
+// once with the password alongside the auth key (see auth.loginEmailUser).
+const codeAuthUpgradeRequired = "AUTH_UPGRADE_REQUIRED"
 
 // Login user
 func (h *Handlers) Login(c *gin.Context) {
@@ -97,10 +103,13 @@ func (h *Handlers) Login(c *gin.Context) {
 		response, err := h.authService.LoginUser(&req)
 		if err != nil {
 			switch err {
-			case auth.ErrUserNotFound:
-				errors.NotFound(errors.CodeResourceNotFound, "User not found").Abort(c)
 			case auth.ErrInvalidCredentials:
-				errors.Unauthorized(errors.CodeAuthInvalid, "Invalid credentials").Abort(c)
+				// Unknown email and wrong key: one status, one body.
+				errors.Unauthorized(errors.CodeAuthInvalid, "Invalid email or password").Abort(c)
+			case auth.ErrAuthUpgradeRequired:
+				errors.Conflict(codeAuthUpgradeRequired, "Sign in once more to finish upgrading this account").Abort(c)
+			case auth.ErrInvalidAuthKey:
+				errors.BadRequest(errors.CodeValidationFailed, err.Error()).Abort(c)
 			default:
 				errors.InternalError(errors.CodeInternalError, "Login failed").Abort(c)
 			}
@@ -376,10 +385,12 @@ func (h *Handlers) RecoverAccount(c *gin.Context) {
 	response, err := h.authService.RecoverAccount(&req)
 	if err != nil {
 		switch {
-		case strings.Contains(err.Error(), "user not found"):
-			errors.NotFound(errors.CodeResourceNotFound, "User not found").Abort(c)
-		case strings.Contains(err.Error(), "invalid recovery code"):
-			errors.Unauthorized(errors.CodeAuthInvalid, "Invalid or expired recovery code").Abort(c)
+		case stderrors.Is(err, auth.ErrInvalidAuthKey):
+			errors.BadRequest(errors.CodeValidationFailed, err.Error()).Abort(c)
+		// Unknown email and bad code look the same, so this does not reveal
+		// which emails have accounts.
+		case stderrors.Is(err, auth.ErrUserNotFound), strings.Contains(err.Error(), "invalid recovery code"):
+			errors.Unauthorized(errors.CodeAuthInvalid, "Invalid email or recovery code").Abort(c)
 		default:
 			errors.InternalError(errors.CodeInternalError, "Account recovery failed").Abort(c)
 		}

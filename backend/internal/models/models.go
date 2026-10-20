@@ -72,8 +72,13 @@ type VaultEntry struct {
 }
 
 type LoginRequest struct {
-	Method           string  `json:"method" binding:"required"` // "email", "nostr", or "lightning"
-	Email            *string `json:"email,omitempty"`
+	Method string  `json:"method" binding:"required"` // "email", "nostr", or "lightning"
+	Email  *string `json:"email,omitempty"`
+	// AuthKey is what an email account signs in with: 64 hex characters the
+	// client derives from the master password. The password never comes here.
+	AuthKey *string `json:"auth_key,omitempty"`
+	// Password is accepted only from an account that has not upgraded yet
+	// (auth_version 1), and only so it can be swapped for AuthKey.
 	Password         *string `json:"password,omitempty"`
 	NostrPubkey      *string `json:"nostr_pubkey,omitempty"`
 	Signature        *string `json:"signature,omitempty"`
@@ -85,8 +90,11 @@ type LoginRequest struct {
 }
 
 type RegisterRequest struct {
-	Method      string  `json:"method" binding:"required"`
-	Email       *string `json:"email,omitempty"`
+	Method  string  `json:"method" binding:"required"`
+	Email   *string `json:"email,omitempty"`
+	AuthKey *string `json:"auth_key,omitempty"`
+	// Password is refused: decoded only so a request that sends one gets a
+	// 400 instead of being stored.
 	Password    *string `json:"password,omitempty"`
 	NostrPubkey *string `json:"nostr_pubkey,omitempty"`
 	VaultData   []byte  `json:"vault_data" binding:"required"`
@@ -112,7 +120,7 @@ type VaultResponse struct {
 type RecoveryRequest struct {
 	Email        string `json:"email" binding:"required"`
 	RecoveryCode string `json:"recovery_code" binding:"required"`
-	NewPassword  string `json:"new_password" binding:"required"`
+	NewAuthKey   string `json:"new_auth_key" binding:"required"` // derived from the new master password
 	VaultData    []byte `json:"vault_data" binding:"required"` // Re-encrypted vault with new key
 }
 

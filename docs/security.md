@@ -83,6 +83,12 @@ account's vault at sign-in. This document previously said the client hashed
 the password; it did not. Nostr, signer and passkey sign-in never sent it.
 Production had no real email accounts when this was found.
 
+**Not yet updated:** the mobile app and the browser extensions (none of them
+shipped) still send the password at sign-in. The server refuses it from any
+upgraded or new account, so they cannot sign in to one until they derive the
+auth key too. The Chrome extension's recovery call still sends `new_password`
+and gets a 400.
+
 ### Nostr Integration
 - **Key Format**: secp256k1 private keys (32 bytes)
 - **Signatures**: ECDSA with SHA-256 hashing

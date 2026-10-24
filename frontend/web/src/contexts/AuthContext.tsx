@@ -3,7 +3,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { withSignerRetry, isRetryableSignerError } from '@cloistr/ui';
 import { getServiceConfig } from '@cloistr/collab-common/config';
-import { deriveAuthKey } from '../crypto/vault';
+import { deriveAuthKey, normalizeEmail } from '../crypto/vault';
 
 interface User {
   id?: string;
@@ -300,6 +300,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       // The master password decrypts the vault, so it never goes to the
       // server. Sign in with a key derived from it instead.
+      // The server stores and finds accounts under the same normalised email
+      // the auth key is salted with.
+      email = normalizeEmail(email);
       const authKey = await deriveAuthKey(email, password);
       let response;
       try {
@@ -420,7 +423,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       await axios.post('/auth/register', {
         method: 'email',
-        email,
+        email: normalizeEmail(email),
         auth_key: await deriveAuthKey(email, password),
         vault_data: vaultData,
       });

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"git.aegis-hq.xyz/coldforge/cloistr-common/relayprefs"
@@ -97,6 +98,8 @@ func (a *AuthService) registerEmailUser(req *models.RegisterRequest) (*models.Re
 	if req.Email == nil || req.AuthKey == nil {
 		return nil, errors.New("email and auth_key are required")
 	}
+	email := normalizeEmail(*req.Email)
+	req.Email = &email
 	authKey, err := parseAuthKey(*req.AuthKey)
 	if err != nil {
 		return nil, err
@@ -299,8 +302,23 @@ func parseAuthKey(s string) (string, error) {
 }
 
 // dummySalt lets a failed lookup run the same slow verifier as a real one, so
-// response time does not reveal whether an email has an account.
-var dummySalt = make([]byte, crypto.SaltSize)
+// response time does not reveal whether an email has an account. Random per
+// process so nothing about it can be precomputed.
+var dummySalt = func() []byte {
+	s, err := crypto.GenerateSalt()
+	if err != nil {
+		panic("auth: cannot generate dummy salt: " + err.Error())
+	}
+	return s
+}()
+
+// normalizeEmail is the form an email account is stored and looked up under.
+// It matches the client's normalizeEmail, which salts the auth key, so an
+// account is found and its key derived from the same string whatever case
+// the user types.
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
 
 func burnVerify(input string) {
 	_ = crypto.VerifyPassword(input, dummySalt, nil)
@@ -319,6 +337,8 @@ func (a *AuthService) loginEmailUser(req *models.LoginRequest) (*models.AuthResp
 	if req.Email == nil || (req.AuthKey == nil && req.Password == nil) {
 		return nil, errors.New("email and auth_key are required")
 	}
+	email := normalizeEmail(*req.Email)
+	req.Email = &email
 	var authKey string
 	if req.AuthKey != nil {
 		k, err := parseAuthKey(*req.AuthKey)
@@ -372,6 +392,9 @@ func (a *AuthService) loginEmailUser(req *models.LoginRequest) (*models.AuthResp
 	}
 
 	if req.Password == nil {
+		// Same scrypt work as every other answer, so the 409 is not also
+		// detectable by its speed.
+		burnVerify(attempt)
 		return nil, ErrAuthUpgradeRequired
 	}
 	if !crypto.VerifyPassword(*req.Password, authMethod.Salt, authMethod.PasswordHash) {
@@ -596,6 +619,7 @@ func (a *AuthService) createInitialVault(tx *sql.Tx, userID uuid.UUID, encrypted
 // RecoverAccount recovers an account using a recovery code
 // This resets the password and updates the vault with new encrypted data
 func (a *AuthService) RecoverAccount(req *models.RecoveryRequest) (*models.AuthResponse, error) {
+	req.Email = normalizeEmail(req.Email)
 	// Get user by email
 	var user models.User
 	var userID uuid.UUID

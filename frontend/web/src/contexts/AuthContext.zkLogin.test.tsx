@@ -48,8 +48,8 @@ async function renderAuth() {
   return result;
 }
 
-function bodies(post: ReturnType<typeof vi.spyOn>): Record<string, unknown>[] {
-  return post.mock.calls.map((c: unknown[]) => c[1] as Record<string, unknown>);
+function bodies(post: { mock: { calls: unknown[][] } }): Record<string, unknown>[] {
+  return post.mock.calls.map((c) => c[1] as Record<string, unknown>);
 }
 
 function expectNoPassword(body: Record<string, unknown>) {

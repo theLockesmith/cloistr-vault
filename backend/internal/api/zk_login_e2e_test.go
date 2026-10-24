@@ -34,7 +34,7 @@ func zkPost(t *testing.T, url string, body map[string]any) (int, map[string]any)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	b, _ := io.ReadAll(resp.Body)
 	var out map[string]any
 	_ = json.Unmarshal(b, &out)
@@ -211,6 +211,44 @@ func TestZKLogin_UnknownEmailLooksLikeAWrongKey(t *testing.T) {
 	unknown := median(map[string]any{"email": "nobody@example.com", "auth_key": wrong})
 	if ratio := float64(unknown) / float64(known); ratio < 0.5 || ratio > 2 {
 		t.Fatalf("unknown email took %v, known email %v (ratio %.2f): timing reveals which exists", unknown, known, ratio)
+	}
+}
+
+func TestZKLogin_EmailCaseDoesNotMatter(t *testing.T) {
+	// The client salts the auth key with the normalised email, so the server
+	// must store and look up that same form, or someone who registered as
+	// Alice@Example.com is "unknown" when they type alice@example.com.
+	srv, db := newE2EServerWithDB(t)
+	zkRegister(t, srv.URL, "  Alice@Example.COM ", zkAuthKey)
+	if v := authVersion(t, db, "alice@example.com"); v != 2 {
+		t.Fatalf("stored under the normalised email: auth_version = %d", v)
+	}
+	for _, typed := range []string{"alice@example.com", "ALICE@example.com", " Alice@Example.COM"} {
+		if status, _ := zkLogin(t, srv.URL, map[string]any{"email": typed, "auth_key": zkAuthKey}); status != http.StatusOK {
+			t.Fatalf("login as %q = %d, want 200", typed, status)
+		}
+	}
+}
+
+func TestZKLogin_UpgradeAnswerTakesAsLongAsTheOthers(t *testing.T) {
+	// The 409 tells a client to upgrade. It must not also be spottable by
+	// arriving faster than a 401.
+	srv, db := newE2EServerWithDB(t)
+	insertLegacyAccount(t, db, "slow@example.com", zkPassword)
+	median := func(body map[string]any) time.Duration {
+		var d []time.Duration
+		for i := 0; i < 5; i++ {
+			start := time.Now()
+			zkLogin(t, srv.URL, body)
+			d = append(d, time.Since(start))
+		}
+		sort.Slice(d, func(i, j int) bool { return d[i] < d[j] })
+		return d[len(d)/2]
+	}
+	legacy := median(map[string]any{"email": "slow@example.com", "auth_key": zkAuthKey})
+	unknown := median(map[string]any{"email": "nobody@example.com", "auth_key": zkAuthKey})
+	if ratio := float64(legacy) / float64(unknown); ratio < 0.5 || ratio > 2 {
+		t.Fatalf("legacy 409 took %v, unknown 401 %v (ratio %.2f)", legacy, unknown, ratio)
 	}
 }
 

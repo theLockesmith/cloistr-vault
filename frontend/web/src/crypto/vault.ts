@@ -14,6 +14,8 @@ export {
   newPrfSalt,
   prfSaltFor,
   enrolledPrfCredentialIds,
+  deriveAuthKey,
+  normalizeEmail,
 } from '@cloistr/vault-crypto';
 export type {
   UnlockedVault,

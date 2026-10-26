@@ -205,7 +205,7 @@ export default function Login() {
 
                 <div>
                   <label htmlFor="password" className="block text-sm font-medium text-cloistr-text mb-2">
-                    Password
+                    Master password
                   </label>
                   <input
                     {...register('password', {
@@ -217,11 +217,14 @@ export default function Login() {
                     })}
                     type="password"
                     className="input w-full"
-                    placeholder="Enter your password"
+                    placeholder="Enter your master password"
                   />
                   {errors.password && (
                     <p className="mt-1 text-sm text-cloistr-error">{errors.password.message}</p>
                   )}
+                  <p className="mt-1 text-xs text-cloistr-text-muted">
+                    Your master password never leaves this device. You sign in with a key derived from it.
+                  </p>
                 </div>
 
                 <button

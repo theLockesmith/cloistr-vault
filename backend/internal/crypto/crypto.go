@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"crypto/subtle"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -94,16 +95,7 @@ func VerifyPassword(password string, salt []byte, hash []byte) bool {
 
 // constantTimeEqual performs constant-time comparison
 func constantTimeEqual(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	
-	diff := byte(0)
-	for i := 0; i < len(a); i++ {
-		diff |= a[i] ^ b[i]
-	}
-	
-	return diff == 0
+	return subtle.ConstantTimeCompare(a, b) == 1
 }
 
 // EncryptAESGCM encrypts data using AES-256-GCM

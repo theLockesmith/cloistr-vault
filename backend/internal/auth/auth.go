@@ -2,8 +2,10 @@ package auth
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"git.aegis-hq.xyz/coldforge/cloistr-common/relayprefs"
@@ -20,6 +22,14 @@ var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrUserNotFound      = errors.New("user not found")
 	ErrUserExists        = errors.New("user already exists")
+	// ErrAuthUpgradeRequired: a v1 account was sent only an auth key. Its
+	// verifier is over the password, so the client must sign in once with
+	// both to swap it.
+	ErrAuthUpgradeRequired = errors.New("auth upgrade required")
+	// ErrInvalidAuthKey: the auth key is not 64 hex characters.
+	ErrInvalidAuthKey = errors.New("auth key must be 64 hex characters")
+	// ErrPasswordNotAccepted: registration sent the master password.
+	ErrPasswordNotAccepted = errors.New("the master password must not be sent; send auth_key")
 	ErrInvalidAuthMethod = errors.New("invalid authentication method")
 	ErrChallengeExpired  = errors.New("challenge expired")
 	ErrInvalidChallenge  = errors.New("invalid challenge")
@@ -82,13 +92,22 @@ func (a *AuthService) LoginUser(req *models.LoginRequest) (*models.AuthResponse,
 
 // registerEmailUser handles email/password registration
 func (a *AuthService) registerEmailUser(req *models.RegisterRequest) (*models.RegisterResponse, error) {
-	if req.Email == nil || req.Password == nil {
-		return nil, errors.New("email and password are required")
+	if req.Password != nil {
+		return nil, ErrPasswordNotAccepted
+	}
+	if req.Email == nil || req.AuthKey == nil {
+		return nil, errors.New("email and auth_key are required")
+	}
+	email := normalizeEmail(*req.Email)
+	req.Email = &email
+	authKey, err := parseAuthKey(*req.AuthKey)
+	if err != nil {
+		return nil, err
 	}
 
 	// Check if user already exists
 	var exists bool
-	err := a.db.QueryRow("SELECT EXISTS(SELECT 1 FROM users u JOIN auth_methods am ON u.id = am.user_id WHERE am.identifier = $1 AND am.type = 'email')", *req.Email).Scan(&exists)
+	err = a.db.QueryRow("SELECT EXISTS(SELECT 1 FROM users u JOIN auth_methods am ON u.id = am.user_id WHERE am.identifier = $1 AND am.type = 'email')", *req.Email).Scan(&exists)
 	if err != nil {
 		return nil, fmt.Errorf("database error: %w", err)
 	}
@@ -113,21 +132,21 @@ func (a *AuthService) registerEmailUser(req *models.RegisterRequest) (*models.Re
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
-	// Generate salt and hash password
+	// Generate salt and hash the auth key (never the password)
 	salt, err := crypto.GenerateSalt()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate salt: %w", err)
 	}
 
-	passwordHash, err := crypto.HashPassword(*req.Password, salt)
+	verifier, err := crypto.HashPassword(authKey, salt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to hash password: %w", err)
+		return nil, fmt.Errorf("failed to hash auth key: %w", err)
 	}
 
 	// Create auth method
 	authMethodID := uuid.New()
-	_, err = tx.Exec("INSERT INTO auth_methods (id, user_id, type, identifier, salt, password_hash, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-		authMethodID, userID, "email", *req.Email, salt, passwordHash, now, now)
+	_, err = tx.Exec("INSERT INTO auth_methods (id, user_id, type, identifier, salt, password_hash, auth_version, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, 2, $7, $8)",
+		authMethodID, userID, "email", *req.Email, salt, verifier, now, now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create auth method: %w", err)
 	}
@@ -272,41 +291,143 @@ func (a *AuthService) registerNostrUser(req *models.RegisterRequest) (*models.Re
 	}, nil
 }
 
-// loginEmailUser handles email/password login
-func (a *AuthService) loginEmailUser(req *models.LoginRequest) (*models.AuthResponse, error) {
-	if req.Email == nil || req.Password == nil {
-		return nil, errors.New("email and password are required")
+// parseAuthKey checks and canonicalises a client-derived auth key: 32 bytes
+// as 64 hex characters, lower-cased so any client's spelling verifies.
+func parseAuthKey(s string) (string, error) {
+	b, err := hex.DecodeString(s)
+	if err != nil || len(b) != 32 {
+		return "", ErrInvalidAuthKey
 	}
-	
-	// Get user and auth method
+	return hex.EncodeToString(b), nil
+}
+
+// dummySalt lets a failed lookup run the same slow verifier as a real one, so
+// response time does not reveal whether an email has an account. Random per
+// process so nothing about it can be precomputed.
+var dummySalt = func() []byte {
+	s, err := crypto.GenerateSalt()
+	if err != nil {
+		panic("auth: cannot generate dummy salt: " + err.Error())
+	}
+	return s
+}()
+
+// normalizeEmail is the form an email account is stored and looked up under.
+// It matches the client's normalizeEmail, which salts the auth key, so an
+// account is found and its key derived from the same string whatever case
+// the user types.
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func burnVerify(input string) {
+	_ = crypto.VerifyPassword(input, dummySalt, nil)
+}
+
+// loginEmailUser signs in an email account.
+//
+// Unknown email, wrong key and wrong password all return ErrInvalidCredentials
+// after the same scrypt work. A v2 account takes only the auth key. A v1
+// account takes the password (old clients, and the one upgrade sign-in); when
+// the auth key comes with it, the verifier is swapped and the account is v2
+// from then on. A v1 account sent only the auth key gets
+// ErrAuthUpgradeRequired, which does reveal that a not-yet-upgraded account
+// exists; that set only shrinks.
+func (a *AuthService) loginEmailUser(req *models.LoginRequest) (*models.AuthResponse, error) {
+	if req.Email == nil || (req.AuthKey == nil && req.Password == nil) {
+		return nil, errors.New("email and auth_key are required")
+	}
+	email := normalizeEmail(*req.Email)
+	req.Email = &email
+	var authKey string
+	if req.AuthKey != nil {
+		k, err := parseAuthKey(*req.AuthKey)
+		if err != nil {
+			return nil, err
+		}
+		authKey = k
+	}
+	// What a failed lookup burns time on: anything of the shape a real
+	// attempt would have verified.
+	attempt := authKey
+	if attempt == "" {
+		attempt = *req.Password
+	}
+
 	var user models.User
 	var authMethod models.AuthMethod
-	
+	var authMethodID uuid.UUID
+	var version int
+
 	query := `
 		SELECT u.id, u.email, u.created_at, u.updated_at,
-		       am.salt, am.password_hash
-		FROM users u 
-		JOIN auth_methods am ON u.id = am.user_id 
+		       am.id, am.salt, am.password_hash, am.auth_version
+		FROM users u
+		JOIN auth_methods am ON u.id = am.user_id
 		WHERE am.identifier = $1 AND am.type = 'email'
 	`
-	
+
 	err := a.db.QueryRow(query, *req.Email).Scan(
 		&user.ID, &user.Email, &user.CreatedAt, &user.UpdatedAt,
-		&authMethod.Salt, &authMethod.PasswordHash)
+		&authMethodID, &authMethod.Salt, &authMethod.PasswordHash, &version)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ErrUserNotFound
+			burnVerify(attempt)
+			return nil, ErrInvalidCredentials
 		}
 		return nil, fmt.Errorf("database error: %w", err)
 	}
-	
-	// Verify password
+
+	if version >= 2 {
+		// Never accept the password here: a server that could ask for it
+		// would be back to seeing it.
+		if authKey == "" {
+			burnVerify(attempt)
+			return nil, ErrInvalidCredentials
+		}
+		if !crypto.VerifyPassword(authKey, authMethod.Salt, authMethod.PasswordHash) {
+			return nil, ErrInvalidCredentials
+		}
+		return a.createSession(user)
+	}
+
+	if req.Password == nil {
+		// Same scrypt work as every other answer, so the 409 is not also
+		// detectable by its speed.
+		burnVerify(attempt)
+		return nil, ErrAuthUpgradeRequired
+	}
 	if !crypto.VerifyPassword(*req.Password, authMethod.Salt, authMethod.PasswordHash) {
 		return nil, ErrInvalidCredentials
 	}
-	
-	// Create session
+	if authKey != "" {
+		if err := a.upgradeToAuthKey(authMethodID, authKey); err != nil {
+			return nil, err
+		}
+		observability.Info("email account upgraded to auth key", "user_id", user.ID.String())
+	}
 	return a.createSession(user)
+}
+
+// upgradeToAuthKey replaces a v1 password verifier with an auth-key verifier.
+// The WHERE on auth_version makes a concurrent second upgrade a no-op.
+func (a *AuthService) upgradeToAuthKey(authMethodID uuid.UUID, authKey string) error {
+	salt, err := crypto.GenerateSalt()
+	if err != nil {
+		return fmt.Errorf("failed to generate salt: %w", err)
+	}
+	verifier, err := crypto.HashPassword(authKey, salt)
+	if err != nil {
+		return fmt.Errorf("failed to hash auth key: %w", err)
+	}
+	if _, err := a.db.Exec(`
+		UPDATE auth_methods
+		SET salt = $1, password_hash = $2, auth_version = 2, updated_at = NOW()
+		WHERE id = $3 AND auth_version = 1`,
+		salt, verifier, authMethodID); err != nil {
+		return fmt.Errorf("failed to upgrade auth method: %w", err)
+	}
+	return nil
 }
 
 // createSession creates a new session for the user
@@ -498,6 +619,7 @@ func (a *AuthService) createInitialVault(tx *sql.Tx, userID uuid.UUID, encrypted
 // RecoverAccount recovers an account using a recovery code
 // This resets the password and updates the vault with new encrypted data
 func (a *AuthService) RecoverAccount(req *models.RecoveryRequest) (*models.AuthResponse, error) {
+	req.Email = normalizeEmail(req.Email)
 	// Get user by email
 	var user models.User
 	var userID uuid.UUID
@@ -535,23 +657,27 @@ func (a *AuthService) RecoverAccount(req *models.RecoveryRequest) (*models.AuthR
 	}
 	defer tx.Rollback()
 
-	// Generate new salt and hash for the new password
+	// The new sign-in secret is the auth key derived from the new master
+	// password; the password itself is never sent.
+	newAuthKey, err := parseAuthKey(req.NewAuthKey)
+	if err != nil {
+		return nil, err
+	}
 	salt, err := crypto.GenerateSalt()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate salt: %w", err)
 	}
 
-	passwordHash, err := crypto.HashPassword(req.NewPassword, salt)
+	verifier, err := crypto.HashPassword(newAuthKey, salt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to hash password: %w", err)
+		return nil, fmt.Errorf("failed to hash auth key: %w", err)
 	}
 
-	// Update the password
 	_, err = tx.Exec(`
 		UPDATE auth_methods
-		SET salt = $1, password_hash = $2, updated_at = $3
+		SET salt = $1, password_hash = $2, auth_version = 2, updated_at = $3
 		WHERE user_id = $4 AND type = 'email'`,
-		salt, passwordHash, time.Now(), userID)
+		salt, verifier, time.Now(), userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update password: %w", err)
 	}

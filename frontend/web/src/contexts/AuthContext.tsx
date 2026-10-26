@@ -44,7 +44,8 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
-  loginWithNostr: (publicKey: string, signature: string, challenge: string) => Promise<void>;
+  /** Signs in with a NIP-07 browser extension (window.nostr). */
+  loginWithNostr: () => Promise<void>;
   getLightningChallenge: (lightningAddress: string) => Promise<LightningChallenge>;
   loginWithLightning: (k1: string, signature: string, linkingKey: string) => Promise<void>;
   register: (email: string, password: string, vaultData: string) => Promise<void>;
@@ -337,14 +338,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loginWithNostr = async (publicKey: string, signature: string, challenge: string) => {
+  const loginWithNostr = async () => {
     try {
       setLoading(true);
+      const nostr = (window as any).nostr;
+      if (!nostr?.getPublicKey || !nostr?.signEvent) {
+        throw new Error('No Nostr browser extension found. Install one (for example nos2x or Alby), or sign in through the Cloistr signer.');
+      }
+      // NIP-42-style proof: sign a kind 22242 event carrying a one-time
+      // challenge from the server. The key never leaves the extension.
+      const pubkey: string = await nostr.getPublicKey();
+      const { data } = await axios.post('/auth/nostr/challenge', { public_key: pubkey });
+      const signed = await nostr.signEvent({
+        kind: 22242,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['challenge', data.challenge]],
+        content: '',
+      });
       const response = await axios.post('/auth/login', {
         method: 'nostr',
-        nostr_pubkey: publicKey,
-        signature,
-        challenge,
+        nostr_pubkey: pubkey,
+        signed_event: JSON.stringify(signed),
       });
 
       const { token: newToken, user: newUser } = response.data;
@@ -359,7 +373,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       toast.success('Successfully logged in with Nostr!');
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Nostr login failed';
+      const message = error.response?.data?.message || error.response?.data?.error || error.message || 'Nostr login failed';
       toast.error(message);
       throw error;
     } finally {

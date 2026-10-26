@@ -21,7 +21,6 @@ interface LightningChallenge {
 export default function Login() {
   const { login, loginWithNostr, getLightningChallenge, loginWithLightning, loginWithWebAuthn, loginWithWebAuthnDiscoverable, isWebAuthnAvailable, loading } = useAuth();
   const [authMethod, setAuthMethod] = useState<'email' | 'nostr' | 'lightning' | 'passkey'>('email');
-  const [nostrPublicKey, setNostrPublicKey] = useState('');
   const [lightningAddress, setLightningAddress] = useState('');
   const [lightningChallenge, setLightningChallenge] = useState<LightningChallenge | null>(null);
   const [lightningSignature, setLightningSignature] = useState('');
@@ -38,20 +37,11 @@ export default function Login() {
   };
 
   const onNostrLogin = async () => {
-    if (!nostrPublicKey || nostrPublicKey.length !== 64) {
-      toast.error('Please enter a valid 64-character Nostr public key');
-      return;
-    }
-
     try {
-      // For demo purposes, we'll simulate the challenge/signature flow
-      // In a real implementation, this would involve:
-      // 1. Get challenge from server
-      // 2. Sign with Nostr extension/client
-      // 3. Submit signature
-      toast.error('Nostr login requires a Nostr client/extension to sign challenges');
-    } catch (error) {
-      // Error handling is done in AuthContext
+      // PublicRoute leaves /login once the session is set.
+      await loginWithNostr();
+    } catch {
+      // AuthContext shows the error
     }
   };
 
@@ -297,36 +287,18 @@ export default function Login() {
 
             {authMethod === 'nostr' && (
               <div className="space-y-4">
-                <div>
-                  <label htmlFor="nostrKey" className="block text-sm font-medium text-cloistr-text mb-2">
-                    Nostr Public Key
-                  </label>
-                  <input
-                    type="text"
-                    value={nostrPublicKey}
-                    onChange={(e) => setNostrPublicKey(e.target.value)}
-                    className="input w-full font-mono text-sm"
-                    placeholder="Enter your 64-character Nostr public key"
-                    maxLength={64}
-                  />
-                  <p className="mt-1 text-xs text-cloistr-text-muted">
-                    Your public key should be 64 hexadecimal characters
-                  </p>
-                </div>
-
                 <button
                   type="button"
                   onClick={onNostrLogin}
-                  disabled={loading || !nostrPublicKey}
+                  disabled={loading}
                   className="btn-primary w-full"
                 >
-                  {loading ? 'Signing in...' : 'Sign in with Nostr'}
+                  {loading ? 'Signing in...' : 'Sign in with Nostr extension'}
                 </button>
 
                 <div className="bg-cloistr-bg-hover/50 p-3 rounded-lg">
                   <p className="text-xs text-cloistr-text-muted">
-                    <strong>Note:</strong> Nostr authentication requires a compatible Nostr client or browser extension
-                    to sign the authentication challenge.
+                    Your browser extension (NIP-07) signs a one-time challenge. Your key never leaves it.
                   </p>
                 </div>
               </div>

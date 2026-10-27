@@ -95,7 +95,7 @@ export default function SecurityAudit({ isOpen, onClose, onEditEntry }: Security
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-cloistr-border flex-shrink-0">
           <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-cloistr-primary" />
+            <Shield className="h-5 w-5 text-cloistr-primary-text" />
             <h2 className="text-base font-semibold">Security Audit</h2>
           </div>
           <button
@@ -124,7 +124,7 @@ export default function SecurityAudit({ isOpen, onClose, onEditEntry }: Security
               style={{ minHeight: '44px' }}
               className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === tab
-                  ? 'border-cloistr-primary text-cloistr-primary'
+                  ? 'border-cloistr-primary text-cloistr-primary-text'
                   : 'border-transparent text-cloistr-text-muted hover:text-cloistr-text'
               }`}
             >
@@ -196,7 +196,7 @@ export default function SecurityAudit({ isOpen, onClose, onEditEntry }: Security
                           {weakEntries.length !== 1 ? 's are' : ' is'} very weak or weak.{' '}
                           <button
                             onClick={() => setActiveTab('weak')}
-                            className="underline text-cloistr-primary"
+                            className="underline text-cloistr-primary-text"
                           >
                             Review them
                           </button>
@@ -211,7 +211,7 @@ export default function SecurityAudit({ isOpen, onClose, onEditEntry }: Security
                           password group{duplicateGroups.length !== 1 ? 's' : ''} found.{' '}
                           <button
                             onClick={() => setActiveTab('duplicates')}
-                            className="underline text-cloistr-primary"
+                            className="underline text-cloistr-primary-text"
                           >
                             Review them
                           </button>
@@ -226,7 +226,7 @@ export default function SecurityAudit({ isOpen, onClose, onEditEntry }: Security
                           login entr{missingPassword.length !== 1 ? 'ies' : 'y'} missing a password.{' '}
                           <button
                             onClick={() => setActiveTab('missing')}
-                            className="underline text-cloistr-primary"
+                            className="underline text-cloistr-primary-text"
                           >
                             Review
                           </button>

@@ -99,7 +99,7 @@ export default function Register() {
                 type="button"
                 className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
                   authMethod === 'email'
-                    ? 'bg-cloistr-bg-elevated text-cloistr-primary shadow-sm'
+                    ? 'bg-cloistr-bg-elevated text-cloistr-primary-text shadow-sm'
                     : 'text-cloistr-text-muted hover:text-cloistr-text'
                 }`}
                 onClick={() => setAuthMethod('email')}
@@ -111,7 +111,7 @@ export default function Register() {
                 type="button"
                 className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
                   authMethod === 'nostr'
-                    ? 'bg-cloistr-bg-elevated text-cloistr-primary shadow-sm'
+                    ? 'bg-cloistr-bg-elevated text-cloistr-primary-text shadow-sm'
                     : 'text-cloistr-text-muted hover:text-cloistr-text'
                 }`}
                 onClick={() => setAuthMethod('nostr')}
@@ -275,7 +275,7 @@ export default function Register() {
             <div className="text-center">
               <p className="text-sm text-cloistr-text-muted">
                 Already have an account?{' '}
-                <Link to="/login" className="text-cloistr-primary hover:underline">
+                <Link to="/login" className="text-cloistr-primary-text hover:underline">
                   Sign in here
                 </Link>
               </p>

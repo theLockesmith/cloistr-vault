@@ -77,7 +77,7 @@ export default function FolderTree({ selectedFolderId, onSelectFolder }: FolderT
       <div
         className={`flex items-center px-3 py-1.5 rounded-md cursor-pointer transition-colors ${
           selectedFolderId === null
-            ? 'bg-cloistr-primary/10 text-cloistr-primary'
+            ? 'bg-cloistr-primary/10 text-cloistr-primary-text'
             : 'hover:bg-cloistr-bg-hover'
         }`}
         onClick={() => onSelectFolder(null)}
@@ -92,7 +92,7 @@ export default function FolderTree({ selectedFolderId, onSelectFolder }: FolderT
           key={folder.id}
           className={`flex items-center px-3 py-1.5 rounded-md cursor-pointer group transition-colors ${
             selectedFolderId === folder.id
-              ? 'bg-cloistr-primary/10 text-cloistr-primary'
+              ? 'bg-cloistr-primary/10 text-cloistr-primary-text'
               : 'hover:bg-cloistr-bg-hover'
           }`}
           onClick={() => onSelectFolder(folder.id)}

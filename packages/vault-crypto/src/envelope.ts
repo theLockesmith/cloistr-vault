@@ -29,11 +29,16 @@ import {
   base64ToBytes,
   bytesToBase64,
   bytesToUtf8,
+  canonicalCredentialId,
   decodeJson,
   encodeJson,
   utf8ToBytes,
 } from './encoding';
 import { randomBytes } from './random';
+
+function sameCredential(a: string, b: string): boolean {
+  return canonicalCredentialId(a) === canonicalCredentialId(b);
+}
 
 export const ENVELOPE_VERSION = 2;
 
@@ -251,7 +256,7 @@ export async function unwrapWithPrf(
   prfOutput: Uint8Array
 ): Promise<Uint8Array> {
   const wrap = envelope.wraps.find(
-    (w): w is PrfWrap => w.type === 'prf' && w.credentialId === credentialId
+    (w): w is PrfWrap => w.type === 'prf' && sameCredential(w.credentialId, credentialId)
   );
   if (!wrap) {
     throw new Error('No passkey unlock enrolled for this credential');
@@ -268,13 +273,15 @@ export async function unwrapWithPrf(
 /** The PRF salt a credential's wrap was enrolled with, needed to re-evaluate it. */
 export function prfSaltFor(envelope: VaultEnvelopeV2, credentialId: string): Uint8Array | null {
   const wrap = envelope.wraps.find(
-    (w): w is PrfWrap => w.type === 'prf' && w.credentialId === credentialId
+    (w): w is PrfWrap => w.type === 'prf' && sameCredential(w.credentialId, credentialId)
   );
   return wrap ? base64ToBytes(wrap.prfSalt) : null;
 }
 
 export function enrolledPrfCredentialIds(envelope: VaultEnvelopeV2): string[] {
-  return envelope.wraps.filter((w): w is PrfWrap => w.type === 'prf').map((w) => w.credentialId);
+  return envelope.wraps
+    .filter((w): w is PrfWrap => w.type === 'prf')
+    .map((w) => canonicalCredentialId(w.credentialId));
 }
 
 /** Decrypts the vault body with a recovered DEK. */
@@ -318,7 +325,7 @@ export async function addPrfWrap(
   const { nonce, ct } = await aesGcmEncrypt(kek, dek, aadForWrap('prf'));
   const wrap: PrfWrap = {
     type: 'prf',
-    credentialId,
+    credentialId: canonicalCredentialId(credentialId),
     prfSalt: bytesToBase64(prfSalt),
     nonce,
     ct,
@@ -327,7 +334,7 @@ export async function addPrfWrap(
 
   return {
     ...envelope,
-    wraps: [...envelope.wraps.filter((w) => !(w.type === 'prf' && w.credentialId === credentialId)), wrap],
+    wraps: [...envelope.wraps.filter((w) => !(w.type === 'prf' && sameCredential(w.credentialId, credentialId))), wrap],
   };
 }
 
@@ -339,7 +346,7 @@ export async function addPrfWrap(
  */
 export function removePrfWrap(envelope: VaultEnvelopeV2, credentialId: string): VaultEnvelopeV2 {
   const remaining = envelope.wraps.filter(
-    (w) => !(w.type === 'prf' && w.credentialId === credentialId)
+    (w) => !(w.type === 'prf' && sameCredential(w.credentialId, credentialId))
   );
   if (remaining.length === 0) {
     throw new Error('Refusing to remove the only unlock factor — the vault would be unrecoverable');

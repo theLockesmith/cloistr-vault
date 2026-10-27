@@ -172,7 +172,7 @@ export default function PasswordGenerator({ isOpen, onClose, onUse }: PasswordGe
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <label className="font-medium">Length</label>
-              <span className="font-mono font-bold text-cloistr-primary">{options.length}</span>
+              <span className="font-mono font-bold text-cloistr-primary-text">{options.length}</span>
             </div>
             <input
               type="range"

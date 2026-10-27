@@ -384,7 +384,7 @@ export default function Dashboard() {
           {[
             { Icon: Globe, label: 'Logins', color: 'text-cloistr-info', count: vaultData?.entries.filter(e => e.type === 'login').length || 0 },
             { Icon: StickyNote, label: 'Notes', color: 'text-cloistr-success', count: vaultData?.entries.filter(e => e.type === 'note').length || 0 },
-            { Icon: CreditCard, label: 'Cards', color: 'text-cloistr-primary', count: vaultData?.entries.filter(e => e.type === 'card').length || 0 },
+            { Icon: CreditCard, label: 'Cards', color: 'text-cloistr-primary-text', count: vaultData?.entries.filter(e => e.type === 'card').length || 0 },
             { Icon: Star, label: 'Favorites', color: 'text-cloistr-warning', count: vaultData?.entries.filter(e => e.favorite).length || 0 },
           ].map(({ Icon, label, color, count }) => (
             <div key={label} className="card">
@@ -453,7 +453,7 @@ export default function Dashboard() {
                     >
                       <div className="vault-item-info min-w-0 flex-1">
                         <div className="vault-item-icon flex-shrink-0">
-                          <IconComponent className="h-4 w-4 text-cloistr-primary" />
+                          <IconComponent className="h-4 w-4 text-cloistr-primary-text" />
                         </div>
                         <div className="vault-item-content min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
@@ -523,7 +523,7 @@ export default function Dashboard() {
                 <div className="card-header pb-3">
                   <div className="flex items-center space-x-2">
                     {React.createElement(getEntryIcon(selectedEntry.type), {
-                      className: "h-5 w-5 text-cloistr-primary flex-shrink-0"
+                      className: "h-5 w-5 text-cloistr-primary-text flex-shrink-0"
                     })}
                     <div className="min-w-0">
                       <h3 className="card-title text-lg truncate">{selectedEntry.name}</h3>
@@ -664,7 +664,7 @@ export default function Dashboard() {
                               a.click();
                               document.body.removeChild(a);
                             }}
-                            className="text-xs text-cloistr-primary underline flex-shrink-0"
+                            className="text-xs text-cloistr-primary-text underline flex-shrink-0"
                             style={{ minHeight: '44px' }}
                           >
                             Download

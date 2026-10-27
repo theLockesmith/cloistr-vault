@@ -76,7 +76,7 @@ export default function UnlockModal({ onUnlock }: UnlockModalProps) {
         <div className="card">
           <div className="card-header">
             <div className="flex items-center space-x-2">
-              <Lock className="h-5 w-5 text-cloistr-primary" />
+              <Lock className="h-5 w-5 text-cloistr-primary-text" />
               <h2 className="card-title">Unlock Your Vault</h2>
             </div>
             <p className="card-description">

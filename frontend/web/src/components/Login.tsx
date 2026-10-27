@@ -133,7 +133,7 @@ export default function Login() {
                 type="button"
                 className={`py-2 px-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
                   authMethod === 'email'
-                    ? 'bg-cloistr-bg-elevated text-cloistr-primary shadow-sm'
+                    ? 'bg-cloistr-bg-elevated text-cloistr-primary-text shadow-sm'
                     : 'text-cloistr-text-muted hover:text-cloistr-text'
                 }`}
                 onClick={() => setAuthMethod('email')}
@@ -146,7 +146,7 @@ export default function Login() {
                   type="button"
                   className={`py-2 px-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
                     authMethod === 'passkey'
-                      ? 'bg-cloistr-bg-elevated text-cloistr-primary shadow-sm'
+                      ? 'bg-cloistr-bg-elevated text-cloistr-primary-text shadow-sm'
                       : 'text-cloistr-text-muted hover:text-cloistr-text'
                   }`}
                   onClick={() => setAuthMethod('passkey')}
@@ -159,7 +159,7 @@ export default function Login() {
                 type="button"
                 className={`py-2 px-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
                   authMethod === 'nostr'
-                    ? 'bg-cloistr-bg-elevated text-cloistr-primary shadow-sm'
+                    ? 'bg-cloistr-bg-elevated text-cloistr-primary-text shadow-sm'
                     : 'text-cloistr-text-muted hover:text-cloistr-text'
                 }`}
                 onClick={() => setAuthMethod('nostr')}
@@ -230,7 +230,7 @@ export default function Login() {
             {authMethod === 'passkey' && (
               <div className="space-y-4">
                 <div className="text-center">
-                  <Fingerprint className="w-12 h-12 mx-auto text-cloistr-primary mb-2" />
+                  <Fingerprint className="w-12 h-12 mx-auto text-cloistr-primary-text mb-2" />
                   <p className="text-sm text-cloistr-text-muted">
                     Sign in with your device's built-in authenticator
                   </p>
@@ -406,7 +406,7 @@ export default function Login() {
             <div className="text-center">
               <p className="text-sm text-cloistr-text-muted">
                 Don't have an account?{' '}
-                <Link to="/register" className="text-cloistr-primary hover:underline">
+                <Link to="/register" className="text-cloistr-primary-text hover:underline">
                   Create one here
                 </Link>
               </p>

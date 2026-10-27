@@ -217,7 +217,7 @@ export default function Settings() {
       <div className="card">
         <div className="card-header">
           <div className="flex items-center space-x-2">
-            <Shield className="h-5 w-5 text-cloistr-primary" />
+            <Shield className="h-5 w-5 text-cloistr-primary-text" />
             <h2 className="card-title">Identity</h2>
           </div>
           <p className="card-description">Your authentication methods and verified identities</p>
@@ -234,7 +234,7 @@ export default function Settings() {
                 </p>
               </div>
               <div className="flex items-center space-x-2">
-                {user?.auth_method === 'nostr' && <Key className="h-5 w-5 text-cloistr-primary" />}
+                {user?.auth_method === 'nostr' && <Key className="h-5 w-5 text-cloistr-primary-text" />}
                 {user?.auth_method === 'lightning_address' && <Zap className="h-5 w-5 text-cloistr-warning" />}
                 {(!user?.auth_method || user?.auth_method === 'email') && <Mail className="h-5 w-5 text-cloistr-info" />}
               </div>
@@ -285,7 +285,7 @@ export default function Settings() {
           <div className="card-header">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Fingerprint className="h-5 w-5 text-cloistr-primary" />
+                <Fingerprint className="h-5 w-5 text-cloistr-primary-text" />
                 <h2 className="card-title">Passkeys</h2>
               </div>
               {!showAddPasskey && (
@@ -419,7 +419,7 @@ export default function Settings() {
                               <button
                                 onClick={() => handleEnableVaultUnlock(cred.credential_id, cred.name)}
                                 disabled={busyCredential === cred.credential_id || isLocked}
-                                className="text-xs text-cloistr-primary hover:underline disabled:opacity-50"
+                                className="text-xs text-cloistr-primary-text hover:underline disabled:opacity-50"
                                 title={
                                   isLocked
                                     ? 'Unlock your vault first'
@@ -476,7 +476,7 @@ export default function Settings() {
         <div className="card">
           <div className="card-header">
             <div className="flex items-center space-x-2">
-              <Key className="h-5 w-5 text-cloistr-primary" />
+              <Key className="h-5 w-5 text-cloistr-primary-text" />
               <h2 className="card-title">NIP-05 Verification</h2>
             </div>
             <p className="card-description">

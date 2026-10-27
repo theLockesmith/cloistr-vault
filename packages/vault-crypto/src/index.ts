@@ -5,6 +5,7 @@ export {
   base64ToBytes,
   bytesToBase64Url,
   base64UrlToBytes,
+  canonicalCredentialId,
   encodeJson,
   decodeJson,
 } from './encoding';

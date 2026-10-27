@@ -39,6 +39,16 @@ export function bytesToBase64Url(bytes: Uint8Array): string {
   return bytesToBase64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+/**
+ * One spelling per WebAuthn credential ID: unpadded base64url, the form the
+ * browser reports. The server sends IDs padded (Go's base64.URLEncoding) and
+ * older enrolments stored them that way; Chrome rejects padded keys in PRF
+ * `evalByCredential`, and a padded wrap never matched an assertion's rawId.
+ */
+export function canonicalCredentialId(id: string): string {
+  return id.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
 export function base64UrlToBytes(base64url: string): Uint8Array {
   const padded = base64url
     .replace(/-/g, '+')

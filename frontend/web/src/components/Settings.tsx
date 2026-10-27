@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useVault } from '../contexts/VaultContext';
 import { PrfCancelledError, PrfUnsupportedError } from '../crypto/prf';
+import { canonicalCredentialId } from '../crypto/vault';
 import { Shield, Key, Zap, CheckCircle, AlertCircle, Search, ArrowLeft, Fingerprint, Plus, Trash2, Edit2, X, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -401,7 +402,7 @@ export default function Settings() {
                             {cred.last_used_at && ` • Last used ${formatDate(cred.last_used_at)}`}
                           </div>
                           <div className="mt-2">
-                            {enrolledPasskeys.includes(cred.credential_id) ? (
+                            {enrolledPasskeys.includes(canonicalCredentialId(cred.credential_id)) ? (
                               <div className="flex items-center gap-2">
                                 <span className="text-xs bg-cloistr-success/10 text-cloistr-success px-1.5 py-0.5 rounded">
                                   Unlocks vault

@@ -17,7 +17,7 @@
  * degrades to a clear error so the caller can fall back to the master password.
  */
 
-import { base64UrlToBytes, bytesToBase64Url } from './encoding';
+import { base64UrlToBytes, bytesToBase64Url, canonicalCredentialId } from './encoding';
 
 /** Raised when PRF is unavailable, as opposed to the user cancelling. */
 export class PrfUnsupportedError extends Error {}
@@ -71,7 +71,12 @@ export async function evaluatePrf(
     throw new PrfUnsupportedError('This browser does not support WebAuthn');
   }
 
-  const credentialIds = Object.keys(saltsByCredentialId);
+  // Chrome rejects evalByCredential keys that are not unpadded base64url.
+  const salts: Record<string, Uint8Array> = {};
+  for (const [id, salt] of Object.entries(saltsByCredentialId)) {
+    salts[canonicalCredentialId(id)] = salt;
+  }
+  const credentialIds = Object.keys(salts);
   if (credentialIds.length === 0) {
     throw new PrfUnsupportedError('No passkey is enrolled for vault unlock');
   }
@@ -87,10 +92,10 @@ export async function evaluatePrf(
 
   const prfInput =
     credentialIds.length === 1
-      ? { eval: { first: saltsByCredentialId[credentialIds[0]] as BufferSource } }
+      ? { eval: { first: salts[credentialIds[0]] as BufferSource } }
       : {
           evalByCredential: Object.fromEntries(
-            credentialIds.map((id) => [id, { first: saltsByCredentialId[id] as BufferSource }])
+            credentialIds.map((id) => [id, { first: salts[id] as BufferSource }])
           ),
         };
 

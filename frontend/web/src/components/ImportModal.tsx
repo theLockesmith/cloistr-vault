@@ -6,7 +6,7 @@
  * vault's addEntry function which encrypts them locally before persisting.
  * No unencrypted data ever leaves the browser.
  */
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, FileText, AlertCircle, Check } from 'lucide-react';
 import { useVault } from '../contexts/VaultContext';
 import toast from 'react-hot-toast';
@@ -238,6 +238,18 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
   const [imported, setImported] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // The modal stays mounted while closed, so start each opening fresh;
+  // otherwise a finished import reopens on "Import complete" with no way back.
+  useEffect(() => {
+    if (!isOpen) return;
+    setFormat('keepass-xml');
+    setParsed(null);
+    setParseError(null);
+    setImporting(false);
+    setImported(false);
+    setSelected(new Set());
+  }, [isOpen]);
 
   const handleFile = (file: File) => {
     setParseError(null);

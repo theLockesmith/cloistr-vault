@@ -17,7 +17,9 @@ interface WebAuthnCredential {
 }
 
 export default function Settings() {
-  const { user, verifyNIP05, lookupNIP05, registerWebAuthnCredential, listWebAuthnCredentials, deleteWebAuthnCredential, updateWebAuthnCredential, isWebAuthnAvailable, loading } = useAuth();
+  const { user, verifyNIP05, lookupNIP05, registerWebAuthnCredential, listWebAuthnCredentials, deleteWebAuthnCredential, updateWebAuthnCredential, isWebAuthnAvailable } = useAuth();
+  const [registering, setRegistering] = useState(false);
+  const [nip05Busy, setNip05Busy] = useState(false);
   const [nip05Input, setNip05Input] = useState('');
   const [lookupResult, setLookupResult] = useState<{
     nip05_address: string;
@@ -99,6 +101,7 @@ export default function Settings() {
       return;
     }
 
+    setRegistering(true);
     try {
       await registerWebAuthnCredential(newCredentialName.trim());
       setNewCredentialName('');
@@ -106,6 +109,8 @@ export default function Settings() {
       await loadCredentials();
     } catch (error) {
       // Error handled in context
+    } finally {
+      setRegistering(false);
     }
   };
 
@@ -155,6 +160,7 @@ export default function Settings() {
     setLookupError(null);
     setLookupResult(null);
 
+    setNip05Busy(true);
     try {
       const result = await lookupNIP05(nip05Input);
       setLookupResult(result);
@@ -165,6 +171,8 @@ export default function Settings() {
       }
     } catch (error: any) {
       setLookupError(error.response?.data?.error || 'Lookup failed');
+    } finally {
+      setNip05Busy(false);
     }
   };
 
@@ -174,12 +182,15 @@ export default function Settings() {
       return;
     }
 
+    setNip05Busy(true);
     try {
       await verifyNIP05(nip05Input);
       setNip05Input('');
       setLookupResult(null);
     } catch (error) {
       // Error handled in context
+    } finally {
+      setNip05Busy(false);
     }
   };
 
@@ -321,10 +332,10 @@ export default function Settings() {
                 </div>
                 <button
                   onClick={handleAddPasskey}
-                  disabled={loading || !newCredentialName.trim()}
+                  disabled={registering || !newCredentialName.trim()}
                   className="btn-primary w-full"
                 >
-                  {loading ? 'Registering...' : 'Register Passkey'}
+                  {registering ? 'Registering...' : 'Register Passkey'}
                 </button>
               </div>
             )}
@@ -495,7 +506,7 @@ export default function Settings() {
                 />
                 <button
                   onClick={handleLookup}
-                  disabled={loading || !nip05Input}
+                  disabled={nip05Busy || !nip05Input}
                   className="btn-secondary"
                   title="Look up this NIP-05 address"
                 >
@@ -570,10 +581,10 @@ export default function Settings() {
             {/* Verify Button */}
             <button
               onClick={handleVerify}
-              disabled={loading || !nip05Input || !lookupResult || lookupResult.pubkey !== user?.nostr_pubkey}
+              disabled={nip05Busy || !nip05Input || !lookupResult || lookupResult.pubkey !== user?.nostr_pubkey}
               className="btn-primary w-full"
             >
-              {loading ? 'Verifying...' : 'Verify & Link NIP-05'}
+              {nip05Busy ? 'Verifying...' : 'Verify & Link NIP-05'}
             </button>
 
             {!user?.nip05_address && (

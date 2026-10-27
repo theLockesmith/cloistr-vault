@@ -471,9 +471,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // verifyNIP05, lookupNIP05 and registerWebAuthnCredential run from the
+  // signed-in Settings page and must not set `loading`: ProtectedRoute swaps
+  // the page for a spinner while it is true, unmounting Settings mid-call so
+  // the result is dropped. Settings keeps its own busy state.
   const verifyNIP05 = async (nip05Address: string) => {
     try {
-      setLoading(true);
       await axios.post('/nip05/verify', {
         nip05_address: nip05Address,
       });
@@ -490,22 +493,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const message = error.response?.data?.error || 'NIP-05 verification failed';
       toast.error(message);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
   const lookupNIP05 = async (nip05Address: string): Promise<NIP05LookupResult> => {
     try {
-      setLoading(true);
       const response = await axios.get(`/nip05/lookup?address=${encodeURIComponent(nip05Address)}`);
       return response.data;
     } catch (error: any) {
       const message = error.response?.data?.error || 'NIP-05 lookup failed';
       toast.error(message);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -661,8 +659,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      setLoading(true);
-
       // Step 1: Get registration options from server
       const beginResponse = await axios.post('/user/webauthn/register/begin');
       const options = beginResponse.data;
@@ -728,8 +724,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const message = error.response?.data?.error || error.message || 'Failed to register passkey';
       toast.error(message);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 

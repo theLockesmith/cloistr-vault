@@ -375,7 +375,7 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-cloistr-border flex-shrink-0">
           <div className="flex items-center gap-2">
-            <Upload className="h-5 w-5 text-cloistr-primary" />
+            <Upload className="h-5 w-5 text-cloistr-primary-text" />
             <h2 className="text-base font-semibold">Import Entries</h2>
           </div>
           <button
@@ -416,7 +416,7 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
                       style={{ minHeight: '44px' }}
                       className={`text-sm px-3 py-2 rounded-md border text-left transition-colors ${
                         format === f
-                          ? 'border-cloistr-primary bg-cloistr-primary/10 text-cloistr-primary'
+                          ? 'border-cloistr-primary bg-cloistr-primary/10 text-cloistr-primary-text'
                           : 'border-cloistr-border hover:border-cloistr-primary/50'
                       }`}
                     >
@@ -469,7 +469,7 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
                     <div className="flex items-center gap-3">
                       <button
                         onClick={toggleAll}
-                        className="text-xs text-cloistr-primary underline"
+                        className="text-xs text-cloistr-primary-text underline"
                         style={{ minHeight: '44px' }}
                       >
                         {selected.size === parsed.length ? 'Deselect all' : 'Select all'}

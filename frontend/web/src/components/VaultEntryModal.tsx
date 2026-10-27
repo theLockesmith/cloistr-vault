@@ -319,7 +319,7 @@ export default function VaultEntryModal({
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-cloistr-border flex-shrink-0">
             <div className="flex items-center space-x-2">
-              <IconComponent className="h-5 w-5 text-cloistr-primary" />
+              <IconComponent className="h-5 w-5 text-cloistr-primary-text" />
               <h2 className="text-lg font-semibold">
                 {mode === 'add' ? 'Add New Item' : 'Edit Item'}
               </h2>
@@ -346,7 +346,7 @@ export default function VaultEntryModal({
                 style={{ minHeight: '44px' }}
                 className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex-shrink-0 ${
                   activeSection === tab
-                    ? 'border-cloistr-primary text-cloistr-primary'
+                    ? 'border-cloistr-primary text-cloistr-primary-text'
                     : 'border-transparent text-cloistr-text-muted hover:text-cloistr-text'
                 }`}
               >
@@ -374,7 +374,7 @@ export default function VaultEntryModal({
                               style={{ minHeight: '44px' }}
                               className={`flex flex-col items-center p-2 rounded-lg border transition-colors ${
                                 type === t
-                                  ? 'border-primary bg-cloistr-primary/10 text-cloistr-primary'
+                                  ? 'border-primary bg-cloistr-primary/10 text-cloistr-primary-text'
                                   : 'border-cloistr-border hover:border-cloistr-primary/50'
                               }`}
                             >
@@ -596,7 +596,7 @@ export default function VaultEntryModal({
                           <button
                             type="button"
                             onClick={() => downloadAttachment(att)}
-                            className="text-xs text-cloistr-primary underline flex-shrink-0"
+                            className="text-xs text-cloistr-primary-text underline flex-shrink-0"
                             style={{ minHeight: '44px' }}
                           >
                             Save

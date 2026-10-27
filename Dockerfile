@@ -5,9 +5,6 @@ FROM node:22.23.3-alpine AS webbuilder
 # file:../../packages/vault-crypto link resolves to the same relative path.
 WORKDIR /src/frontend/web
 
-# Build arg for private @cloistr registry auth
-ARG NPM_AEGIS_TOKEN
-
 # The web app depends on @cloistr/vault-crypto via file:../../packages/vault-crypto.
 # Vite follows the symlink to its real path, so the package needs its own
 # node_modules for its imports.
@@ -19,7 +16,7 @@ COPY frontend/web/package.json frontend/web/package-lock.json frontend/web/.npmr
 # --legacy-peer-deps: nostr-tools (via @cloistr/auth) declares peerOptional
 # typescript>=5, but this CRA app pins typescript 4.9.5 (react-scripts). The
 # peer is optional, so ignore the conflict rather than break the CRA toolchain.
-RUN NPM_AEGIS_TOKEN=${NPM_AEGIS_TOKEN} npm ci --legacy-peer-deps
+RUN npm ci --legacy-peer-deps
 
 # Build the production bundle. Vite emits external JS files by default, which
 # is what the strict default-src 'self' CSP requires.

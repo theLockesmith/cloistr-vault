@@ -290,6 +290,13 @@ func (a *AuthService) FinishWebAuthnLogin(email string, response *protocol.Parse
 		return nil, "", fmt.Errorf("database error: %w", err)
 	}
 
+	// Claim the challenge before validating: only one finish can hold it,
+	// and a failed finish has spent it.
+	session, err := a.claimWebAuthnSession(userID, "authentication")
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to get session: %w", err)
+	}
+
 	// Get user with credentials
 	user, err := a.getUserForWebAuthn(userID)
 	if err != nil {
@@ -301,12 +308,6 @@ func (a *AuthService) FinishWebAuthnLogin(email string, response *protocol.Parse
 		return nil, "", err
 	}
 	user.Credentials = credentials
-
-	// Get session
-	session, err := a.getWebAuthnSession(userID, "authentication")
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to get session: %w", err)
-	}
 
 	// Finish login
 	credential, err := a.webauthn.ValidateLogin(user, *session, response)
@@ -322,9 +323,6 @@ func (a *AuthService) FinishWebAuthnLogin(email string, response *protocol.Parse
 			"error", err.Error(),
 		)
 	}
-
-	// Clean up session
-	a.deleteWebAuthnSession(userID, "authentication")
 
 	// Get full user model
 	fullUser, err := a.getUserByID(userID)
@@ -352,8 +350,9 @@ func (a *AuthService) FinishWebAuthnDiscoverableLogin(sessionID string, response
 		return nil, "", ErrWebAuthnNotConfigured
 	}
 
-	// Get session
-	session, err := a.getDiscoverableSession(sessionID)
+	// Claim the challenge before validating: only one finish can hold it,
+	// and a failed finish has spent it.
+	session, err := a.claimDiscoverableSession(sessionID)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get session: %w", err)
 	}
@@ -410,9 +409,6 @@ func (a *AuthService) FinishWebAuthnDiscoverableLogin(sessionID string, response
 			"error", err.Error(),
 		)
 	}
-
-	// Clean up session
-	a.deleteDiscoverableSession(sessionID)
 
 	// Get full user
 	user, err := a.getUserByID(userID)
@@ -730,6 +726,41 @@ func (a *AuthService) deleteWebAuthnSession(userID uuid.UUID, ceremonyType strin
 	}
 }
 
+// claimWebAuthnSession deletes the user's session for ceremonyType and
+// returns it, so concurrent finishes cannot share one challenge.
+func (a *AuthService) claimWebAuthnSession(userID uuid.UUID, ceremonyType string) (*webauthn.SessionData, error) {
+	return a.claimSession(`
+		DELETE FROM webauthn_sessions
+		WHERE user_id = $1 AND ceremony_type = $2
+		RETURNING session_data, expires_at`, userID, ceremonyType)
+}
+
+func (a *AuthService) claimSession(query string, args ...interface{}) (*webauthn.SessionData, error) {
+	var sessionData []byte
+	var expiresAt time.Time
+
+	err := a.db.QueryRow(query, args...).Scan(&sessionData, &expiresAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrSessionNotFound
+		}
+		return nil, err
+	}
+
+	// Already deleted by the claim.
+	if time.Now().After(expiresAt) {
+		return nil, ErrSessionExpired
+	}
+
+	var session webauthn.SessionData
+	dec := gob.NewDecoder(bytes.NewReader(sessionData))
+	if err := dec.Decode(&session); err != nil {
+		return nil, fmt.Errorf("failed to decode session: %w", err)
+	}
+
+	return &session, nil
+}
+
 func (a *AuthService) storeDiscoverableSession(sessionID string, session *webauthn.SessionData) error {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
@@ -754,38 +785,12 @@ func (a *AuthService) storeDiscoverableSession(sessionID string, session *webaut
 	return err
 }
 
-func (a *AuthService) getDiscoverableSession(sessionID string) (*webauthn.SessionData, error) {
-	var sessionData []byte
-	var expiresAt time.Time
-
-	err := a.db.QueryRow(`
-		SELECT session_data, expires_at
-		FROM webauthn_sessions
-		WHERE id::text = $1 AND ceremony_type = 'discoverable'`,
-		sessionID).Scan(&sessionData, &expiresAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ErrSessionNotFound
-		}
-		return nil, err
-	}
-
-	if time.Now().After(expiresAt) {
-		a.deleteDiscoverableSession(sessionID)
-		return nil, ErrSessionExpired
-	}
-
-	var session webauthn.SessionData
-	dec := gob.NewDecoder(bytes.NewReader(sessionData))
-	if err := dec.Decode(&session); err != nil {
-		return nil, fmt.Errorf("failed to decode session: %w", err)
-	}
-
-	return &session, nil
-}
-
-func (a *AuthService) deleteDiscoverableSession(sessionID string) {
-	if _, err := a.db.Exec(`DELETE FROM webauthn_sessions WHERE id::text = $1`, sessionID); err != nil {
-		observability.Warn("failed to delete discoverable webauthn session", "error", err)
-	}
+// claimDiscoverableSession deletes the discoverable login session and
+// returns it. The DELETE is the claim: of concurrent finishes for one
+// session, only the one whose DELETE removes the row gets it.
+func (a *AuthService) claimDiscoverableSession(sessionID string) (*webauthn.SessionData, error) {
+	return a.claimSession(`
+		DELETE FROM webauthn_sessions
+		WHERE id::text = $1 AND ceremony_type = 'discoverable'
+		RETURNING session_data, expires_at`, sessionID)
 }

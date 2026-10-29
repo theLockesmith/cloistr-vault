@@ -737,6 +737,15 @@ func (a *AuthService) storeDiscoverableSession(sessionID string, session *webaut
 		return fmt.Errorf("failed to encode session: %w", err)
 	}
 
+	// Discoverable sessions have no user for a per-user clear to reach, and
+	// the login page's passkey autofill issues one per visit, mostly never
+	// redeemed. Prune as we go (same grace as auth_challenges) so the table
+	// stays bounded by the issue rate.
+	if _, err := a.db.Exec(
+		`DELETE FROM webauthn_sessions WHERE expires_at < NOW() - INTERVAL '1 hour'`); err != nil {
+		return fmt.Errorf("prune webauthn sessions: %w", err)
+	}
+
 	_, err := a.db.Exec(`
 		INSERT INTO webauthn_sessions (id, session_data, ceremony_type, challenge, expires_at)
 		VALUES ($1, $2, $3, $4, $5)`,

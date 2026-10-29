@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { getServiceConfig } from '@cloistr/collab-common/config';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -18,8 +18,15 @@ interface LightningChallenge {
   expiresAt: string;
 }
 
+/**
+ * The server's discoverable-login challenge lives five minutes. Renew the
+ * autofill request a minute before that, so a passkey picked from autofill
+ * always answers a live challenge.
+ */
+const PASSKEY_AUTOFILL_RENEW_MS = 4 * 60 * 1000;
+
 export default function Login() {
-  const { login, loginWithNostr, getLightningChallenge, loginWithLightning, loginWithWebAuthn, loginWithWebAuthnDiscoverable, isWebAuthnAvailable, loading } = useAuth();
+  const { login, loginWithNostr, getLightningChallenge, loginWithLightning, loginWithWebAuthn, loginWithWebAuthnDiscoverable, startPasskeyAutofill, isWebAuthnAvailable, loading } = useAuth();
   const [authMethod, setAuthMethod] = useState<'email' | 'nostr' | 'lightning' | 'passkey'>('email');
   const [lightningAddress, setLightningAddress] = useState('');
   const [lightningChallenge, setLightningChallenge] = useState<LightningChallenge | null>(null);
@@ -27,6 +34,59 @@ export default function Login() {
   const [lightningLinkingKey, setLightningLinkingKey] = useState('');
   const [passkeyEmail, setPasskeyEmail] = useState('');
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
+
+  // Passkey autofill: while this page is open, one conditional WebAuthn
+  // request stays pending so the browser offers saved passkeys in the email
+  // field's autofill. Only one WebAuthn request can be pending, so the passkey
+  // buttons cancel it first and re-arm it when they finish.
+  const autofill = useRef<AbortController | null>(null);
+  const leaving = useRef(false);
+  const startAutofillRef = useRef(startPasskeyAutofill);
+  startAutofillRef.current = startPasskeyAutofill;
+
+  const armPasskeyAutofill = () => {
+    if (leaving.current) return;
+    autofill.current?.abort('replaced');
+    const ac = new AbortController();
+    autofill.current = ac;
+    const renew = setTimeout(() => ac.abort('renew'), PASSKEY_AUTOFILL_RENEW_MS);
+    startAutofillRef.current(ac.signal).then((outcome) => {
+      clearTimeout(renew);
+      // Re-arm only when the challenge was renewed. A failure stops here
+      // rather than retrying in a loop against the auth rate limit.
+      if (outcome === 'aborted' && ac.signal.reason === 'renew') armPasskeyAutofill();
+    });
+  };
+
+  const pausePasskeyAutofill = () => {
+    autofill.current?.abort('paused');
+    autofill.current = null;
+  };
+
+  useEffect(() => {
+    if (!isWebAuthnAvailable) return;
+    leaving.current = false;
+    armPasskeyAutofill();
+    return () => {
+      leaving.current = true;
+      pausePasskeyAutofill();
+    };
+  }, [isWebAuthnAvailable]);
+
+  /**
+   * Runs an explicit passkey sign-in with autofill paused. Re-arms only if it
+   * fails: on success the page is about to leave, and a fresh request would
+   * spend a rate-limited challenge for nothing.
+   */
+  const withAutofillPaused = async (run: () => Promise<void>) => {
+    pausePasskeyAutofill();
+    try {
+      await run();
+    } catch (error) {
+      armPasskeyAutofill();
+      throw error;
+    }
+  };
 
   const onEmailSubmit = async (data: LoginForm) => {
     try {
@@ -90,7 +150,7 @@ export default function Login() {
     }
 
     try {
-      await loginWithWebAuthn(passkeyEmail);
+      await withAutofillPaused(() => loginWithWebAuthn(passkeyEmail));
     } catch (error) {
       // Error handling is done in AuthContext
     }
@@ -98,7 +158,7 @@ export default function Login() {
 
   const onPasskeyDiscoverableLogin = async () => {
     try {
-      await loginWithWebAuthnDiscoverable();
+      await withAutofillPaused(loginWithWebAuthnDiscoverable);
     } catch (error) {
       // Error handling is done in AuthContext
     }
@@ -185,6 +245,7 @@ export default function Login() {
                       },
                     })}
                     type="email"
+                    autoComplete="username webauthn"
                     className="input w-full"
                     placeholder="Enter your email"
                   />
@@ -262,6 +323,7 @@ export default function Login() {
                     type="email"
                     value={passkeyEmail}
                     onChange={(e) => setPasskeyEmail(e.target.value)}
+                    autoComplete="username webauthn"
                     className="input w-full"
                     placeholder="Enter your email"
                   />

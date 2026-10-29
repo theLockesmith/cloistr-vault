@@ -40,6 +40,9 @@ interface WebAuthnCredential {
   backup_state: boolean;
 }
 
+/** How a passkey autofill request ended. */
+export type PasskeyAutofillOutcome = 'signed-in' | 'aborted' | 'unsupported' | 'failed';
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
@@ -54,6 +57,7 @@ interface AuthContextType {
   lookupNIP05: (nip05Address: string) => Promise<NIP05LookupResult>;
   loginWithWebAuthn: (email: string) => Promise<void>;
   loginWithWebAuthnDiscoverable: () => Promise<void>;
+  startPasskeyAutofill: (signal: AbortSignal) => Promise<PasskeyAutofillOutcome>;
   registerWebAuthnCredential: (name: string) => Promise<WebAuthnCredential>;
   listWebAuthnCredentials: () => Promise<WebAuthnCredential[]>;
   deleteWebAuthnCredential: (credentialId: string) => Promise<void>;
@@ -592,6 +596,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  /** Sends a discoverable-login assertion to the server and stores the session. */
+  const finishDiscoverableLogin = async (sessionId: string, credential: PublicKeyCredential) => {
+    const response = credential.response as AuthenticatorAssertionResponse;
+    const finishResponse = await axios.post('/auth/webauthn/login/finish', {
+      session_id: sessionId,
+      id: credential.id,
+      rawId: arrayBufferToBase64Url(credential.rawId),
+      type: credential.type,
+      response: {
+        authenticatorData: arrayBufferToBase64Url(response.authenticatorData),
+        clientDataJSON: arrayBufferToBase64Url(response.clientDataJSON),
+        signature: arrayBufferToBase64Url(response.signature),
+        userHandle: response.userHandle ? arrayBufferToBase64Url(response.userHandle) : null,
+      },
+    });
+
+    const { token: newToken, user: newUser } = finishResponse.data;
+
+    setToken(newToken);
+    setUser(newUser);
+
+    localStorage.setItem('vault_token', newToken);
+    localStorage.setItem('vault_user', JSON.stringify(newUser));
+
+    axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+
+    toast.success('Successfully logged in with passkey!');
+  };
+
+  const beginDiscoverableLogin = async (signal?: AbortSignal) => {
+    const beginResponse = await axios.post(
+      '/auth/webauthn/login/begin/discoverable',
+      undefined,
+      signal ? { signal } : undefined,
+    );
+    const { options, session_id } = beginResponse.data;
+    options.publicKey.challenge = base64UrlToArrayBuffer(options.publicKey.challenge);
+    return { publicKey: options.publicKey, sessionId: session_id as string };
+  };
+
   const loginWithWebAuthnDiscoverable = async () => {
     if (!isWebAuthnAvailable) {
       throw new Error('WebAuthn is not supported in this browser');
@@ -601,15 +645,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
 
       // Step 1: Get challenge from server (no email needed)
-      const beginResponse = await axios.post('/auth/webauthn/login/begin/discoverable');
-      const { options, session_id } = beginResponse.data;
-
-      // Convert base64url strings to ArrayBuffers
-      options.publicKey.challenge = base64UrlToArrayBuffer(options.publicKey.challenge);
+      const { publicKey, sessionId } = await beginDiscoverableLogin();
 
       // Step 2: Get credential from authenticator (browser will show available passkeys)
       const credential = await navigator.credentials.get({
-        publicKey: options.publicKey,
+        publicKey,
         mediation: 'optional',
       }) as PublicKeyCredential;
 
@@ -617,39 +657,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('No credential returned');
       }
 
-      const response = credential.response as AuthenticatorAssertionResponse;
-
       // Step 3: Send credential to server
-      const finishResponse = await axios.post('/auth/webauthn/login/finish', {
-        session_id,
-        id: credential.id,
-        rawId: arrayBufferToBase64Url(credential.rawId),
-        type: credential.type,
-        response: {
-          authenticatorData: arrayBufferToBase64Url(response.authenticatorData),
-          clientDataJSON: arrayBufferToBase64Url(response.clientDataJSON),
-          signature: arrayBufferToBase64Url(response.signature),
-          userHandle: response.userHandle ? arrayBufferToBase64Url(response.userHandle) : null,
-        },
-      });
-
-      const { token: newToken, user: newUser } = finishResponse.data;
-
-      setToken(newToken);
-      setUser(newUser);
-
-      localStorage.setItem('vault_token', newToken);
-      localStorage.setItem('vault_user', JSON.stringify(newUser));
-
-      axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-
-      toast.success('Successfully logged in with passkey!');
+      await finishDiscoverableLogin(sessionId, credential);
     } catch (error: any) {
       const message = error.response?.data?.error || error.message || 'Passkey login failed';
       toast.error(message);
       throw error;
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * Passkey autofill: holds a conditional WebAuthn request open so the browser
+   * lists saved passkeys in the autofill of any field marked
+   * `autocomplete="username webauthn"`. It can wait for minutes, so it leaves
+   * `loading` alone until the user actually picks a passkey, and treats being
+   * cancelled through `signal` as normal. Resolves with what happened instead
+   * of throwing; the login page uses that to decide whether to re-arm.
+   */
+  const startPasskeyAutofill = async (signal: AbortSignal): Promise<PasskeyAutofillOutcome> => {
+    const PKC: any = typeof window !== 'undefined' ? window.PublicKeyCredential : undefined;
+    if (!isWebAuthnAvailable || typeof PKC?.isConditionalMediationAvailable !== 'function') {
+      return 'unsupported';
+    }
+    let picked = false;
+    try {
+      if (!(await PKC.isConditionalMediationAvailable())) return 'unsupported';
+      if (signal.aborted) return 'aborted';
+
+      const { publicKey, sessionId } = await beginDiscoverableLogin(signal);
+      if (signal.aborted) return 'aborted';
+
+      const credential = await navigator.credentials.get({
+        publicKey,
+        mediation: 'conditional',
+        signal,
+      } as CredentialRequestOptions) as PublicKeyCredential | null;
+      if (!credential) return 'aborted';
+      picked = true;
+
+      setLoading(true);
+      try {
+        await finishDiscoverableLogin(sessionId, credential);
+      } finally {
+        setLoading(false);
+      }
+      return 'signed-in';
+    } catch (error: any) {
+      if (signal.aborted || error?.name === 'AbortError' || axios.isCancel(error)) return 'aborted';
+      // Before the user picks a passkey, a failure (say, the rate limit on
+      // the challenge request) is not theirs to hear about; after, it is.
+      if (picked) {
+        toast.error(error?.response?.data?.error || error?.message || 'Passkey login failed');
+      }
+      return 'failed';
     }
   };
 
@@ -807,6 +869,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     lookupNIP05,
     loginWithWebAuthn,
     loginWithWebAuthnDiscoverable,
+    startPasskeyAutofill,
     registerWebAuthnCredential,
     listWebAuthnCredentials,
     deleteWebAuthnCredential,

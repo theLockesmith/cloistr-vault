@@ -38,6 +38,8 @@ export default function Settings() {
   const [busyCredential, setBusyCredential] = useState<string | null>(null);
 
   const isNostrUser = user?.auth_method === 'nostr' || user?.nostr_pubkey;
+  // Profiles stored before auth_method was set carry only a pubkey.
+  const authMethod = user?.auth_method || (user?.nostr_pubkey || user?.pubkey ? 'nostr' : 'email');
 
   /**
    * Enrols a passkey as a vault unlock factor.
@@ -230,13 +232,13 @@ export default function Settings() {
               <div>
                 <p className="text-sm font-medium">Authentication Method</p>
                 <p className="text-sm text-cloistr-text-muted capitalize">
-                  {user?.auth_method || 'email'}
+                  {authMethod}
                 </p>
               </div>
               <div className="flex items-center space-x-2">
-                {user?.auth_method === 'nostr' && <Key className="h-5 w-5 text-cloistr-primary-text" />}
-                {user?.auth_method === 'lightning_address' && <Zap className="h-5 w-5 text-cloistr-warning" />}
-                {(!user?.auth_method || user?.auth_method === 'email') && <Mail className="h-5 w-5 text-cloistr-info" />}
+                {authMethod === 'nostr' && <Key className="h-5 w-5 text-cloistr-primary-text" />}
+                {authMethod === 'lightning_address' && <Zap className="h-5 w-5 text-cloistr-warning" />}
+                {authMethod === 'email' && <Mail className="h-5 w-5 text-cloistr-info" />}
               </div>
             </div>
           </div>

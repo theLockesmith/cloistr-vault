@@ -252,6 +252,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               return {
                 pubkey: data.pubkey,
                 nostr_pubkey: data.pubkey,
+                // A signer session is a Nostr identity.
+                auth_method: 'nostr',
                 display_name: data.display_name ?? data.name ?? undefined,
                 nip05_address: data.nip05 ?? undefined,
               } as User;

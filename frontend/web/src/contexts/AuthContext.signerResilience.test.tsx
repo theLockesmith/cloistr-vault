@@ -167,6 +167,9 @@ describe('AuthContext signer probe resilience (Parts 1-2)', () => {
 
     expect(result.current.user).not.toBeNull();
     expect(result.current.user?.pubkey).toBe(TEST_PUBKEY);
+    // A signer session is a Nostr identity; Settings showed "email" when this
+    // was left unset (found by the WV4 live sweep).
+    expect(result.current.user?.auth_method).toBe('nostr');
     expect(result.current.sessionMode).toBe('signer');
     expect(result.current.signerProbeError).toBeNull();
   });

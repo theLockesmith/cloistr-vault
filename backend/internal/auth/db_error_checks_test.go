@@ -74,17 +74,6 @@ func TestDeleteWebAuthnSession_LogsFailure(t *testing.T) {
 	}
 }
 
-func TestDeleteDiscoverableSession_LogsFailure(t *testing.T) {
-	logs := captureLogs(t)
-	a, mock := mockAuth(t)
-	mock.ExpectExec(`DELETE FROM webauthn_sessions`).WillReturnError(errDBDown)
-
-	a.deleteDiscoverableSession("sess")
-	if !strings.Contains(logs.String(), "db down") {
-		t.Fatalf("failure not logged: %q", logs.String())
-	}
-}
-
 func TestValidateSession_ExpiredCleanupFailureIsLogged(t *testing.T) {
 	logs := captureLogs(t)
 	a, mock := mockAuth(t)

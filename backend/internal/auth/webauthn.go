@@ -164,6 +164,13 @@ func (a *AuthService) FinishWebAuthnRegistration(userID uuid.UUID, credName stri
 		return nil, ErrWebAuthnNotConfigured
 	}
 
+	// Claim the challenge before validating: only one finish can hold it,
+	// and a failed finish has spent it.
+	session, err := a.claimWebAuthnSession(userID, "registration")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get session: %w", err)
+	}
+
 	// Get user
 	user, err := a.getUserForWebAuthn(userID)
 	if err != nil {
@@ -177,12 +184,6 @@ func (a *AuthService) FinishWebAuthnRegistration(userID uuid.UUID, credName stri
 	}
 	user.Credentials = credentials
 
-	// Get session data
-	session, err := a.getWebAuthnSession(userID, "registration")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get session: %w", err)
-	}
-
 	// Finish registration
 	credential, err := a.webauthn.CreateCredential(user, *session, response)
 	if err != nil {
@@ -194,9 +195,6 @@ func (a *AuthService) FinishWebAuthnRegistration(userID uuid.UUID, credName stri
 	if err != nil {
 		return nil, fmt.Errorf("failed to store credential: %w", err)
 	}
-
-	// Clean up session
-	a.deleteWebAuthnSession(userID, "registration")
 
 	observability.Info("WebAuthn credential registered",
 		"user_id", userID.String(),
@@ -686,44 +684,6 @@ func (a *AuthService) storeWebAuthnSession(userID uuid.UUID, session *webauthn.S
 		uuid.New(), userID, buf.Bytes(), ceremonyType, session.Challenge, time.Now().Add(5*time.Minute))
 
 	return err
-}
-
-func (a *AuthService) getWebAuthnSession(userID uuid.UUID, ceremonyType string) (*webauthn.SessionData, error) {
-	var sessionData []byte
-	var expiresAt time.Time
-
-	err := a.db.QueryRow(`
-		SELECT session_data, expires_at
-		FROM webauthn_sessions
-		WHERE user_id = $1 AND ceremony_type = $2`,
-		userID, ceremonyType).Scan(&sessionData, &expiresAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ErrSessionNotFound
-		}
-		return nil, err
-	}
-
-	if time.Now().After(expiresAt) {
-		a.deleteWebAuthnSession(userID, ceremonyType)
-		return nil, ErrSessionExpired
-	}
-
-	// Decode session
-	var session webauthn.SessionData
-	dec := gob.NewDecoder(bytes.NewReader(sessionData))
-	if err := dec.Decode(&session); err != nil {
-		return nil, fmt.Errorf("failed to decode session: %w", err)
-	}
-
-	return &session, nil
-}
-
-func (a *AuthService) deleteWebAuthnSession(userID uuid.UUID, ceremonyType string) {
-	if _, err := a.db.Exec(`DELETE FROM webauthn_sessions WHERE user_id = $1 AND ceremony_type = $2`,
-		userID, ceremonyType); err != nil {
-		observability.Warn("failed to delete webauthn session", "error", err)
-	}
 }
 
 // claimWebAuthnSession deletes the user's session for ceremonyType and
